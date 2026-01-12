@@ -1,0 +1,10 @@
+# Ignore build artifacts
+target/
+.lancedb/
+
+# Ignore errors.txt (temporary file)
+errors.txt
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

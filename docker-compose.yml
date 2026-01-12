@@ -1,0 +1,32 @@
+services:
+  code-rag:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: code-rag:latest
+    volumes:
+      - .:/workspace:ro
+      - lancedb-data:/data/.lancedb
+    working_dir: /workspace
+    # entrypoint already set in Dockerfile
+
+  # Optional dev builder (fast compile in container with local caches)
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: code-rag-builder:latest
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - target-cache:/app/target
+    command: cargo build --release
+
+volumes:
+  lancedb-data:
+  cargo-cache:
+  cargo-git:
+  target-cache:
