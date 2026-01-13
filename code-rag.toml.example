@@ -1,0 +1,15 @@
+# code-rag.toml - Configuration Template
+
+# The path to the LanceDB vector database.
+# Defaults to "./.lancedb" if not specified.
+db_path = "./.lancedb"
+
+# The default directory to index if no path is provided to the 'index' command.
+# Defaults to "." (current directory) if not specified.
+default_index_path = "."
+
+# Future options (currently reserved):
+# [indexing]
+# exclude_patterns = ["target/", "node_modules/", ".git/"]
+# include_extensions = ["rs", "py", "js", "ts"]
+# chunk_size = 1000
