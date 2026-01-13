@@ -1,23 +1,45 @@
 $ErrorActionPreference = "Stop"
 
-New-Item -ItemType Directory -Force -Path "release\linux" | Out-Null
-New-Item -ItemType Directory -Force -Path "release\windows" | Out-Null
+function Show-Menu {
+    Clear-Host
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "   Code-RAG Build Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "1. Build Windows (Local)"
+    Write-Host "2. Build Linux (Docker)"
+    Write-Host "3. Build All"
+    Write-Host "Q. Quit"
+    Write-Host "===========================" -ForegroundColor Cyan
+}
 
-Write-Host "==> Building Linux binary (x86_64-unknown-linux-gnu)..." -ForegroundColor Cyan
-docker build `
-  -f Dockerfile.build `
-  --build-arg TARGET=x86_64-unknown-linux-gnu `
-  --output "type=local,dest=release\linux" `
-  .
+do {
+    Show-Menu
+    $choice = Read-Host "Select an option"
 
-Write-Host "==> Building Windows binary (x86_64-pc-windows-gnu)..." -ForegroundColor Cyan
-docker build `
-  -f Dockerfile.build `
-  --build-arg TARGET=x86_64-pc-windows-gnu `
-  --output "type=local,dest=release\windows" `
-  .
-
-Write-Host ""
-Write-Host "Done." -ForegroundColor Green
-Write-Host "Linux binary  : release\linux\code-rag"
-Write-Host "Windows binary: release\windows\code-rag.exe"
+    switch ($choice) {
+        "1" {
+            Write-Host "Starting Windows Build..." -ForegroundColor Yellow
+            & "$PSScriptRoot\scripts\build-windows.ps1"
+            Pause
+        }
+        "2" {
+            Write-Host "Starting Linux Build..." -ForegroundColor Yellow
+            & "$PSScriptRoot\scripts\build-linux.ps1"
+            Pause
+        }
+        "3" {
+            Write-Host "Starting All Builds..." -ForegroundColor Yellow
+            & "$PSScriptRoot\scripts\build-windows.ps1"
+            & "$PSScriptRoot\scripts\build-linux.ps1"
+            Pause
+        }
+        "q" {
+            Write-Host "Exiting..." -ForegroundColor Green
+            break
+        }
+        Default {
+            Write-Host "Invalid selection. Please try again." -ForegroundColor Red
+            Start-Sleep -Seconds 1
+        }
+    }
+} until ($choice -eq "q")

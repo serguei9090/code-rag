@@ -1,173 +1,175 @@
-Code-RAG CLI
+# Code RAG – Local Code Search with Embeddings
 
-code-rag is a cross-platform CLI tool for indexing and querying source code using embeddings and LanceDB.
+`code-rag` is a local-first code indexing and semantic search tool.
 
-It can be used:
+It:
+- 📁 Scans a folder with source code
+- ✂️ Splits files into chunks
+- 🧠 Generates embeddings locally (no cloud)
+- 🗄️ Stores them in a local LanceDB vector database
+- 🔍 Lets you search your code using natural language
 
-As a native CLI binary on Windows and Linux
+**Everything runs 100% locally.**
 
-Or via Docker for fully reproducible and isolated execution
+## 📦 What files / DB does it create?
 
-By agents / scripts / CI as a normal command-line tool
+When you run indexing, it creates this folder:
 
-📦 What gets built?
+```
+./.lancedb/
+```
 
-Depending on the platform:
+Inside:
+```
+./.lancedb/
+  └── code_chunks/   (LanceDB table)
+```
 
-Linux:
+So:
+- ✅ **Database location:** `./.lancedb` (relative to where you run the app)
+- ✅ **Table name:** `code_chunks`
+- ✅ You can delete `.lancedb` anytime to reset the index
 
-target/release/code-rag
+## 🚀 How to use
 
+### 1️⃣ Index a project
 
-Windows:
+This scans and indexes a folder:
 
-target\release\code-rag.exe
+```bash
+code-rag index /path/to/your/project
+```
 
+Example:
 
-These are native executables.
+```bash
+code-rag index .
+```
 
-The target/ folder should NOT be committed to git.
+**What it does:**
+- Walks all files recursively
+- Detects supported code files
+- Splits them into chunks
+- Generates embeddings
+- Saves them to `./.lancedb/code_chunks`
 
-🛠️ Build (Native, without Docker)
-Requirements
+### 2️⃣ Search using natural language
 
-Rust toolchain (https://rustup.rs
-)
+```bash
+code-rag search "how do we load the config file?"
+```
 
-On Linux:
+With limit:
 
-sudo apt install build-essential pkg-config libssl-dev protobuf-compiler
+```bash
+code-rag search "vector database initialization" --limit 10
+```
 
+**What it does:**
+- Converts your query to an embedding
+- Searches in LanceDB
+- Returns the most similar code chunks
 
-On Windows:
+### 3️⃣ Grep-style text search
 
-Install Rust via rustup
+```bash
+code-rag grep "tokio::main"
+```
 
-Install Visual Studio Build Tools (C++ workload)
+This is a simple text search, not semantic.
 
-Build (Linux or Windows)
-cargo build --release
+## 🧠 Embedding model used
 
+Your app uses: **NomicEmbedTextV15**
 
-Output:
+- Runs locally
+- Downloaded automatically on first use
+- Cached on your machine
 
-Linux:
+## 📁 Supported languages
 
-./target/release/code-rag
+Your `CodeChunker` detects languages by file extension (from `indexer.rs`).
+*(You can extend this easily later.)*
 
+## 🗑️ How to reset the database
 
-Windows:
+Just delete:
 
-.\target\release\code-rag.exe
+```bash
+rm -rf ./.lancedb
+```
 
-▶️ Run (Native)
-Linux
-./target/release/code-rag --help
+Or on Windows:
 
-Windows (PowerShell)
-.\target\release\code-rag.exe --help
+```powershell
+Remove-Item -Recurse -Force .\.lancedb
+```
 
-🐳 Build & Run with Docker (Recommended for reproducibility)
+Then re-run:
 
-This project includes a multi-stage Docker build and docker-compose setup.
+```bash
+code-rag index .
+```
 
-Requirements
+## 📂 Example workflow
 
-Docker Desktop
+```bash
+# 1) Index your repo
+code-rag index .
 
-Docker Compose
+# 2) Ask questions
+code-rag search "where is the database initialized?"
 
-Build the image
-docker compose build code-rag
+code-rag search "how embeddings are generated" --limit 5
+```
 
+## ⚙️ Build
 
-The build uses BuildKit cache mounts so repeated builds are much faster.
+### Windows (MSVC)
 
-Run the CLI
-docker compose run --rm code-rag --help
+```powershell
+cargo build --release --bin code-rag
+```
 
-Index a project (example)
-docker compose run --rm code-rag index /workspace
+Binary: `target\release\code-rag.exe`
 
+### Linux (Docker)
 
-Your current repo is mounted read-only into /workspace.
+Use your Docker pipeline.
 
-Where is the database stored?
+## 🔒 Privacy
 
-LanceDB is persisted in a Docker volume:
+- ✅ No cloud calls
+- ✅ No telemetry
+- ✅ Everything stored locally in `./.lancedb`
 
-/data/.lancedb
+## 🧱 Internal architecture (simple)
 
+```mermaid
+graph LR
+    Files --> Chunker
+    Chunker --> Embedder
+    Embedder --> LanceDB
+    Search --> LanceDB
+```
 
-So your index survives container restarts.
+## 🛣️ Future improvements (ideas)
 
-⚡ Fast development rebuilds (optional)
+- Web UI
+- File path filtering
+- Reindex only changed files
+- Metadata (git blame, timestamps, etc)
+- Hybrid BM25 + vector search
 
-There is a builder service for fast iteration without rebuilding the runtime image:
+## 🆘 Troubleshooting
 
-docker compose run --rm builder
+**“My search returns nothing”**
 
+- Did you run index first?
+- Does `./.lancedb` exist?
+- Try reindexing:
 
-This reuses:
-
-Cargo registry cache
-
-Cargo git cache
-
-target/ build cache
-
-🤖 How should agents use this?
-
-Your agents can run code-rag in three ways:
-
-1) Native binary (fastest)
-
-Windows:
-
-code-rag.exe ...
-
-
-Linux:
-
-./code-rag ...
-
-2) Docker (most portable / safest)
-docker compose run --rm code-rag ...
-
-3) CI / Automation
-
-In CI or scripts:
-
-docker build -t code-rag .
-docker run --rm -v $(pwd):/workspace code-rag --help
-
-📁 Recommended project layout for releases
-
-Do not commit target/.
-
-Instead, when publishing:
-
-dist/
-  windows/code-rag.exe
-  linux/code-rag
-
-
-These can be attached to GitHub Releases.
-
-🧠 Important notes
-
-The Linux binary built in Docker is Linux-only
-
-Windows must be built on Windows (or via cross-compilation setup)
-
-Docker avoids all OS dependency issues and is recommended for automation
-
-🔍 Debugging build issues
-
-If Docker build fails:
-
-docker build --no-cache --progress=plain .
-
-📜 License
-
-(Add your license here)
+```bash
+rm -rf ./.lancedb
+code-rag index .
+```

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 FROM rust:1.92.0-bookworm AS builder
 
-ARG TARGET
+ARG BIN_NAME=code-rag
 ENV CARGO_TERM_COLOR=always
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     clang \
     lld \
-    mingw-w64 \
     protobuf-compiler \
     libprotobuf-dev \
  && rm -rf /var/lib/apt/lists/*
@@ -19,23 +18,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /src
 COPY . .
 
-RUN rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-gnu
-
+# Build linux only (no cross compile)
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/src/target \
     set -eux; \
-    cargo --version; rustc --version; \
-    protoc --version; \
-    cargo build --release --target ${TARGET} --bin code-rag; \
-    ls -la target/${TARGET}/release; \
+    cargo --version; rustc --version; protoc --version; \
+    cargo build --release --bin ${BIN_NAME}; \
+    ls -la target/release; \
     mkdir -p /out; \
-    if [ "${TARGET}" = "x86_64-pc-windows-gnu" ]; then \
-      cp -v target/${TARGET}/release/code-rag.exe /out/code-rag.exe; \
-      cp -v target/${TARGET}/release/*.dll /out/ 2>/dev/null || true; \
-    else \
-      cp -v target/${TARGET}/release/code-rag /out/code-rag; \
-    fi
+    cp -v target/release/${BIN_NAME} /out/${BIN_NAME}
 
 FROM scratch AS export
 COPY --from=builder /out/ /

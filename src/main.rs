@@ -95,8 +95,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let results = searcher.semantic_search(&query, limit).await?;
             
             for batch in results {
-                 println!("Batch rows: {}", batch.num_rows());
-                 // For now just print row count to verify.
+                 let filenames: &arrow_array::StringArray = batch.column_by_name("filename")
+                     .expect("filename column missing")
+                     .as_any()
+                     .downcast_ref()
+                     .expect("filename not string");
+                 let codes: &arrow_array::StringArray = batch.column_by_name("code")
+                     .expect("code column missing")
+                     .as_any()
+                     .downcast_ref()
+                     .expect("code not string");
+                     
+                 for i in 0..batch.num_rows() {
+                     println!("\nMatch {}: {}", i + 1, filenames.value(i));
+                     let code = codes.value(i);
+                     let snippet: String = code.chars().take(200).collect();
+                     println!("{}\n...", snippet);
+                 }
             }
         }
         Commands::Grep { pattern } => {
