@@ -1,17 +1,27 @@
-# Task: Implement Code-RAG V2 Phase 2
+# Task: Implement Code-RAG V2 Phase 3 (Completed) & Phase 4
 
-## Phase 2: Efficiency (Incremental Indexing)
-- [ ] **2.1 Database Schema Update**
-    - [x] Add `last_modified` (Int64) column to `code_chunks` table in `storage.rs`.
-    - [x] Handle migration (or forced re-index warning) since schema changed. (Implicit via failure on old schema?)
-- [ ] **2.2 Logic Implementation**
-    - [x] Implement `get_indexed_files()` method in `Storage`.
-    - [x] Implement `should_index(path, current_mtime)` logic in `main.rs` (via update flag).
-- [x] **2.3 CLI Update**
-    - [x] Add `--update` flag to `Index` command in `main.rs`.
-    - [x] Integrate logic: If `--update` is set, skip unchanged files.
-    - [x] Add `--force` flag to `Index` command to wipe DB and re-index.
-- [ ] **2.4 Verification**
-    - [x] Test fresh index (via --force).
-    - [/] Test `--update` with no changes (0 chunks processed).
-    - [ ] Test `--update` with modified file (re-chunked).
+## Phase 3: Indexing Completeness (Completed)
+- [x] **3.1 HTML & CSS Support**
+    - [x] Create `test.html` and `test.css` for verification.
+    - [x] Add `element`, `script_element`, `style_element` to `indexer.rs` (HTML).
+    - [x] Add `rule_set`, `media_statement`, `keyframes_statement` to `indexer.rs` (CSS).
+    - [x] Verification: Index `test.html` and confirm chunks are found.
+- [x] **3.2 Top-Level Logic & Scripts**
+    - [x] Create `script.py` and `app.js` (test.py) with top-level code.
+    - [x] Add `lexical_declaration`, `variable_declaration` to `indexer.rs`.
+    - [x] Add `if_statement` (for `__main__` blocks) to `indexer.rs`.
+    - [x] Verification: Confirm global constants and scripts are indexed (8 chunks total).
+
+## Phase 4: Advanced Intelligence (Active)
+- [x] **4.1 HTML Reporting**
+    - [x] Create `Report` command in CLI.
+    - [x] Implement HTML template (using `minijinja` embedding).
+    - [x] Generate `results.html` from search results.
+    - [x] Verification: Run `search --html` and open file.
+- [x] **4.2 Call Hierarchy**
+    - [x] Capture function calls in `indexer.rs`.
+    - [x] Store `calls` in LanceDB schema.
+    - [x] Verification: Query for callers of a function (verified via report).
+- [ ] **4.3 Re-ranking**
+    - [ ] Research cross-encoder integration.
+    - [ ] Implement re-ranking logic.

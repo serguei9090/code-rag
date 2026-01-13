@@ -7,6 +7,7 @@ pub struct CodeChunk {
     pub line_start: usize,
     pub line_end: usize,
     pub last_modified: i64,
+    pub calls: Vec<String>,
 }
 
 pub struct CodeChunker {}
@@ -57,19 +58,19 @@ impl CodeChunker {
         let mut chunks = Vec::new();
         let root = tree.root_node();
         
-        self.traverse(&root, code, filename, &mut chunks, ext, mtime);
+        self.traverse(&root, code, filename, &mut chunks, ext, mtime, 0);
         
         chunks
     }
 
-    fn traverse(&self, node: &Node, code: &str, filename: &str, chunks: &mut Vec<CodeChunk>, _ext: &str, mtime: i64) {
+    fn traverse(&self, node: &Node, code: &str, filename: &str, chunks: &mut Vec<CodeChunk>, ext: &str, mtime: i64, depth: usize) {
         let kind = node.kind();
         
-        // Consolidated match arms to avoid "unreachable pattern" warnings
-        // We list all chunkable types from all supported languages here
-        let is_chunkable = matches!(kind,
+        let is_script_lang = matches!(ext, "py" | "js" | "ts" | "jsx" | "tsx" | "rb" | "lua");
+        
+        let is_semantic_chunk = matches!(kind,
             // Rust
-             "function_item" | "impl_item" | "struct_item" | "enum_item" | "mod_item" |
+             "function_item" | "impl_item" | "struct_item" | "enum_item" | "mod_item" | "const_item" | "static_item" |
             // Python, C/C++, generic
              "function_definition" | "class_definition" |
             // Go
@@ -81,10 +82,28 @@ impl CodeChunker {
             // Java/C#
              "interface_declaration" | "record_declaration" |
             // Ruby
-             "method" | "class" | "module"
+             "method" | "class" |
+            // HTML
+             "script_element" | "style_element" |
+            // CSS
+             "rule_set" | "media_statement" | "keyframes_statement"
         );
 
+        let is_ruby_module = ext == "rb" && kind == "module";
+
+        // Scripts logic: chunk top-level logic, but avoid noise
+        // Depth 1 means direct child of the root module/program
+        let is_script_chunk = is_script_lang && depth == 1 && matches!(kind,
+            "if_statement" | "flow_statement" | "expression_statement" | "assignment" | 
+            "variable_declaration" | "lexical_declaration" | "function_call" | "call"
+        );
+
+        let is_chunkable = is_semantic_chunk || is_ruby_module || is_script_chunk;
+
         if is_chunkable {
+            // println!("Chunking: {} in {} (depth: {})", kind, filename, depth);
+            // DEBUG: Print S-expression
+            // eprintln!("DEBUG AST: {}", node.to_sexp());
             let start_byte = node.start_byte();
             let end_byte = node.end_byte();
             
@@ -92,15 +111,19 @@ impl CodeChunker {
             let start_position = node.start_position();
             let end_position = node.end_position();
 
+            // Extract calls
+            let calls = self.find_calls(node, code);
+
             chunks.push(CodeChunk {
                 filename: filename.to_string(),
                 code: chunk_content.to_string(),
                 line_start: start_position.row + 1, 
                 line_end: end_position.row + 1,
                 last_modified: mtime,
+                calls,
             });
             
-            let is_container = kind.contains("class") || kind.contains("impl") || kind.contains("struct");
+            let is_container = kind.contains("class") || kind.contains("impl") || kind.contains("struct") || kind == "element" || kind == "stylesheet"; 
              if !is_container {
                  return;
              }
@@ -108,8 +131,40 @@ impl CodeChunker {
         
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-             self.traverse(&child, code, filename, chunks, _ext, mtime);
+             self.traverse(&child, code, filename, chunks, ext, mtime, depth + 1);
         }
+    }
+
+    fn find_calls(&self, node: &Node, code: &str) -> Vec<String> {
+        let mut calls = Vec::new();
+        let mut cursor = node.walk();
+        
+        // Simple recursive search looking for call-like nodes
+        for child in node.children(&mut cursor) {
+            let kind = child.kind();
+            // println!("DEBUG visiting kind: {}", kind); 
+            if matches!(kind, "call_expression" | "call" | "macro_invocation") {
+                // Try to get identifier
+                if let Some(name) = self.extract_name(&child, code) {
+                    calls.push(name);
+                }
+            }
+            // Recurse
+            calls.extend(self.find_calls(&child, code));
+        }
+        calls
+    }
+
+    fn extract_name(&self, node: &Node, code: &str) -> Option<String> {
+        // Heuristic: finding the 'function' or 'identifier' child
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+             let k = child.kind();
+             if matches!(k, "identifier" | "field_expression" | "scoped_identifier") {
+                 return Some(code[child.start_byte()..child.end_byte()].to_string());
+             }
+        }
+        None
     }
 }
 

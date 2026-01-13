@@ -4,6 +4,7 @@ use code_rag::storage::Storage;
 use code_rag::embedding::Embedder;
 use code_rag::search::CodeSearcher;
 use code_rag::config::AppConfig;
+use code_rag::reporting::{SearchResult, generate_html_report};
 use ignore::WalkBuilder;
 use std::path::Path;
 use std::fs;
@@ -11,6 +12,7 @@ use std::error::Error;
 use indicatif::{ProgressBar, ProgressStyle};
 use colored::*;
 use std::collections::HashMap;
+use arrow_array::{StringArray, Float32Array, Int32Array, ListArray, Array};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -36,6 +38,8 @@ enum Commands {
         limit: usize,
         #[arg(long)]
         db_path: Option<String>,
+        #[arg(long)]
+        html: bool,
     },
     Grep { pattern: String },
 }
@@ -157,6 +161,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let starts: Vec<i32> = chunk_slice.iter().map(|c| c.line_start as i32).collect();
                 let ends: Vec<i32> = chunk_slice.iter().map(|c| c.line_end as i32).collect();
                 let mtimes: Vec<i64> = chunk_slice.iter().map(|c| c.last_modified).collect();
+                let calls: Vec<Vec<String>> = chunk_slice.iter().map(|c| c.calls.clone()).collect();
                 
                 // Perform deletes for updated files (deduplicated)
                 if update {
@@ -167,11 +172,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
 
-                storage.add_chunks(ids, filenames, codes, starts, ends, mtimes, embeddings).await?;
+                storage.add_chunks(ids, filenames, codes, starts, ends, mtimes, calls, embeddings).await?;
             }
             pb_embed.finish_with_message("Indexing complete.");
         }
-        Commands::Search { query, limit, db_path } => {
+        Commands::Search { query, limit, db_path, html } => {
             let actual_db = db_path.unwrap_or(config.db_path);
             let storage = Storage::new(&actual_db).await?;
             let embedder = Embedder::new()?;
@@ -180,34 +185,74 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Searching for: '{}'", query);
             let results = searcher.semantic_search(&query, limit).await?;
             
-            for batch in results {
-                 let filenames: &arrow_array::StringArray = batch.column_by_name("filename")
-                     .expect("filename column missing")
-                     .as_any()
-                     .downcast_ref()
-                     .expect("filename not string");
-                 let codes: &arrow_array::StringArray = batch.column_by_name("code")
-                     .expect("code column missing")
-                     .as_any()
-                     .downcast_ref()
-                     .expect("code not string");
-                     
-                 for i in 0..batch.num_rows() {
-                     let filename = filenames.value(i);
-                     let score = if batch.column_by_name("_score").is_some() {
-                         let scores: &arrow_array::Float32Array = batch.column_by_name("_score")
-                             .unwrap()
-                             .as_any()
-                             .downcast_ref()
-                             .unwrap();
-                         scores.value(i)
-                     } else { 0.0 };
+            let mut search_results = Vec::new();
+            let mut rank = 1;
 
-                     println!("\n{} {} (Score: {:.4})", "Rank".bold(), (i + 1).to_string().cyan(), score);
-                     println!("{} {}", "File:".bold(), filename.yellow());
+            for batch in results {
+                 let filenames: &StringArray = batch.column_by_name("filename")
+                     .expect("filename column missing")
+                     .as_any().downcast_ref().expect("filename not string");
+                 let codes: &StringArray = batch.column_by_name("code")
+                     .expect("code column missing")
+                     .as_any().downcast_ref().expect("code not string");
+                 let line_starts: &Int32Array = batch.column_by_name("line_start")
+                     .expect("line_start column missing")
+                     .as_any().downcast_ref().expect("line_start not int32");
+                 let line_ends: &Int32Array = batch.column_by_name("line_end")
+                     .expect("line_end column missing")
+                     .as_any().downcast_ref().expect("line_end not int32");
+                 
+                 let calls_col: Option<&ListArray> = batch.column_by_name("calls")
+                     .and_then(|c| c.as_any().downcast_ref());
                      
-                     let code = codes.value(i);
-                     let snippet: String = code.lines().take(10).collect::<Vec<&str>>().join("\n");
+                 let scores: Option<&Float32Array> = batch.column_by_name("_score")
+                     .map(|c| c.as_any().downcast_ref().expect("_score not float32"));
+
+                 for i in 0..batch.num_rows() {
+                     let filename = filenames.value(i).to_string();
+                     let code = codes.value(i).to_string();
+                     let line_start = line_starts.value(i);
+                     let line_end = line_ends.value(i);
+                     let score = scores.map(|s| s.value(i)).unwrap_or(0.0);
+                     
+                     let mut calls_vec = Vec::new();
+                     if let Some(calls_arr) = calls_col {
+                         if !calls_arr.is_null(i) {
+                             let list_val = calls_arr.value(i);
+                             if let Some(str_arr) = list_val.as_any().downcast_ref::<StringArray>() {
+                                 for s in str_arr.iter().flatten() {
+                                     calls_vec.push(s.to_string());
+                                 }
+                             }
+                         }
+                     }
+                     // Debug print
+
+                     search_results.push(SearchResult {
+                         rank,
+                         score,
+                         filename,
+                         code,
+                         line_start,
+                         line_end,
+                         calls: calls_vec,
+                     });
+                     rank += 1;
+                 }
+            }
+
+            if html {
+                let report = generate_html_report(&query, &search_results);
+                let report_path = "results.html";
+                fs::write(report_path, report)?;
+                println!("{} {}", "HTML Report generated:".green().bold(), report_path);
+                // Optional: Try to open it? println!("Open file://{}/{}", std::env::current_dir()?.display(), report_path);
+            } else {
+                 for res in search_results {
+                     println!("\n{} {} (Score: {:.4})", "Rank".bold(), res.rank.to_string().cyan(), res.score);
+                     println!("{} {}:{}-{}", "File:".bold(), res.filename.yellow(), res.line_start, res.line_end);
+                     
+                     let snippet: String = res.code.lines().take(10).collect::<Vec<&str>>().join("\n");
                      println!("{}\n{}", "---".dimmed(), snippet);
                      println!("{}", "---".dimmed());
                  }

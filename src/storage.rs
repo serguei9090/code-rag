@@ -1,5 +1,6 @@
 use std::sync::Arc;
-use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, Int32Array, Int64Array, FixedSizeListArray};
+use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, Int32Array, Int64Array, FixedSizeListArray, ListArray};
+use arrow_array::builder::{ListBuilder, StringBuilder};
 use arrow_schema::{DataType, Field, Schema};
 use lancedb::connection::Connection;
 use lancedb::{connect, Result};
@@ -29,6 +30,7 @@ impl Storage {
             Field::new("line_start", DataType::Int32, false),
             Field::new("line_end", DataType::Int32, false),
             Field::new("last_modified", DataType::Int64, false),
+            Field::new("calls", DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))), true),
             Field::new(
                 "vector",
                 DataType::FixedSizeList(
@@ -56,6 +58,7 @@ impl Storage {
         line_starts: Vec<i32>,
         line_ends: Vec<i32>,
         last_modified: Vec<i64>,
+        calls: Vec<Vec<String>>,
         vectors: Vec<Vec<f32>>,
     ) -> std::result::Result<(), Box<dyn Error>> {
         let schema = Arc::new(Schema::new(vec![
@@ -65,6 +68,7 @@ impl Storage {
             Field::new("line_start", DataType::Int32, false),
             Field::new("line_end", DataType::Int32, false),
             Field::new("last_modified", DataType::Int64, false),
+            Field::new("calls", DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))), true),
             Field::new(
                 "vector",
                 DataType::FixedSizeList(
@@ -81,6 +85,16 @@ impl Storage {
         let line_starts_array = Int32Array::from(line_starts);
         let line_ends_array = Int32Array::from(line_ends);
         let last_modified_array = Int64Array::from(last_modified);
+        
+        // Build ListArray for calls
+        let mut builder = ListBuilder::new(StringBuilder::new());
+        for call_list in calls {
+            for call in call_list {
+                builder.values().append_value(call);
+            }
+            builder.append(true);
+        }
+        let calls_array = builder.finish();
         
         // Flatten vectors
         let flat_vectors: Vec<f32> = vectors.into_iter().flatten().collect();
@@ -102,6 +116,7 @@ impl Storage {
                 Arc::new(line_starts_array),
                 Arc::new(line_ends_array),
                 Arc::new(last_modified_array),
+                Arc::new(calls_array),
                 Arc::new(vector_array),
             ],
         )?;

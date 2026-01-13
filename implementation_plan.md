@@ -45,18 +45,18 @@ This plan addresses the gaps identified in [gap.md](gap.md), moving `code-rag` f
 
 ---
 
-## Phase 3: Indexing Completeness (High Priority)
+## Phase 3: Indexing Completeness (Completed)
 *Goal: Ensure no code is left behind.*
 
 ### 3.1 HTML & CSS Support ([Coverage](gap.md#6-indexing-completeness))
-- [ ] Add `tree-sitter-html` node matching (elements, attributes).
-- [ ] Add `tree-sitter-css` node matching (rules, selectors).
-- [ ] **Verification:** Create `test.html` and confirm chunks are found.
+- [x] Add `tree-sitter-html` node matching (elements, attributes).
+- [x] Add `tree-sitter-css` node matching (rules, selectors).
+- [x] **Verification:** Create `test.html` and confirm chunks are found.
 
 ### 3.2 Top-Level Logic & Scripts ([Coverage](gap.md#6-indexing-completeness))
-- [ ] Add support for Python global code (`if __main__`).
-- [ ] Index global constants and variables in Rust/JS.
-- [ ] **Verification:** Create `script.py` with only top-level code and verify indexing.
+- [x] Add support for Python global code (`if __main__`).
+- [x] Index global constants and variables in Rust/JS.
+- [x] **Verification:** Create `script.py` with only top-level code and verify indexing.
 
 ---
 

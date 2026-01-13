@@ -1,0 +1,53 @@
+warning: unused import: `ListArray`
+ --> src\storage.rs:2:124
+  |
+2 | ...eListArray, ListArray};
+  |                ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `code-rag` (lib) generated 1 warning (run `cargo fix --lib -p code-rag` to apply 1 suggestion)
+    Checking code-rag v0.1.0 (I:\01-Master_Code\Test-Labs\code-rag)
+error[E0599]: no method named `is_null` found for reference `&GenericListArray<i32>` in the current scope
+   --> src\main.rs:220:40
+    |
+220 |                          if !calls_arr.is_null(i) {
+    |                                        ^^^^^^^
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: there is a method `is_nullable` with a similar name, but with different arguments
+   --> C:\Users\ASCC\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\arrow-array-56.2.0\src\array\mod.rs:325:5
+    |
+325 |     fn is_nullable(&self) -> bool {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: trait `Array` which provides `is_null` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use arrow_array::Array;
+    |
+
+error[E0599]: no method named `len` found for reference `&GenericByteArray<GenericStringType<i32>>` in the current scope
+   --> src\main.rs:223:54
+    |
+223 | ...                   for k in 0..str_arr.len() {
+    |                                           ^^^ method not found in `&GenericByteArray<GenericStringType<i32>>`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `Array` which provides `len` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use arrow_array::Array;
+    |
+
+error[E0599]: no method named `value_check` found for reference `&GenericByteArray<GenericStringType<i32>>` in the current scope
+   --> src\main.rs:224:63
+    |
+224 | ...                   if let Some(s) = str_arr.value_check(k).ok() {
+    |                                                ^^^^^^^^^^^
+    |
+help: there is a method `value_unchecked` with a similar name
+    |
+224 -                                      if let Some(s) = str_arr.value_check(k).ok() {
+224 +                                      if let Some(s) = str_arr.value_unchecked(k).ok() {
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `code-rag` (bin "code-rag") due to 3 previous errors

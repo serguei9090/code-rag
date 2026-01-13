@@ -1,19 +1,36 @@
     Checking code-rag v0.1.0 (I:\01-Master_Code\Test-Labs\code-rag)
-error[E0308]: mismatched types
-   --> src\storage.rs:137:21
-    |
-137 |             .select(vec!["filename", "last_modified"])
-    |              ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Select`, found `Vec<&str>`
-    |              |
-    |              arguments to this method are incorrect
-    |
-    = note: expected enum `lancedb::query::Select`
-             found struct `Vec<&str>`
-note: method defined here
-   --> C:\Users\ASCC\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\lancedb-0.23.1\src\query.rs:405:8
-    |
-405 |     fn select(self, selection: Select) -> Self;
-    |        ^^^^^^
+error[E0425]: cannot find value `ext` in this scope
+  --> src\indexer.rs:39:78
+   |
+39 |         eprintln!("DEBUG: chunk_file called for {} with ext '{}'", filename, ext);
+   |                                                                              ^^^ not found in this scope
 
-For more information about this error, try `rustc --explain E0308`.
-error: could not compile `code-rag` (lib) due to 1 previous error
+error[E0425]: cannot find value `ext` in this scope
+  --> src\indexer.rs:41:49
+   |
+41 |         let language = match Self::get_language(ext) {
+   |                                                 ^^^ not found in this scope
+
+error[E0425]: cannot find value `ext` in this scope
+  --> src\indexer.rs:44:68
+   |
+44 |                 eprintln!("DEBUG: No language found for ext '{}'", ext);
+   |                                                                    ^^^ not found in this scope
+
+error[E0425]: cannot find value `ext` in this scope
+  --> src\indexer.rs:67:59
+   |
+67 |         self.traverse(&root, code, filename, &mut chunks, ext, mtime);
+   |                                                           ^^^ not found in this scope
+
+warning: unused import: `std::path::Path`
+ --> src\indexer.rs:1:5
+  |
+1 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `code-rag` (lib) generated 1 warning
+error: could not compile `code-rag` (lib) due to 4 previous errors; 1 warning emitted

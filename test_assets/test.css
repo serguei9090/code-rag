@@ -1,0 +1,15 @@
+.container {
+    display: flex;
+    justify-content: center;
+}
+
+#header {
+    background: blue;
+    color: white;
+}
+
+@media (max-width: 600px) {
+    .container {
+        flex-direction: column;
+    }
+}
