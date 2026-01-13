@@ -22,6 +22,22 @@
     - [x] Capture function calls in `indexer.rs`.
     - [x] Store `calls` in LanceDB schema.
     - [x] Verification: Query for callers of a function (verified via report).
-- [ ] **4.3 Re-ranking**
-    - [ ] Research cross-encoder integration.
-    - [ ] Implement re-ranking logic.
+- [x] **4.3 Re-ranking**
+    - [x] Research: Confirm `fastembed` support for Cross-Encoders.
+    - [x] Implementation:
+        - [x] Add `rerank` method to `Embedder`.
+        - [x] Update `CodeSearcher` to use two-stage retrieval (top 50 -> rerank -> top N).
+    - [x] Verification: Compare search scores before and after (Verified model download and execution).
+
+## Phase 5: Documentation & Enterprise Readiness (Active)
+- [x] **5.1 Test Assets**
+    - [x] Add Go, Java, JS test files to `test_assets`.
+    - [x] Verify indexing of new assets.
+- [x] **5.2 Documentation**
+    - [x] Update `README.md` with new features (HTML report, Call Hierarchy, Reranking).
+    - [x] Create `docs/` folder with deep-dive guides.
+- [x] **5.3 Enterprise Report**
+    - [x] Create `report.md` evaluating speed, accuracy, and standards.
+
+## Future Work (Added to Plan)
+- **Extended Language Support**: Bash, PowerShell, Dockerfile, YAML, TOML.

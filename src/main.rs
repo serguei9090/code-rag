@@ -3,8 +3,9 @@ use code_rag::indexer::CodeChunker;
 use code_rag::storage::Storage;
 use code_rag::embedding::Embedder;
 use code_rag::search::CodeSearcher;
+use code_rag::search::SearchResult;
 use code_rag::config::AppConfig;
-use code_rag::reporting::{SearchResult, generate_html_report};
+use code_rag::reporting::generate_html_report;
 use ignore::WalkBuilder;
 use std::path::Path;
 use std::fs;
@@ -12,7 +13,6 @@ use std::error::Error;
 use indicatif::{ProgressBar, ProgressStyle};
 use colored::*;
 use std::collections::HashMap;
-use arrow_array::{StringArray, Float32Array, Int32Array, ListArray, Array};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -183,63 +183,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
             
             println!("Searching for: '{}'", query);
-            let results = searcher.semantic_search(&query, limit).await?;
-            
-            let mut search_results = Vec::new();
-            let mut rank = 1;
-
-            for batch in results {
-                 let filenames: &StringArray = batch.column_by_name("filename")
-                     .expect("filename column missing")
-                     .as_any().downcast_ref().expect("filename not string");
-                 let codes: &StringArray = batch.column_by_name("code")
-                     .expect("code column missing")
-                     .as_any().downcast_ref().expect("code not string");
-                 let line_starts: &Int32Array = batch.column_by_name("line_start")
-                     .expect("line_start column missing")
-                     .as_any().downcast_ref().expect("line_start not int32");
-                 let line_ends: &Int32Array = batch.column_by_name("line_end")
-                     .expect("line_end column missing")
-                     .as_any().downcast_ref().expect("line_end not int32");
-                 
-                 let calls_col: Option<&ListArray> = batch.column_by_name("calls")
-                     .and_then(|c| c.as_any().downcast_ref());
-                     
-                 let scores: Option<&Float32Array> = batch.column_by_name("_score")
-                     .map(|c| c.as_any().downcast_ref().expect("_score not float32"));
-
-                 for i in 0..batch.num_rows() {
-                     let filename = filenames.value(i).to_string();
-                     let code = codes.value(i).to_string();
-                     let line_start = line_starts.value(i);
-                     let line_end = line_ends.value(i);
-                     let score = scores.map(|s| s.value(i)).unwrap_or(0.0);
-                     
-                     let mut calls_vec = Vec::new();
-                     if let Some(calls_arr) = calls_col {
-                         if !calls_arr.is_null(i) {
-                             let list_val = calls_arr.value(i);
-                             if let Some(str_arr) = list_val.as_any().downcast_ref::<StringArray>() {
-                                 for s in str_arr.iter().flatten() {
-                                     calls_vec.push(s.to_string());
-                                 }
-                             }
-                         }
-                     }
-                     // Debug print
-
-                     search_results.push(SearchResult {
-                         rank,
-                         score,
-                         filename,
-                         code,
-                         line_start,
-                         line_end,
-                         calls: calls_vec,
-                     });
-                     rank += 1;
-                 }
-            }
+            let search_results = searcher.semantic_search(&query, limit).await?;
 
             if html {
                 let report = generate_html_report(&query, &search_results);

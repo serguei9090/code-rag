@@ -64,13 +64,26 @@ This plan addresses the gaps identified in [gap.md](gap.md), moving `code-rag` f
 *Goal: Improve retrieval accuracy and analysis.*
 
 ### 4.1 HTML Reporting ([UX](gap.md#6-html-report-viewer))
-- [ ] Generate static HTML with `minijinja` or similar.
-- [ ] Add `serve` command.
+- [x] Generate static HTML with `minijinja` or similar.
+- [x] Add `serve` command.
 
 ### 4.2 Call Hierarchy ([Intelligence](gap.md#7-call-hierarchy-awareness))
-- [ ] Update AST parsing to extract function calls.
-- [ ] Add `calls` list column to LanceDB.
+- [x] Update AST parsing to extract function calls.
+- [x] Add `calls` list column to LanceDB.
 
 ### 4.3 Re-ranking ([Intelligence](gap.md#8-semantic-re-ranking))
-- [ ] Integrate cross-encoder model (e.g., via `ort` or `fastembed` if supported).
-- [ ] Implement two-stage pipelined search.
+- [x] Integrate cross-encoder model (e.g., via `ort` or `fastembed` if supported).
+- [x] Implement two-stage pipelined search.
+
+---
+
+## Phase 5: Extended Language Support (Future)
+*Goal: Support shell scripts and infrastructure-as-code.*
+
+### 5.1 Shell Scripting
+- [ ] Add `tree-sitter-bash` and `tree-sitter-powershell` (community).
+- [ ] Implement AST traversal for shell commands and functions.
+
+### 5.2 Configuration & Infrastructure
+- [ ] Add `tree-sitter-dockerfile`, `tree-sitter-yaml`, `tree-sitter-json`.
+- [ ] Implement chunking for declarative formats.

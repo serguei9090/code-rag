@@ -4,8 +4,20 @@ use grep_regex::RegexMatcher;
 use grep_searcher::Searcher;
 use grep_searcher::sinks::UTF8;
 use ignore::WalkBuilder;
-use arrow_array::RecordBatch;
+use arrow_array::{RecordBatch, StringArray, Float32Array, Int32Array, ListArray, Array};
 use std::error::Error;
+use serde::Serialize;
+
+#[derive(Serialize, Clone, Debug)]
+pub struct SearchResult {
+    pub rank: usize,
+    pub score: f32,
+    pub filename: String,
+    pub code: String,
+    pub line_start: i32,
+    pub line_end: i32,
+    pub calls: Vec<String>,
+}
 
 pub struct CodeSearcher {
     storage: Option<Storage>,
@@ -17,13 +29,95 @@ impl CodeSearcher {
         Self { storage, embedder }
     }
 
-    pub async fn semantic_search(&mut self, query: &str, limit: usize) -> Result<Vec<RecordBatch>, Box<dyn Error>> {
+    pub async fn semantic_search(&mut self, query: &str, limit: usize) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if let (Some(storage), Some(embedder)) = (&self.storage, &mut self.embedder) {
             let vectors = embedder.embed(vec![query.to_string()])?;
-            // Flatten if needed, but embed returns Vec<Vec<f32>>
+            
             if let Some(vector) = vectors.first() {
-                 let results = storage.search(vector.clone(), limit).await?;
-                 Ok(results)
+                // Fetch more candidates for re-ranking (e.g., 50 or limit * 5)
+                 let fetch_limit = std::cmp::max(50, limit * 5);
+                 let batches = storage.search(vector.clone(), fetch_limit).await?;
+                 
+                 let mut candidates = Vec::new();
+                 
+                 // Convert RecordBatches to SearchResults
+                 for batch in batches {
+                     let filenames: &StringArray = batch.column_by_name("filename")
+                         .ok_or("filename missing")?.as_any().downcast_ref().ok_or("filename wrong type")?;
+                     let codes: &StringArray = batch.column_by_name("code")
+                         .ok_or("code missing")?.as_any().downcast_ref().ok_or("code wrong type")?;
+                     let line_starts: &Int32Array = batch.column_by_name("line_start")
+                         .ok_or("line_start missing")?.as_any().downcast_ref().ok_or("line_start wrong type")?;
+                     let line_ends: &Int32Array = batch.column_by_name("line_end")
+                         .ok_or("line_end missing")?.as_any().downcast_ref().ok_or("line_end wrong type")?;
+                     let calls_col: Option<&ListArray> = batch.column_by_name("calls")
+                         .and_then(|c| c.as_any().downcast_ref());
+                     let scores: Option<&Float32Array> = batch.column_by_name("_score")
+                         .and_then(|c| c.as_any().downcast_ref());
+
+                     for i in 0..batch.num_rows() {
+                         let mut calls_vec = Vec::new();
+                         if let Some(calls_arr) = calls_col {
+                             if !calls_arr.is_null(i) {
+                                 let list_val = calls_arr.value(i);
+                                 if let Some(str_arr) = list_val.as_any().downcast_ref::<StringArray>() {
+                                    for s in str_arr.iter().flatten() {
+                                        calls_vec.push(s.to_string());
+                                    }
+                                 }
+                             }
+                         }
+
+                         candidates.push(SearchResult {
+                             rank: 0, // Assigned later
+                             score: scores.map(|s| s.value(i)).unwrap_or(0.0),
+                             filename: filenames.value(i).to_string(),
+                             code: codes.value(i).to_string(),
+                             line_start: line_starts.value(i),
+                             line_end: line_ends.value(i),
+                             calls: calls_vec,
+                         });
+                     }
+                 }
+                 
+                 // Re-rank
+                 let texts: Vec<String> = candidates.iter().map(|c| c.code.clone()).collect();
+                 // Attempt rerank. If it fails (e.g. model download issue), fallback to vector score?
+                 // For now, hard dependency on success or fallback.
+                 // let reranked_scores = embedder.rerank(query, texts)?; 
+                 // Actually, embedder.rerank returns indices and scores.
+                 
+                 // Check if reranker is available or should be used.
+                 // Since we implemented `rerank` to init lazily, we can just call it.
+                 // Ideally we'd have a config flag, but I'll make it always run for "Advanced Intelligence" phase verification.
+                 // Or better: try rerank, log error on failure? No, panic on failure is bad.
+                 
+                 match embedder.rerank(query, texts) {
+                     Ok(rerank_results) => {
+                         // Update scores
+                         for (original_idx, new_score) in rerank_results {
+                             if let Some(candidate) = candidates.get_mut(original_idx) {
+                                 candidate.score = new_score;
+                             }
+                         }
+                         // Sort by new score (descending)
+                         // f32 is not Ord, use partial_cmp
+                         candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+                     },
+                     Err(e) => {
+                         eprintln!("Reranking failed/skipped: {}. Using vector scores.", e);
+                         // Keep vector scores (already sorted by LanceDB usually, but we appended batches)
+                         // LanceDB returns sorted.
+                     }
+                 }
+
+                 // Truncate and assign ranks
+                 let mut final_results = candidates.into_iter().take(limit).collect::<Vec<_>>();
+                 for (i, res) in final_results.iter_mut().enumerate() {
+                     res.rank = i + 1;
+                 }
+                 
+                 Ok(final_results)
             } else {
                 Err("No embedding generated".into())
             }

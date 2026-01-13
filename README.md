@@ -52,16 +52,23 @@ This scans and indexes a folder:
 code-rag index /path/to/your/project
 ```
 
-Example:
+Update an existing index (incremental):
 
 ```bash
-code-rag index .
+code-rag index --update
+```
+
+Force a fresh re-index:
+
+```bash
+code-rag index --force
 ```
 
 **What it does:**
 - Walks all files recursively
-- Detects supported code files
-- Splits them into chunks
+- Detects supported code files (Rust, Python, Go, C/C++, JS/TS, Java, C#, Ruby, PHP, HTML, CSS)
+- Splits them into semantic chunks (functions, classes, etc.)
+- extracts function calls/usages
 - Generates embeddings
 - Saves them to `./.lancedb/code_chunks`
 
@@ -77,10 +84,18 @@ With limit:
 code-rag search "vector database initialization" --limit 10
 ```
 
+Generate an HTML report:
+
+```bash
+code-rag search "authentication logic" --html
+```
+
 **What it does:**
 - Converts your query to an embedding
-- Searches in LanceDB
+- Performs a hybrid search (Vector + Re-ranking)
+- Uses `BGE-Reranker` to refine the top results
 - Returns the most similar code chunks
+- Displays extracted call hierarchy (what functions are called)
 
 ### 3️⃣ Grep-style text search
 

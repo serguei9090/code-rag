@@ -1,16 +1,5 @@
-use serde::Serialize;
 use minijinja::{Environment, context};
-
-#[derive(Serialize)]
-pub struct SearchResult {
-    pub rank: usize,
-    pub score: f32,
-    pub filename: String,
-    pub code: String,
-    pub line_start: i32,
-    pub line_end: i32,
-    pub calls: Vec<String>,
-}
+use crate::search::SearchResult;
 
 pub fn generate_html_report(query: &str, results: &[SearchResult]) -> String {
     let mut env = Environment::new();
