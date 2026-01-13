@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, Int32Array, FixedSizeListArray};
+use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, Int32Array, Int64Array, FixedSizeListArray};
 use arrow_schema::{DataType, Field, Schema};
 use lancedb::connection::Connection;
 use lancedb::{connect, Result};
@@ -28,6 +28,7 @@ impl Storage {
             Field::new("code", DataType::Utf8, false),
             Field::new("line_start", DataType::Int32, false),
             Field::new("line_end", DataType::Int32, false),
+            Field::new("last_modified", DataType::Int64, false),
             Field::new(
                 "vector",
                 DataType::FixedSizeList(
@@ -54,6 +55,7 @@ impl Storage {
         code: Vec<String>,
         line_starts: Vec<i32>,
         line_ends: Vec<i32>,
+        last_modified: Vec<i64>,
         vectors: Vec<Vec<f32>>,
     ) -> std::result::Result<(), Box<dyn Error>> {
         let schema = Arc::new(Schema::new(vec![
@@ -62,6 +64,7 @@ impl Storage {
             Field::new("code", DataType::Utf8, false),
             Field::new("line_start", DataType::Int32, false),
             Field::new("line_end", DataType::Int32, false),
+            Field::new("last_modified", DataType::Int64, false),
             Field::new(
                 "vector",
                 DataType::FixedSizeList(
@@ -77,6 +80,7 @@ impl Storage {
         let code_array = StringArray::from(code);
         let line_starts_array = Int32Array::from(line_starts);
         let line_ends_array = Int32Array::from(line_ends);
+        let last_modified_array = Int64Array::from(last_modified);
         
         // Flatten vectors
         let flat_vectors: Vec<f32> = vectors.into_iter().flatten().collect();
@@ -97,6 +101,7 @@ impl Storage {
                 Arc::new(code_array),
                 Arc::new(line_starts_array),
                 Arc::new(line_ends_array),
+                Arc::new(last_modified_array),
                 Arc::new(vector_array),
             ],
         )?;
@@ -119,6 +124,46 @@ impl Storage {
             .try_collect::<Vec<_>>()
             .await?;
         Ok(results)
+    }
+
+    pub async fn get_indexed_metadata(&self) -> Result<std::collections::HashMap<String, i64>> {
+        if self.conn.open_table(&self.table_name).execute().await.is_err() {
+             return Ok(std::collections::HashMap::new());
+        }
+        
+        let table = self.conn.open_table(&self.table_name).execute().await?;
+        let mut stream = table
+            .query()
+            .select(lancedb::query::Select::Columns(vec!["filename".to_string(), "last_modified".to_string()]))
+            .execute()
+            .await?;
+
+        let mut metadata = std::collections::HashMap::new();
+
+        while let Some(batch) = stream.try_next().await? {
+            let filenames: &StringArray = batch.column_by_name("filename")
+                .ok_or(lancedb::Error::Runtime { message: "Missing filename".into() })?
+                .as_any().downcast_ref().unwrap();
+                
+            if let Some(col) = batch.column_by_name("last_modified") {
+                let mtimes: &Int64Array = col.as_any().downcast_ref().unwrap();
+                for i in 0..batch.num_rows() {
+                     let fname = filenames.value(i).to_string();
+                     let mtime = mtimes.value(i);
+                     metadata.insert(fname, mtime);
+                }
+            }
+        }
+        Ok(metadata)
+    }
+
+    pub async fn delete_file_chunks(&self, filename: &str) -> Result<()> {
+         if self.conn.open_table(&self.table_name).execute().await.is_ok() {
+             let table = self.conn.open_table(&self.table_name).execute().await?;
+             let safe_filename = filename.replace("'", "''"); 
+             table.delete(&format!("filename = '{}'", safe_filename)).await?;
+         }
+         Ok(())
     }
 }
 

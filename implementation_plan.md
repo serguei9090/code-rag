@@ -29,28 +29,48 @@ This plan addresses the gaps identified in [gap.md](gap.md), moving `code-rag` f
 
 ---
 
-## Phase 2: Efficiency (Next Steps)
+## Phase 2: Efficiency (Completed)
 *Goal: Scale to large repositories.*
 
 ### 2.1 Incremental Indexing ([Performance](gap.md#3-incremental-indexing-update-mode))
-- [ ] Add schema column: `last_modified` (int).
-- [ ] Implement `should_index(path, current_mtime)` check against DB.
-- [ ] Add `--update` flag to `Index` command.
-- [ ] **Verification:** Index, modify 1 file, run `--update`, verify only 1 file processed.
+- [x] Add schema column: `last_modified` (int).
+- [x] Implement `should_index(path, current_mtime)` check against DB.
+- [x] Add `--update` flag to `Index` command.
+- [x] **Verification:** Index, modify 1 file, run `--update`, verify only 1 file processed.
+
+### 2.2 Force Re-indexing ([Recovery](gap.md#2-database-location-control-db-path))
+- [x] Add `--force` flag to `Index` command.
+- [x] Implement database directory removal logic.
+- [x] **Verification:** Run `index --force` and confirm fresh scan.
 
 ---
 
-## Phase 3: Advanced Intelligence (Future)
+## Phase 3: Indexing Completeness (High Priority)
+*Goal: Ensure no code is left behind.*
+
+### 3.1 HTML & CSS Support ([Coverage](gap.md#6-indexing-completeness))
+- [ ] Add `tree-sitter-html` node matching (elements, attributes).
+- [ ] Add `tree-sitter-css` node matching (rules, selectors).
+- [ ] **Verification:** Create `test.html` and confirm chunks are found.
+
+### 3.2 Top-Level Logic & Scripts ([Coverage](gap.md#6-indexing-completeness))
+- [ ] Add support for Python global code (`if __main__`).
+- [ ] Index global constants and variables in Rust/JS.
+- [ ] **Verification:** Create `script.py` with only top-level code and verify indexing.
+
+---
+
+## Phase 4: Advanced Intelligence (Future)
 *Goal: Improve retrieval accuracy and analysis.*
 
-### 3.1 HTML Reporting ([UX](gap.md#6-html-report-viewer))
+### 4.1 HTML Reporting ([UX](gap.md#6-html-report-viewer))
 - [ ] Generate static HTML with `minijinja` or similar.
 - [ ] Add `serve` command.
 
-### 3.2 Call Hierarchy ([Intelligence](gap.md#7-call-hierarchy-awareness))
+### 4.2 Call Hierarchy ([Intelligence](gap.md#7-call-hierarchy-awareness))
 - [ ] Update AST parsing to extract function calls.
 - [ ] Add `calls` list column to LanceDB.
 
-### 3.3 Re-ranking ([Intelligence](gap.md#8-semantic-re-ranking))
+### 4.3 Re-ranking ([Intelligence](gap.md#8-semantic-re-ranking))
 - [ ] Integrate cross-encoder model (e.g., via `ort` or `fastembed` if supported).
 - [ ] Implement two-stage pipelined search.

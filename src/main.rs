@@ -10,6 +10,7 @@ use std::fs;
 use std::error::Error;
 use indicatif::{ProgressBar, ProgressStyle};
 use colored::*;
+use std::collections::HashMap;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -24,6 +25,10 @@ enum Commands {
         path: Option<String>,
         #[arg(long)]
         db_path: Option<String>,
+        #[arg(long)]
+        update: bool,
+        #[arg(long)]
+        force: bool,
     },
     Search {
         query: String,
@@ -41,9 +46,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = AppConfig::new()?;
 
     match args.cmd {
-        Commands::Index { path, db_path } => {
+        Commands::Index { path, db_path, update, force } => {
             let actual_path = path.unwrap_or(config.default_index_path);
             let actual_db = db_path.unwrap_or(config.db_path);
+
+            if force {
+                println!("Force flag set. Removing database at: {}", actual_db);
+                if Path::new(&actual_db).exists() {
+                    fs::remove_dir_all(&actual_db)?;
+                }
+            }
 
             println!("Indexing path: {}", actual_path);
             let index_path = Path::new(&actual_path);
@@ -63,6 +75,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let mut chunks_batch = Vec::new();
             let mut file_count = 0;
             
+            // For incremental updates
+            let existing_files = if update {
+                println!("Fetching existing index metadata...");
+                storage.get_indexed_metadata().await?
+            } else {
+                HashMap::new()
+            };
+            
             for result in walker {
                 match result {
                     Ok(entry) => {
@@ -74,11 +94,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
                         
                         if CodeChunker::get_language(ext).is_some() {
-                             if let Ok(code) = fs::read_to_string(file_path) {
-                                 file_count += 1;
-                                 pb_scan.set_message(format!("Scanning: {} ({} chunks found)", file_path.display(), chunks_batch.len()));
-                                 let new_chunks = chunker.chunk_file(file_path.to_string_lossy().as_ref(), &code);
-                                 chunks_batch.extend(new_chunks);
+                             if let Ok(metadata) = fs::metadata(file_path) {
+                                 let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                                 let mtime = modified.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+                                 let fname_str = file_path.to_string_lossy().to_string();
+
+                                 if update {
+                                     if let Some(stored_mtime) = existing_files.get(&fname_str) {
+                                         if *stored_mtime == mtime {
+                                             // Unchanged, skip
+                                             continue;
+                                         }
+                                         // Changed, remove old chunks
+                                         // Note: This is per-file. For batch efficiency we might want to batch deletes too, 
+                                         // but for now deleting individually is safer logic-wise.
+                                         // Ideally we defer deletes or just let them happen. 
+                                         // LanceDB delete is async, we should await it.
+                                         // But we are in a sync loop (walker). 
+                                         // We need to collect files to delete or make the loop async-friendly?
+                                         // Walker is sync.
+                                         // We can't await here easily without block_on or refactoring.
+                                         // Refactoring walker to be async is hard with 'ignore' crate.
+                                     }
+                                 }
+
+                                 if let Ok(code) = fs::read_to_string(file_path) {
+                                     file_count += 1;
+                                     pb_scan.set_message(format!("Scanning: {} ({} chunks found)", file_path.display(), chunks_batch.len()));
+                                     let new_chunks = chunker.chunk_file(&fname_str, &code, mtime);
+                                     chunks_batch.extend(new_chunks);
+                                 }
                              }
                         }
                     }
@@ -111,8 +156,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let codes: Vec<String> = chunk_slice.iter().map(|c| c.code.clone()).collect();
                 let starts: Vec<i32> = chunk_slice.iter().map(|c| c.line_start as i32).collect();
                 let ends: Vec<i32> = chunk_slice.iter().map(|c| c.line_end as i32).collect();
+                let mtimes: Vec<i64> = chunk_slice.iter().map(|c| c.last_modified).collect();
                 
-                storage.add_chunks(ids, filenames, codes, starts, ends, embeddings).await?;
+                // Perform deletes for updated files (deduplicated)
+                if update {
+                    let unique_files: std::collections::HashSet<_> = filenames.iter().collect();
+                    for file in unique_files {
+                        // We await here because this loop IS async
+                        let _ = storage.delete_file_chunks(file).await;
+                    }
+                }
+
+                storage.add_chunks(ids, filenames, codes, starts, ends, mtimes, embeddings).await?;
             }
             pb_embed.finish_with_message("Indexing complete.");
         }

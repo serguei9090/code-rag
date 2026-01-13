@@ -6,6 +6,7 @@ pub struct CodeChunk {
     pub code: String,
     pub line_start: usize,
     pub line_end: usize,
+    pub last_modified: i64,
 }
 
 pub struct CodeChunker {}
@@ -34,7 +35,7 @@ impl CodeChunker {
         }
     }
 
-    pub fn chunk_file(&self, filename: &str, code: &str) -> Vec<CodeChunk> {
+    pub fn chunk_file(&self, filename: &str, code: &str, mtime: i64) -> Vec<CodeChunk> {
         let path = Path::new(filename);
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
         
@@ -45,7 +46,7 @@ impl CodeChunker {
 
         let mut parser = Parser::new();
         if parser.set_language(&language).is_err() {
-            return vec![];
+             return vec![];
         }
 
         let tree = match parser.parse(code, None) {
@@ -56,12 +57,12 @@ impl CodeChunker {
         let mut chunks = Vec::new();
         let root = tree.root_node();
         
-        self.traverse(&root, code, filename, &mut chunks, ext); // ext unused but kept for parity
+        self.traverse(&root, code, filename, &mut chunks, ext, mtime);
         
         chunks
     }
 
-    fn traverse(&self, node: &Node, code: &str, filename: &str, chunks: &mut Vec<CodeChunk>, _ext: &str) {
+    fn traverse(&self, node: &Node, code: &str, filename: &str, chunks: &mut Vec<CodeChunk>, _ext: &str, mtime: i64) {
         let kind = node.kind();
         
         // Consolidated match arms to avoid "unreachable pattern" warnings
@@ -96,6 +97,7 @@ impl CodeChunker {
                 code: chunk_content.to_string(),
                 line_start: start_position.row + 1, 
                 line_end: end_position.row + 1,
+                last_modified: mtime,
             });
             
             let is_container = kind.contains("class") || kind.contains("impl") || kind.contains("struct");
@@ -106,7 +108,7 @@ impl CodeChunker {
         
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-             self.traverse(&child, code, filename, chunks, _ext);
+             self.traverse(&child, code, filename, chunks, _ext, mtime);
         }
     }
 }
