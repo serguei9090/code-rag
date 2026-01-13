@@ -29,6 +29,18 @@ So:
 - ✅ **Database location:** `./.lancedb` (relative to where you run the app)
 - ✅ **Table name:** `code_chunks`
 - ✅ You can delete `.lancedb` anytime to reset the index
+- ✅ **Default Database Path:** `./.lancedb` (can be changed in config or via `--db-path`)
+
+## 📁 File Exclusion (Ignored files)
+
+`code-rag` is designed to be efficient and respectful of your project settings. By default, it automatically ignores:
+
+-   **`.gitignore`**: Anything listed in your gitignore will not be indexed.
+-   **`.ignore`**: If you want to ignore files specifically for `code-rag` but keep them in Git, use this file.
+-   **Hidden Files**: Files and folders starting with a dot (e.g., `.git/`, `.env`) are ignored.
+-   **System/Global ignores**: Your global Git configuration is also respected.
+
+This ensures you don't accidentally index `node_modules`, `target/`, or other massive build artifacts.
 
 ## 🚀 How to use
 
@@ -110,6 +122,25 @@ Then re-run:
 ```bash
 code-rag index .
 ```
+
+## ⚙️ Configuration (`code-rag.toml`)
+
+You can create a `code-rag.toml` file in your project root to avoid typing the same paths repeatedly.
+
+The tool loads configuration in this order:
+1.  **CLI Flags** (e.g., `--db-path`)
+2.  **Local Config** (`./code-rag.toml`)
+3.  **Global Config** (`~/.code-rag/config.toml`)
+4.  **Environment Variables** (Prefix `CODE_RAG_`)
+
+**Example `code-rag.toml`:**
+```toml
+# Use single quotes for Windows paths!
+db_path = './.lancedb'
+default_index_path = '.'
+```
+
+See `code-rag.toml.example` for a template.
 
 ## 📂 Example workflow
 

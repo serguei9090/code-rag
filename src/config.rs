@@ -1,6 +1,5 @@
 use serde::Deserialize;
 use config::{Config, ConfigError, File, Environment};
-use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {

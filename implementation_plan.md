@@ -7,25 +7,25 @@ This plan addresses the gaps identified in [gap.md](gap.md), moving `code-rag` f
 *Goal: Enable flexible deployment and improve developer experience.*
 
 ### 1.1 Database Location Control ([High Priority](gap.md#2-database-location-control-db-path))
-- [ ] Add `--db-path` argument to `Args` struct.
-- [ ] Update `Storage::new` to accept custom paths.
-- [ ] **Verification:** Index a repo to a separate temp folder.
+- [x] Add `--db-path` argument to `Args` struct.
+- [x] Update `Storage::new` to accept custom paths.
+- [x] **Verification:** Index a repo to a separate temp folder.
 
 ### 1.2 Configuration Management ([High Priority](gap.md#1-configuration-management-code-ragtoml))
-- [ ] Create `Config` struct (using `config` crate).
-- [ ] Load from `~/.code-rag/config.toml` -> `./code-rag.toml` -> Env Vars -> CLI Args.
-- [ ] **Verification:** Verify `default_index_path` is respected when running without args.
+- [x] Create `Config` struct (using `config` crate).
+- [x] Load from `~/.code-rag/config.toml` -> `./code-rag.toml` -> Env Vars -> CLI Args.
+- [x] **Verification:** Verify `default_index_path` is respected when running without args.
 
 ### 1.3 Visual Feedback ([UX](gap.md#4-visual-feedback-progress-bar))
-- [ ] Add `indicatif` dependency.
-- [ ] Wrap file walking and embedding loops with progress bars.
-- [ ] **Verification:** Run index on a large folder (e.g., node_modules) and watch the bar.
+- [x] Add `indicatif` dependency.
+- [x] Wrap file walking and embedding loops with progress bars.
+- [x] **Verification:** Run index on a large folder (e.g., node_modules) and watch the bar.
 
 ### 1.4 Result Pretty Printing ([UX](gap.md#5-result-pretty-printing))
-- [ ] Create `Display` impl for search results.
-- [ ] Use `colored` crate for syntax highlighting.
-- [ ] Format: Rank | Score | File:Line.
-- [ ] **Verification:** Run search and check legibility.
+- [x] Create `Display` impl for search results.
+- [x] Use `colored` crate for syntax highlighting.
+- [x] Format: Rank | Score | File:Line.
+- [x] **Verification:** Run search and check legibility.
 
 ---
 

@@ -1,15 +1,48 @@
 # code-rag.toml - Configuration Template
 
-# The path to the LanceDB vector database.
+# ==========================================
+# DATABASE PATH
+# ==========================================
+# The location where vector data and index files are stored.
+#
+# WINDOWS USERS: Use single quotes to avoid escaping backslashes.
+# Correct:   db_path = 'C:\Users\Name\.code-rag\db'
+# Incorrect: db_path = "C:\Users\Name\.code-rag\db" (Invalid Escape Error)
+#
 # Defaults to "./.lancedb" if not specified.
-db_path = "./.lancedb"
+db_path = './.lancedb'
 
-# The default directory to index if no path is provided to the 'index' command.
-# Defaults to "." (current directory) if not specified.
-default_index_path = "."
+# ==========================================
+# DEFAULT INDEX PATH
+# ==========================================
+# The directory to scan when running `code-rag index` without arguments.
+# Defaults to "." (current directory).
+#
+# WINDOWS USERS: Use single quotes for paths.
+# Example: default_index_path = 'C:\Projects\MyRepo'
+default_index_path = '.'
+
+# ==========================================
+# SUPPORTED EXTENSIONS
+# ==========================================
+# Code-RAG uses Tree-sitter for AST parsing. Only the following extensions
+# vary by their language grammar and are currently indexed:
+#
+# Rust:       .rs
+# Python:     .py
+# Go:         .go
+# C/C++:      .c, .h, .cpp, .hpp, .cc, .cxx
+# JavaScript: .js, .jsx
+# TypeScript: .ts, .tsx
+# Java:       .java
+# C#:         .cs
+# Ruby:       .rb
+# PHP:        .php
+# Web:        .html, .css
+#
+# Note: Generic text files (.txt, .md) are NOT currently indexed 
+# because they lack a structured AST grammar.
 
 # Future options (currently reserved):
 # [indexing]
 # exclude_patterns = ["target/", "node_modules/", ".git/"]
-# include_extensions = ["rs", "py", "js", "ts"]
-# chunk_size = 1000
