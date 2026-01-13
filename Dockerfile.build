@@ -1,54 +1,40 @@
 # syntax=docker/dockerfile:1.6
-FROM rust:slim-bookworm AS builder
+FROM rust:1.83-bookworm AS builder
 
 ARG TARGET
 ENV CARGO_TERM_COLOR=always
-# Remove the GNU linker env var as we are switching to MSVC
-# ENV CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    g++ \
     pkg-config \
     ca-certificates \
-    protobuf-compiler \
-    libprotobuf-dev \
-    libssl-dev \
     cmake \
-    golang-go \
-    perl \
     clang \
-    llvm \
     lld \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN cargo install xwin --locked
-RUN xwin splat --output /xwin
-
-ENV CC_x86_64_pc_windows_msvc=clang-cl \
-    CXX_x86_64_pc_windows_msvc=clang-cl \
-    AR_x86_64_pc_windows_msvc=llvm-lib \
-    CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld-link \
-    RUSTFLAGS="-Lnative=/xwin/crt/lib/x86_64 -Lnative=/xwin/sdk/lib/ucrt/x86_64 -Lnative=/xwin/sdk/lib/um/x86_64"
+    mingw-w64 \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 COPY . .
 
-# Add Rust targets
+# Add targets
 RUN rustup target add x86_64-unknown-linux-gnu x86_64-pc-windows-gnu
 
-# Build script
+# Build and export artifacts
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cargo build --release --target ${TARGET} && \
-    mkdir -p /out && \
-    if [ "${TARGET}" = "x86_64-pc-windows-msvc" ]; then \
-      cp target/${TARGET}/release/code-rag.exe /out/code-rag.exe; \
-      if [ -f target/${TARGET}/release/onnxruntime.dll ]; then cp target/${TARGET}/release/onnxruntime.dll /out/; fi; \
+    --mount=type=cache,target=/src/target \
+    set -eux; \
+    cargo --version; rustc --version; \
+    cargo build --release --target ${TARGET} --bin code-rag; \
+    ls -la target/${TARGET}/release; \
+    mkdir -p /out; \
+    if [ "${TARGET}" = "x86_64-pc-windows-gnu" ]; then \
+      cp -v target/${TARGET}/release/code-rag.exe /out/code-rag.exe; \
+      cp -v target/${TARGET}/release/*.dll /out/ 2>/dev/null || true; \
     else \
-      cp target/${TARGET}/release/code-rag /out/code-rag; \
+      cp -v target/${TARGET}/release/code-rag /out/code-rag; \
     fi
 
-# Export Stage
 FROM scratch AS export
 COPY --from=builder /out/ /
