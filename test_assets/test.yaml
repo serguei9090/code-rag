@@ -1,0 +1,13 @@
+project:
+  name: code-rag
+  version: 0.1.0
+  description: Local code RAG CLI
+
+database:
+  path: ./.lancedb
+  table: code_chunks
+
+features:
+  - semantic-search
+  - re-ranking
+  - call-hierarchy

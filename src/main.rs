@@ -3,7 +3,6 @@ use code_rag::indexer::CodeChunker;
 use code_rag::storage::Storage;
 use code_rag::embedding::Embedder;
 use code_rag::search::CodeSearcher;
-use code_rag::search::SearchResult;
 use code_rag::config::AppConfig;
 use code_rag::reporting::generate_html_report;
 use ignore::WalkBuilder;

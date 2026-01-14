@@ -4,7 +4,7 @@ use grep_regex::RegexMatcher;
 use grep_searcher::Searcher;
 use grep_searcher::sinks::UTF8;
 use ignore::WalkBuilder;
-use arrow_array::{RecordBatch, StringArray, Float32Array, Int32Array, ListArray, Array};
+use arrow_array::{StringArray, Float32Array, Int32Array, ListArray, Array};
 use std::error::Error;
 use serde::Serialize;
 

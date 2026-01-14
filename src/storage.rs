@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, Int32Array, Int64Array, FixedSizeListArray, ListArray};
+use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, Int32Array, Int64Array, FixedSizeListArray};
 use arrow_array::builder::{ListBuilder, StringBuilder};
 use arrow_schema::{DataType, Field, Schema};
 use lancedb::connection::Connection;

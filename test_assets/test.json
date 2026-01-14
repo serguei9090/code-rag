@@ -1,0 +1,12 @@
+{
+    "project": "code-rag",
+    "version": "0.1.0",
+    "dependencies": {
+        "lancedb": "0.23",
+        "fastembed": "0.24"
+    },
+    "config": {
+        "db_path": "./.lancedb",
+        "index_path": "."
+    }
+}

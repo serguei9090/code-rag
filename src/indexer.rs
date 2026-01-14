@@ -32,6 +32,11 @@ impl CodeChunker {
              "php" => Some(tree_sitter_php::LANGUAGE_PHP.into()),
              "html" => Some(tree_sitter_html::LANGUAGE.into()),
              "css" => Some(tree_sitter_css::LANGUAGE.into()),
+             "sh" | "bash" => Some(tree_sitter_bash::LANGUAGE.into()),
+             "ps1" => Some(tree_sitter_powershell::language().into()),
+             // "dockerfile" | "Dockerfile" => Some(tree_sitter_dockerfile::language().into()),
+             "yaml" | "yml" => Some(tree_sitter_yaml::LANGUAGE.into()),
+             "json" => Some(tree_sitter_json::LANGUAGE.into()),
             _ => None,
         }
     }
@@ -47,6 +52,7 @@ impl CodeChunker {
 
         let mut parser = Parser::new();
         if parser.set_language(&language).is_err() {
+             eprintln!("ERROR: Could not set language for extension: {}", ext);
              return vec![];
         }
 
@@ -66,13 +72,13 @@ impl CodeChunker {
     fn traverse(&self, node: &Node, code: &str, filename: &str, chunks: &mut Vec<CodeChunk>, ext: &str, mtime: i64, depth: usize) {
         let kind = node.kind();
         
-        let is_script_lang = matches!(ext, "py" | "js" | "ts" | "jsx" | "tsx" | "rb" | "lua");
+        let is_script_lang = matches!(ext, "py" | "js" | "ts" | "jsx" | "tsx" | "rb" | "lua" | "sh" | "bash" | "ps1");
         
         let is_semantic_chunk = matches!(kind,
             // Rust
              "function_item" | "impl_item" | "struct_item" | "enum_item" | "mod_item" | "const_item" | "static_item" |
-            // Python, C/C++, generic
-             "function_definition" | "class_definition" |
+            // Python, C/C++, generic, Bash, PS1
+             "function_definition" | "class_definition" | "function_statement" |
             // Go
              "function_declaration" | "method_declaration" | "type_declaration" |
             // C/C++ specific
@@ -86,22 +92,27 @@ impl CodeChunker {
             // HTML
              "script_element" | "style_element" |
             // CSS
-             "rule_set" | "media_statement" | "keyframes_statement"
+             "rule_set" | "media_statement" | "keyframes_statement" |
+            // PowerShell extras
+             "param_block" |
+            // YAML / JSON
+             "block_mapping_pair" | "pair" | "object"
         );
 
         let is_ruby_module = ext == "rb" && kind == "module";
 
         // Scripts logic: chunk top-level logic, but avoid noise
         // Depth 1 means direct child of the root module/program
-        let is_script_chunk = is_script_lang && depth == 1 && matches!(kind,
+        // PS1 has a statement_list at depth 1, so top-level logic is at depth 2
+        let is_script_chunk = is_script_lang && (depth == 1 || (ext == "ps1" && depth == 2)) && matches!(kind,
             "if_statement" | "flow_statement" | "expression_statement" | "assignment" | 
-            "variable_declaration" | "lexical_declaration" | "function_call" | "call"
+            "variable_declaration" | "lexical_declaration" | "function_call" | "call" |
+            "command" | "pipeline" | "if_expression" | "for_expression" // Bash/PS1 extras
         );
 
         let is_chunkable = is_semantic_chunk || is_ruby_module || is_script_chunk;
 
         if is_chunkable {
-            // println!("Chunking: {} in {} (depth: {})", kind, filename, depth);
             // DEBUG: Print S-expression
             // eprintln!("DEBUG AST: {}", node.to_sexp());
             let start_byte = node.start_byte();
