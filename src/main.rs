@@ -41,6 +41,10 @@ enum Commands {
         html: bool,
         #[arg(long)]
         json: bool,
+        #[arg(long)]
+        ext: Option<String>,
+        #[arg(long)]
+        dir: Option<String>,
     },
     Grep { 
         pattern: String,
@@ -182,7 +186,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             pb_embed.finish_with_message("Indexing complete.");
         }
-        Commands::Search { query, limit, db_path, html, json } => {
+        Commands::Search { query, limit, db_path, html, json, ext, dir } => {
             let actual_db = db_path.unwrap_or(config.db_path);
             let storage = Storage::new(&actual_db).await?;
             let embedder = Embedder::new()?;
@@ -191,7 +195,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if !json {
                 println!("Searching for: '{}'", query);
             }
-            let search_results = searcher.semantic_search(&query, limit).await?;
+            let search_results = searcher.semantic_search(&query, limit, ext, dir).await?;
 
             if json {
                 println!("{}", serde_json::to_string_pretty(&search_results)?);

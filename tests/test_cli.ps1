@@ -377,6 +377,41 @@ catch {
     Assert-Success "New languages test" $false $_.Exception.Message
 }
 
+# Test 20: Metadata Filtering (Extension)
+Write-Section "Test 20: Metadata Filtering (Extension)"
+try {
+    Write-Info "Testing --ext filter..."
+    $rustOnlyOutput = & $BinaryPath search "function" --db-path $TestDbPath --ext rs --limit 10 2>&1 | Out-String
+    
+    Assert-Success "Extension filter executes" ($LASTEXITCODE -eq 0)
+    Assert-Success "Extension filter finds Rust files" ($rustOnlyOutput -match "test\.rs")
+    
+    if ($rustOnlyOutput -match "test\.py") {
+        Write-Failure "Extension filter incorrectly included Python files"
+        $script:TestsFailed++
+    }
+    else {
+        Write-Success "Extension filter correctly excludes non-Rust files"
+        $script:TestsPassed++
+    }
+}
+catch {
+    Assert-Success "Extension filter test" $false $_.Exception.Message
+}
+
+# Test 21: Metadata Filtering (Directory)
+Write-Section "Test 21: Metadata Filtering (Directory)"
+try {
+    Write-Info "Testing --dir filter..."
+    $advancedDirOutput = & $BinaryPath search "class" --db-path $TestDbPath --dir "test_assets\advanced_structure" --limit 10 2>&1 | Out-String
+    
+    Assert-Success "Directory filter executes" ($LASTEXITCODE -eq 0)
+    Assert-Success "Directory filter finds files in target dir" ($advancedDirOutput -match "advanced_structure")
+}
+catch {
+    Assert-Success "Directory filter test" $false $_.Exception.Message
+}
+
 # Cleanup
 Write-Section "Cleanup"
 Cleanup-TestDb

@@ -29,14 +29,29 @@ impl CodeSearcher {
         Self { storage, embedder }
     }
 
-    pub async fn semantic_search(&mut self, query: &str, limit: usize) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    pub async fn semantic_search(&mut self, query: &str, limit: usize, extension: Option<String>, directory: Option<String>) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if let (Some(storage), Some(embedder)) = (&self.storage, &mut self.embedder) {
             let vectors = embedder.embed(vec![query.to_string()])?;
             
             if let Some(vector) = vectors.first() {
+                 let mut filters = Vec::new();
+                 if let Some(ext) = extension {
+                     let clean_ext = if ext.starts_with('.') { &ext[1..] } else { &ext };
+                     filters.push(format!("filename LIKE '%.{}'", clean_ext));
+                 }
+                 if let Some(dir) = directory {
+                     // Windows paths use backslashes which need escaping in SQL LIKE
+                     // Convert input to backslashes (Windows standard) and escape for SQL
+                     let normalized = dir.replace("/", "\\\\");
+                     // Double escape: one for Rust string, one for SQL
+                     let escaped = normalized.replace("\\", "\\\\");
+                     filters.push(format!("filename LIKE '%{}%'", escaped));
+                 }
+                 let filter_str = if filters.is_empty() { None } else { Some(filters.join(" AND ")) };
+
                 // Fetch more candidates for re-ranking (e.g., 50 or limit * 5)
                  let fetch_limit = std::cmp::max(50, limit * 5);
-                 let batches = storage.search(vector.clone(), fetch_limit).await?;
+                 let batches = storage.search(vector.clone(), fetch_limit, filter_str).await?;
                  
                  let mut candidates = Vec::new();
                  

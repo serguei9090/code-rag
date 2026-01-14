@@ -128,11 +128,17 @@ impl Storage {
         Ok(())
     }
 
-    pub async fn search(&self, query_vector: Vec<f32>, limit: usize) -> Result<Vec<RecordBatch>> {
+    pub async fn search(&self, query_vector: Vec<f32>, limit: usize, filter: Option<String>) -> Result<Vec<RecordBatch>> {
         let table = self.conn.open_table(&self.table_name).execute().await?;
-        let results = table
+        let mut query = table
             .query()
-            .nearest_to(query_vector)?
+            .nearest_to(query_vector)?;
+        
+        if let Some(f) = filter {
+            query = query.only_if(f);
+        }
+
+        let results = query
             .limit(limit)
             .execute()
             .await?

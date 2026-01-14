@@ -78,6 +78,9 @@ Performs semantic search using embeddings and re-ranking. Converts the query to 
 - `--limit <N>` - Number of results to return (default: 5)
 - `--db-path <PATH>` - Override database location
 - `--html` - Generate an HTML report (`results.html`)
+- `--json` - Output results as JSON (for automation/CI/CD)
+- `--ext <EXTENSION>` - Filter results by file extension (e.g., `rs`, `py`)
+- `--dir <DIRECTORY>` - Filter results to files within a specific directory
 
 ### Examples
 
@@ -94,6 +97,26 @@ code-rag search "database connection" --limit 10
 **Generate HTML report:**
 ```bash
 code-rag search "error handling" --html
+```
+
+**JSON output for automation:**
+```bash
+code-rag search "database setup" --json
+```
+
+**Filter by file extension:**
+```bash
+code-rag search "authentication" --ext rs
+```
+
+**Filter by directory:**
+```bash
+code-rag search "api handlers" --dir "src/api"
+```
+
+**Combine filters:**
+```bash
+code-rag search "config parser" --ext py --dir "src/config" --limit 3
 ```
 
 ### Expected Output (Console)
@@ -145,6 +168,9 @@ Performs exact text pattern matching using `ripgrep`. Respects `.gitignore` and 
 ### Arguments
 - `<PATTERN>` - Regex pattern to search for
 
+### Options
+- `--json` - Output results as JSON
+
 ### Examples
 
 **Find function calls:**
@@ -192,6 +218,10 @@ See [configuration.md](configuration.md) for details on `code-rag.toml` and envi
 | PHP | `.php` | functions, classes |
 | HTML | `.html` | script elements, style elements |
 | CSS | `.css` | rule sets, media queries, keyframes |
+| **Zig** | `.zig` | functions, containers |
+| **Elixir** | `.ex`, `.exs` | functions, modules |
+| **Haskell** | `.hs` | functions, signatures |
+| **Solidity** | `.sol` | contracts, interfaces, libraries |
 
 ---
 
