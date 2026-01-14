@@ -29,10 +29,12 @@
         - [x] Update `CodeSearcher` to use two-stage retrieval (top 50 -> rerank -> top N).
     - [x] Verification: Compare search scores before and after (Verified model download and execution).
 
-## Phase 5: Documentation & Enterprise Readiness (Active)
-- [x] **5.1 Test Assets**
-    - [x] Add Go, Java, JS test files to `test_assets`.
-    - [x] Verify indexing of new assets.
+## [x] **Phase 5: Extended Language Support**
+    - [x] Add path-based indexing logic
+    - [x] Integrate Tree-sitter parsers for Bash, PowerShell, YAML, JSON
+    - [x] Add test assets for new languages
+    - [x] Verify semantic chunking rules for scripts and configs
+    - [x] Update documentation and enterprise report
 - [x] **5.2 Documentation**
     - [x] Update `README.md` with new features (HTML report, Call Hierarchy, Reranking).
     - [x] Create `docs/` folder with deep-dive guides.

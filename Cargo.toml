@@ -42,3 +42,7 @@ tree-sitter-powershell = "0.24.5"
 tree-sitter-yaml = "0.7"
 tree-sitter-json = "0.24"
 minijinja = { version = "2.14.0", features = ["loader"] }
+tree-sitter-zig = "1.1.2"
+tree-sitter-elixir = "0.3.4"
+tree-sitter-haskell = "0.23.1"
+tree-sitter-solidity = "1.2.13"

@@ -37,6 +37,10 @@ impl CodeChunker {
              // "dockerfile" | "Dockerfile" => Some(tree_sitter_dockerfile::language().into()),
              "yaml" | "yml" => Some(tree_sitter_yaml::LANGUAGE.into()),
              "json" => Some(tree_sitter_json::LANGUAGE.into()),
+             "zig" => Some(tree_sitter_zig::LANGUAGE.into()),
+             "ex" | "exs" => Some(tree_sitter_elixir::LANGUAGE.into()),
+             "hs" => Some(tree_sitter_haskell::LANGUAGE.into()),
+             "sol" => Some(tree_sitter_solidity::LANGUAGE.into()),
             _ => None,
         }
     }
@@ -96,7 +100,15 @@ impl CodeChunker {
             // PowerShell extras
              "param_block" |
             // YAML / JSON
-             "block_mapping_pair" | "pair" | "object"
+             "block_mapping_pair" | "pair" | "object" |
+            // Zig
+             "Decls" | "FnProto" | "ContainerField" |
+            // Elixir
+             "call" | "do_block" |
+            // Haskell
+             "signature" | "function" |
+            // Solidity
+             "contract_declaration" | "interface_definition" | "library_definition"
         );
 
         let is_ruby_module = ext == "rb" && kind == "module";

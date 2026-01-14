@@ -39,8 +39,14 @@ enum Commands {
         db_path: Option<String>,
         #[arg(long)]
         html: bool,
+        #[arg(long)]
+        json: bool,
     },
-    Grep { pattern: String },
+    Grep { 
+        pattern: String,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[tokio::main]
@@ -134,7 +140,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             
-            pb_scan.finish_with_message(format!("Scan complete. Found {} chunks across {} files.", chunks_batch.len(), file_count));
+            pb_scan.finish_and_clear();
+            println!("Scan complete. Found {} chunks across {} files.", chunks_batch.len(), file_count);
             
             if chunks_batch.is_empty() {
                 return Ok(());
@@ -175,21 +182,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             pb_embed.finish_with_message("Indexing complete.");
         }
-        Commands::Search { query, limit, db_path, html } => {
+        Commands::Search { query, limit, db_path, html, json } => {
             let actual_db = db_path.unwrap_or(config.db_path);
             let storage = Storage::new(&actual_db).await?;
             let embedder = Embedder::new()?;
             let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
             
-            println!("Searching for: '{}'", query);
+            if !json {
+                println!("Searching for: '{}'", query);
+            }
             let search_results = searcher.semantic_search(&query, limit).await?;
 
-            if html {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&search_results)?);
+            } else if html {
                 let report = generate_html_report(&query, &search_results);
                 let report_path = "results.html";
                 fs::write(report_path, report)?;
                 println!("{} {}", "HTML Report generated:".green().bold(), report_path);
-                // Optional: Try to open it? println!("Open file://{}/{}", std::env::current_dir()?.display(), report_path);
             } else {
                  for res in search_results {
                      println!("\n{} {} (Score: {:.4})", "Rank".bold(), res.rank.to_string().cyan(), res.score);
@@ -201,13 +211,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                  }
             }
         }
-        Commands::Grep { pattern } => {
+        Commands::Grep { pattern, json } => {
             let searcher = CodeSearcher::new(None, None);
-            println!("Grepping for: '{}'", pattern);
+            if !json {
+                println!("Grepping for: '{}'", pattern);
+            }
              match searcher.grep_search(&pattern, ".") {
                  Ok(matches) => {
-                     for m in matches {
-                         println!("{}", m);
+                     if json {
+                         println!("{}", serde_json::to_string_pretty(&matches)?);
+                     } else {
+                         for m in matches {
+                             println!("{}", m);
+                         }
                      }
                  },
                  Err(e) => eprintln!("Grep failed: {}", e),

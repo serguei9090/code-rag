@@ -3,4 +3,5 @@ use arrow_array::{RecordBatch, RecordBatchIterator, StringArray, Float32Array, I
 
 pub fn dummy_setup_fn() {
     println!("This function exists just to be indexed!");
+    // Rust function
 }
