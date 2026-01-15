@@ -14,7 +14,12 @@ use colored::*;
 use std::collections::HashMap;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(
+    name = "code-rag",
+    version,
+    about = "A local-first code indexing and semantic search tool",
+    long_about = "code-rag allows you to index your local source code into a vector database and perform semantic searches using natural language queries, as well as exact pattern matching via grep."
+)]
 struct Args {
     #[command(subcommand)]
     cmd: Commands,
@@ -22,32 +27,48 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Index a directory of source code
      Index { 
+        /// Path to the directory to index
         path: Option<String>,
+        /// Custom database path (default: ./.lancedb)
         #[arg(long)]
         db_path: Option<String>,
+        /// Perform an incremental update (skip unchanged files)
         #[arg(long)]
         update: bool,
+        /// Force a full re-index (delete existing database)
         #[arg(long)]
         force: bool,
     },
+    /// Perform a semantic search using natural language
     Search {
+        /// Natural language query
         query: String,
+        /// Maximum number of results to return
         #[arg(short, long, default_value_t = 5)]
         limit: usize,
+        /// Custom database path
         #[arg(long)]
         db_path: Option<String>,
+        /// Generate an HTML report (results.html)
         #[arg(long)]
         html: bool,
+        /// Output results in JSON format
         #[arg(long)]
         json: bool,
+        /// Filter results by file extension (e.g., rs, py)
         #[arg(long)]
         ext: Option<String>,
+        /// Filter results by directory path
         #[arg(long)]
         dir: Option<String>,
     },
+    /// Perform a regex-based text search across the codebase
     Grep { 
+        /// Regex pattern to search for
         pattern: String,
+        /// Output results in JSON format
         #[arg(long)]
         json: bool,
     },

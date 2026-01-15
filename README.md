@@ -90,6 +90,25 @@ Generate an HTML report:
 code-rag search "authentication logic" --html
 ```
 
+**NEW: JSON output for automation:**
+
+```bash
+code-rag search "database setup" --json | ConvertFrom-Json
+```
+
+**NEW: Filter by file extension:**
+
+```bash
+code-rag search "authentication" --ext rs  # Only Rust files
+code-rag search "config parser" --ext py   # Only Python files
+```
+
+**NEW: Filter by directory:**
+
+```bash
+code-rag search "api handler" --dir "src/api"
+```
+
 **What it does:**
 - Converts your query to an embedding
 - Performs a hybrid search (Vector + Re-ranking)
@@ -101,6 +120,12 @@ code-rag search "authentication logic" --html
 
 ```bash
 code-rag grep "tokio::main"
+```
+
+**NEW: JSON output:**
+
+```bash
+code-rag grep "async fn" --json
 ```
 
 This is a simple text search, not semantic.
@@ -115,8 +140,34 @@ Your app uses: **NomicEmbedTextV15**
 
 ## 📁 Supported languages
 
-Your `CodeChunker` detects languages by file extension (from `indexer.rs`).
-*(You can extend this easily later.)*
+**Core Languages:**
+- Rust (`.rs`)
+- Python (`.py`)
+- JavaScript/TypeScript (`.js`, `.jsx`, `.ts`, `.tsx`)
+- Go (`.go`)
+- C/C++ (`.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx`)
+- Java (`.java`)
+- C# (`.cs`)
+- Ruby (`.rb`)
+- PHP (`.php`)
+
+**Web:**
+- HTML (`.html`)
+- CSS (`.css`)
+
+**Scripting:**
+- Bash (`.sh`, `.bash`)
+- PowerShell (`.ps1`)
+
+**Data Formats:**
+- JSON (`.json`)
+- YAML (`.yaml`, `.yml`)
+
+**NEW in Phase 2:**
+- Zig (`.zig`)
+- Elixir (`.ex`, `.exs`)
+- Haskell (`.hs`)
+- Solidity (`.sol`)
 
 ## 🗑️ How to reset the database
 
@@ -199,13 +250,28 @@ graph LR
     Search --> LanceDB
 ```
 
-## 🛣️ Future improvements (ideas)
+## 🛣️ Roadmap
 
+### ✅ Phase 1: Core Functionality (Complete)
+- Local-first indexing and search
+- Multi-language support
+- Semantic chunking with Tree-sitter
+
+### ✅ Phase 2: Programmatic Access (Complete)
+- JSON output mode for CI/CD integration
+- Extended language support (Zig, Elixir, Haskell, Solidity)
+- Cross-encoder reranking for improved accuracy
+
+### ✅ Phase 3: Metadata Filtering (In Progress)
+- Filter by file extension (`--ext`)
+- Filter by directory (`--dir`)
+
+### 🔜 Future Ideas
+- Real-time file system watcher
+- Query expansion with local LLM
+- LSP integration for IDE support
 - Web UI
-- File path filtering
-- Reindex only changed files
-- Metadata (git blame, timestamps, etc)
-- Hybrid BM25 + vector search
+- Git blame integration
 
 ## 🆘 Troubleshooting
 
