@@ -46,7 +46,8 @@ impl CodeChunker {
     }
 
     pub fn chunk_file(&self, filename: &str, code: &str, mtime: i64) -> Vec<CodeChunk> {
-        let path = Path::new(filename);
+        let normalized_filename = filename.replace("\\", "/");
+        let path = Path::new(&normalized_filename);
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
         
         let language = match Self::get_language(ext) {
@@ -68,7 +69,7 @@ impl CodeChunker {
         let mut chunks = Vec::new();
         let root = tree.root_node();
         
-        self.traverse(&root, code, filename, &mut chunks, ext, mtime, 0);
+        self.traverse(&root, code, &normalized_filename, &mut chunks, ext, mtime, 0);
         
         chunks
     }

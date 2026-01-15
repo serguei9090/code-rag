@@ -40,12 +40,9 @@ impl CodeSearcher {
                      filters.push(format!("filename LIKE '%.{}'", clean_ext));
                  }
                  if let Some(dir) = directory {
-                     // Windows paths use backslashes which need escaping in SQL LIKE
-                     // Convert input to backslashes (Windows standard) and escape for SQL
-                     let normalized = dir.replace("/", "\\\\");
-                     // Double escape: one for Rust string, one for SQL
-                     let escaped = normalized.replace("\\", "\\\\");
-                     filters.push(format!("filename LIKE '%{}%'", escaped));
+                     // Normalize input to forward slashes since DB is normalized
+                     let clean_dir = dir.replace("\\", "/");
+                     filters.push(format!("filename LIKE '%{}%'", clean_dir));
                  }
                  let filter_str = if filters.is_empty() { None } else { Some(filters.join(" AND ")) };
 
