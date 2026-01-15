@@ -14,7 +14,7 @@ impl Embedder {
         options.show_download_progress = true;
 
         // Indicate loading status
-        println!("Loading embedding model (NomicEmbedTextV15)...");
+        // Indicate loading status (handled by caller)
         let model = TextEmbedding::try_new(options)?;
         Ok(Self {
             model,
@@ -37,7 +37,7 @@ impl Embedder {
             options.show_download_progress = true;
 
             // Indicate loading status (this can be slow)
-            println!("Initializing re-ranker (BGERerankerBase) - this may take a moment...");
+            // Indicate loading status (handled by caller)
             let reranker = TextRerank::try_new(options)?;
             self.reranker = Some(reranker);
         }

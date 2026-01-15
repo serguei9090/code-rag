@@ -116,11 +116,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Indexing path: {}", actual_path);
             let index_path = Path::new(&actual_path);
 
-            // Initialize components
+            // 1. Initialize Storage
             let storage = Storage::new(&actual_db).await?;
             storage.init().await?;
 
-            // Initialize BM25 Index
+            // 2. Initialize BM25 Index
             let bm25_index = match BM25Index::new(&actual_db) {
                 Ok(idx) => idx,
                 Err(e) => {
@@ -132,164 +132,195 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             };
 
+            // 3. Load Models with Spinner
+            let pb_model = ProgressBar::new_spinner();
+            pb_model.set_style(ProgressStyle::default_spinner().template("{spinner:.blue} {msg}")?);
+            pb_model.enable_steady_tick(std::time::Duration::from_millis(120));
+            pb_model.set_message("Loading embedding model...");
+
             let mut embedder = Embedder::new()?;
-            // Pre-cache Re-ranker
+
+            pb_model.set_message("Initializing re-ranker...");
             embedder.init_reranker()?;
 
-            // Warmup Models (Force load to RAM/ONNX Runtime init)
-            println!("Running warmup query to initialize ONNX Runtime...");
+            pb_model.set_message("Warming up ONNX Runtime...");
             let warmup_text = vec!["warmup".to_string()];
             let _ = embedder.embed(warmup_text.clone(), None)?;
             let _ = embedder.rerank("query", warmup_text).is_ok();
 
+            pb_model.finish_with_message("Models loaded.");
+
             let chunker = CodeChunker::new();
 
-            println!("Scanning files...");
+            // 4. Scan Files (Collect first for determinate progress bar)
             let pb_scan = ProgressBar::new_spinner();
-            pb_scan.set_style(
-                ProgressStyle::default_spinner()
-                    .template("{spinner:.green} {msg} [{elapsed_precise}]")?,
-            );
+            pb_scan.set_style(ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?);
+            pb_scan.enable_steady_tick(std::time::Duration::from_millis(120));
+            pb_scan.set_message("Scanning files...");
 
             let walker = WalkBuilder::new(index_path).build();
-            let mut chunks_batch = Vec::new();
-            let mut file_count = 0;
+            let mut entries = Vec::new();
+            for entry in walker.flatten() {
+                if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    entries.push(entry);
+                    pb_scan.set_message(format!("Found {} files...", entries.len()));
+                }
+            }
+            pb_scan.finish_with_message(format!("Scanned {} files.", entries.len()));
+
+            if entries.is_empty() {
+                println!("No files found to index.");
+                return Ok(());
+            }
+
+            // 5. Indexing Loop (Determinate Progress Bar)
+            let total_files = entries.len() as u64;
+            let pb_index = ProgressBar::new(total_files);
+            pb_index.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")?
+                    .progress_chars("#>-"),
+            );
+            pb_index.set_message("Indexing...");
 
             // For incremental updates
             let existing_files = if update {
-                println!("Fetching existing index metadata...");
+                pb_index.set_message("Fetching existing metadata...");
                 storage.get_indexed_metadata().await?
             } else {
                 HashMap::new()
             };
 
-            for result in walker {
-                match result {
-                    Ok(entry) => {
-                        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
-                            continue;
-                        }
+            let mut chunks_buffer = Vec::new();
+            // Process files
+            for entry in entries {
+                let file_path = entry.path();
+                let fname_lossy = file_path.to_string_lossy();
+                let fname_short = file_path.file_name().unwrap_or_default().to_string_lossy();
 
-                        let file_path = entry.path();
-                        let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+                pb_index.set_message(format!("Processing {}", fname_short));
+                pb_index.inc(1);
 
-                        if CodeChunker::get_language(ext).is_some() {
-                            if let Ok(metadata) = fs::metadata(file_path) {
-                                let modified = metadata
-                                    .modified()
-                                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-                                let mtime = modified
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs() as i64;
-                                let fname_str = file_path.to_string_lossy().to_string();
+                let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+                if CodeChunker::get_language(ext).is_none() {
+                    continue;
+                }
 
-                                if update {
-                                    if let Some(stored_mtime) = existing_files.get(&fname_str) {
-                                        if *stored_mtime == mtime {
-                                            // Unchanged, skip
-                                            continue;
-                                        }
-                                        // Changed, remove old contents
-                                        // We await here because this loop IS async context (main is async)
-                                        // But WalkBuilder is synchronous iterator.
-                                        // We can't await inside the iterator loop nicely without collecting.
-                                        // Ideally we collect updated files first.
-                                        // For now, we will just delete later or ignore?
-                                        // The 'storage.add_chunks' overwriting logic:
-                                        // LanceDB append mostly. We need to delete old chunks.
-                                        // Let's do a synchronous delete or collect to delete batch?
-                                        // We'll collect 'files_to_delete' string list.
-                                    }
-                                }
+                // Check modification time
+                if let Ok(metadata) = fs::metadata(file_path) {
+                    let modified = metadata
+                        .modified()
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let mtime = modified
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs() as i64;
+                    let fname_str = fname_lossy.to_string();
 
-                                if let Ok(code) = fs::read_to_string(file_path) {
-                                    file_count += 1;
-                                    pb_scan.set_message(format!(
-                                        "Scanning: {} ({} chunks found)",
-                                        file_path.display(),
-                                        chunks_batch.len()
-                                    ));
-                                    let new_chunks = chunker.chunk_file(&fname_str, &code, mtime);
-                                    chunks_batch.extend(new_chunks);
-                                }
+                    if update {
+                        if let Some(stored_mtime) = existing_files.get(&fname_str) {
+                            if *stored_mtime == mtime {
+                                continue; // Unchanged
+                            }
+                            // Changed: delete old chunks first
+                            if let Err(e) = storage.delete_file_chunks(&fname_str).await {
+                                eprintln!("Error deleting old chunks for {}: {}", fname_str, e);
+                            }
+                            if let Err(e) = bm25_index.delete_file(&fname_str) {
+                                eprintln!("Error deleting old BM25 docs for {}: {}", fname_str, e);
                             }
                         }
                     }
-                    Err(err) => eprintln!("Error walking entry: {}", err),
-                }
-            }
 
-            pb_scan.finish_and_clear();
-            println!(
-                "Scan complete. Found {} chunks across {} files.",
-                chunks_batch.len(),
-                file_count
-            );
-
-            if chunks_batch.is_empty() {
-                return Ok(());
-            }
-
-            // Delete updated files if any
-            if update {
-                // Determine distinct filenames in the new batch that are also in existing db
-                // and delete them first.
-                // This naive approach deletes everything we found that we are about to re-index.
-                let mut files_to_delete = std::collections::HashSet::new();
-                for chunk in &chunks_batch {
-                    if existing_files.contains_key(&chunk.filename) {
-                        files_to_delete.insert(chunk.filename.clone());
+                    // Read and Chunk
+                    if let Ok(code) = fs::read_to_string(file_path) {
+                        let new_chunks = chunker.chunk_file(&fname_str, &code, mtime);
+                        chunks_buffer.extend(new_chunks);
                     }
                 }
 
-                for file in files_to_delete {
-                    storage.delete_file_chunks(&file).await?;
-                    bm25_index.delete_file(&file)?;
+                // Flush buffer if large enough
+                if chunks_buffer.len() >= 256 {
+                    let chunk_slice = &chunks_buffer;
+                    let texts: Vec<String> = chunk_slice.iter().map(|c| c.code.clone()).collect();
+                    match embedder.embed(texts, Some(256)) {
+                        Ok(embeddings) => {
+                            // Unpack and store
+                            let ids: Vec<String> = chunk_slice
+                                .iter()
+                                .map(|c| format!("{}-{}-{}", c.filename, c.line_start, c.line_end))
+                                .collect();
+                            let filenames: Vec<String> =
+                                chunk_slice.iter().map(|c| c.filename.clone()).collect();
+                            let codes: Vec<String> =
+                                chunk_slice.iter().map(|c| c.code.clone()).collect();
+                            let starts: Vec<i32> =
+                                chunk_slice.iter().map(|c| c.line_start as i32).collect();
+                            let ends: Vec<i32> =
+                                chunk_slice.iter().map(|c| c.line_end as i32).collect();
+                            let mtimes: Vec<i64> =
+                                chunk_slice.iter().map(|c| c.last_modified).collect();
+                            let calls: Vec<Vec<String>> =
+                                chunk_slice.iter().map(|c| c.calls.clone()).collect();
+
+                            if let Err(e) = storage
+                                .add_chunks(
+                                    ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+                                )
+                                .await
+                            {
+                                eprintln!("Error storing chunks: {}", e);
+                            }
+                            if let Err(e) = bm25_index.add_chunks(chunk_slice) {
+                                eprintln!("Error adding to BM25: {}", e);
+                            }
+                        }
+                        Err(e) => eprintln!("Error generating embeddings: {}", e),
+                    }
+                    chunks_buffer.clear();
                 }
             }
 
-            println!("Generating embeddings...");
-            let pb_embed = ProgressBar::new(chunks_batch.len() as u64);
-            pb_embed.set_style(
-                ProgressStyle::default_bar()
-                    .template(
-                        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-                    )?
-                    .progress_chars("#>-"),
-            );
+            // Flush remaining chunks
+            if !chunks_buffer.is_empty() {
+                pb_index.set_message("Flushing remaining chunks...");
+                let texts: Vec<String> = chunks_buffer.iter().map(|c| c.code.clone()).collect();
+                match embedder.embed(texts, Some(256)) {
+                    Ok(embeddings) => {
+                        let ids: Vec<String> = chunks_buffer
+                            .iter()
+                            .map(|c| format!("{}-{}-{}", c.filename, c.line_start, c.line_end))
+                            .collect();
+                        let filenames: Vec<String> =
+                            chunks_buffer.iter().map(|c| c.filename.clone()).collect();
+                        let codes: Vec<String> =
+                            chunks_buffer.iter().map(|c| c.code.clone()).collect();
+                        let starts: Vec<i32> =
+                            chunks_buffer.iter().map(|c| c.line_start as i32).collect();
+                        let ends: Vec<i32> =
+                            chunks_buffer.iter().map(|c| c.line_end as i32).collect();
+                        let mtimes: Vec<i64> =
+                            chunks_buffer.iter().map(|c| c.last_modified).collect();
+                        let calls: Vec<Vec<String>> =
+                            chunks_buffer.iter().map(|c| c.calls.clone()).collect();
 
-            for chunk_slice in chunks_batch.chunks(256) {
-                let texts: Vec<String> = chunk_slice.iter().map(|c| c.code.clone()).collect();
-                let embeddings = embedder.embed(texts, Some(256))?;
-
-                pb_embed.inc(chunk_slice.len() as u64);
-
-                // Simple ID generation
-                let ids: Vec<String> = chunk_slice
-                    .iter()
-                    .map(|c| format!("{}-{}-{}", c.filename, c.line_start, c.line_end))
-                    .collect();
-
-                let filenames: Vec<String> =
-                    chunk_slice.iter().map(|c| c.filename.clone()).collect();
-                let codes: Vec<String> = chunk_slice.iter().map(|c| c.code.clone()).collect();
-                let starts: Vec<i32> = chunk_slice.iter().map(|c| c.line_start as i32).collect();
-                let ends: Vec<i32> = chunk_slice.iter().map(|c| c.line_end as i32).collect();
-                let mtimes: Vec<i64> = chunk_slice.iter().map(|c| c.last_modified).collect();
-                let calls: Vec<Vec<String>> = chunk_slice.iter().map(|c| c.calls.clone()).collect();
-
-                storage
-                    .add_chunks(
-                        ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
-                    )
-                    .await?;
-
-                if let Err(e) = bm25_index.add_chunks(chunk_slice) {
-                    eprintln!("Warning: Failed to add chunks to BM25 index: {}", e);
+                        if let Err(e) = storage
+                            .add_chunks(
+                                ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+                            )
+                            .await
+                        {
+                            eprintln!("Error storing remaining chunks: {}", e);
+                        }
+                        if let Err(e) = bm25_index.add_chunks(&chunks_buffer) {
+                            eprintln!("Error adding remaining chunks to BM25: {}", e);
+                        }
+                    }
+                    Err(e) => eprintln!("Error embedding remaining chunks: {}", e),
                 }
             }
-            pb_embed.finish_with_message("Indexing complete.");
+
+            pb_index.finish_with_message("Indexing complete.");
 
             println!("Optimizing index (creating filename index)...");
             if let Err(e) = storage.create_filename_index().await {

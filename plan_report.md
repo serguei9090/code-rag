@@ -69,7 +69,7 @@ Items are ordered from **simple → complex** and **few lines → many lines**.
 - **Description**: HTTP/gRPC server that keeps models in memory. Clients query via API, this must be tailored to be used by mcp server, so we will need mcp server integration.
 - **Dependencies**: `axum` or `tonic`
 
-### 8. Hybrid BM25 + Vector Search
+### 8. Hybrid BM25 + Vector Search [Done]
 - **Estimated LOC**: ~280 lines
 - **Files**: New `bm25.rs`, `search.rs`, `storage.rs`
 - **Impact**: Better recall for exact keyword matches (e.g., error codes)
