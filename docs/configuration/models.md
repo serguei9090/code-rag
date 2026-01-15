@@ -41,3 +41,23 @@ These models re-score search results for better precision.
 
 > [!TIP]
 > You can find these names and their descriptions in the [code-ragcnf.toml.template](file:///i:/01-Master_Code/Test-Labs/code-rag/code-ragcnf.toml.template) file. For a full list of models supported by the underlying library, visit the [FastEmbed Documentation](https://qdrant.github.io/fastembed/examples/Supported_Models/).
+
+## Loading Models from Local Paths
+If you have custom models or want to operate entirely offline (air-gapped), you can specify local directory paths in your configuration.
+
+#### Using `code-ragcnf.toml`:
+```toml
+# Local paths override the model names above
+embedding_model_path = "C:/models/nomic-embed-text-v1.5"
+reranker_model_path = "C:/models/bge-reranker-base"
+```
+
+#### Requirements for Local Directories:
+The specified directory must contain the following files:
+- `model.onnx`: The actual model binary.
+- `tokenizer.json`: Tokenizer configuration.
+- `config.json`: Model configuration.
+- `tokenizer_config.json`: Tokenizer-specific configuration.
+- `special_tokens_map.json`: Mapping for special tokens (CLS, SEP, etc.).
+
+When a path is provided, `code-rag` will bypass all Hugging Face checks and load the model directly from that directory.

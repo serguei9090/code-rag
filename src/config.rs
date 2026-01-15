@@ -14,6 +14,8 @@ pub struct AppConfig {
     pub log_format: String,
     pub embedding_model: String,
     pub reranker_model: String,
+    pub embedding_model_path: Option<String>,
+    pub reranker_model_path: Option<String>,
 }
 
 impl AppConfig {

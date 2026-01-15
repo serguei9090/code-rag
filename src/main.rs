@@ -160,6 +160,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let mut embedder = Embedder::new(
                 config.embedding_model.clone(),
                 config.reranker_model.clone(),
+                config.embedding_model_path.clone(),
+                config.reranker_model_path.clone(),
             )?;
 
             pb_model.set_message("Initializing re-ranker...");
@@ -381,11 +383,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     true,
                     config.embedding_model.clone(),
                     config.reranker_model.clone(),
+                    config.embedding_model_path.clone(),
+                    config.reranker_model_path.clone(),
                 )?
             } else {
                 Embedder::new(
                     config.embedding_model.clone(),
                     config.reranker_model.clone(),
+                    config.embedding_model_path.clone(),
+                    config.reranker_model_path.clone(),
                 )?
             };
 
@@ -476,6 +482,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 actual_db,
                 config.embedding_model.clone(),
                 config.reranker_model.clone(),
+                config.embedding_model_path.clone(),
+                config.reranker_model_path.clone(),
             )
             .await?;
         }

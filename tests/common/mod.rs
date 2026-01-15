@@ -33,6 +33,8 @@ pub async fn setup_test_env(test_name: &str) -> (Storage, Embedder, CodeChunker,
     let embedder = Embedder::new(
         "nomic-embed-text-v1.5".to_string(),
         "bge-reranker-base".to_string(),
+        None,
+        None,
     )
     .expect("Failed to create embedder");
     let chunker = CodeChunker::new();
