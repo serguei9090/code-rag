@@ -124,8 +124,6 @@ code-rag search "quick query" --no-rerank
 - Returns the most similar code chunks
 - Displays extracted call hierarchy (what functions are called)
 
-- Displays extracted call hierarchy (what functions are called)
-
 See `docs/commands/search.md` for full reference.
 
 ### 3️⃣ Grep-style text search
@@ -164,6 +162,8 @@ Your app uses: **NomicEmbedTextV15**
 - Runs locally
 - Downloaded automatically on first use
 - Cached on your machine
+
+See [AI Models](docs/configuration/models.md) for more info on supported models and how they work.
 
 **Supported Files:**
 - Rust (`.rs`)

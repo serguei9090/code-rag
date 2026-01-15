@@ -12,6 +12,8 @@ pub struct AppConfig {
     pub exclusions: Vec<String>,
     pub log_level: String,
     pub log_format: String,
+    pub embedding_model: String,
+    pub reranker_model: String,
 }
 
 impl AppConfig {
@@ -25,7 +27,9 @@ impl AppConfig {
             .set_default("server_port", 3000)?
             .set_default("exclusions", Vec::<String>::new())?
             .set_default("log_level", "info")?
-            .set_default("log_format", "text")?;
+            .set_default("log_format", "text")?
+            .set_default("embedding_model", "nomic-embed-text-v1.5")?
+            .set_default("reranker_model", "bge-reranker-base")?;
 
         // 1. File: code-ragcnf.toml (Current Directory)
         if PathBuf::from("code-ragcnf.toml").exists() {

@@ -157,7 +157,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             pb_model.enable_steady_tick(std::time::Duration::from_millis(120));
             pb_model.set_message("Loading embedding model...");
 
-            let mut embedder = Embedder::new()?;
+            let mut embedder = Embedder::new(
+                config.embedding_model.clone(),
+                config.reranker_model.clone(),
+            )?;
 
             pb_model.set_message("Initializing re-ranker...");
             embedder.init_reranker()?;
@@ -374,9 +377,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let storage = Storage::new(&actual_db).await?;
             let embedder = if json {
-                Embedder::new_with_quiet(true)?
+                Embedder::new_with_quiet(
+                    true,
+                    config.embedding_model.clone(),
+                    config.reranker_model.clone(),
+                )?
             } else {
-                Embedder::new()?
+                Embedder::new(
+                    config.embedding_model.clone(),
+                    config.reranker_model.clone(),
+                )?
             };
 
             // Initialize BM25 Index (Optional)
@@ -460,7 +470,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let actual_host = host.unwrap_or(config.server_host);
 
             info!("Starting server at {}:{}", actual_host, actual_port);
-            start_server(actual_host, actual_port, actual_db).await?;
+            start_server(
+                actual_host,
+                actual_port,
+                actual_db,
+                config.embedding_model.clone(),
+                config.reranker_model.clone(),
+            )
+            .await?;
         }
     }
 

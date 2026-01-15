@@ -6,15 +6,34 @@ use std::error::Error;
 pub struct Embedder {
     model: TextEmbedding,
     reranker: Option<TextRerank>,
+    reranker_model_name: String,
 }
 
 impl Embedder {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
-        Self::new_with_quiet(false)
+    pub fn new(embedding_model: String, reranker_model: String) -> Result<Self, Box<dyn Error>> {
+        Self::new_with_quiet(false, embedding_model, reranker_model)
     }
 
-    pub fn new_with_quiet(quiet: bool) -> Result<Self, Box<dyn Error>> {
-        let mut options = InitOptions::new(EmbeddingModel::NomicEmbedTextV15);
+    pub fn new_with_quiet(
+        quiet: bool,
+        embedding_model: String,
+        reranker_model: String,
+    ) -> Result<Self, Box<dyn Error>> {
+        let model_enum = match embedding_model.to_lowercase().as_str() {
+            "nomic-embed-text-v1.5" => EmbeddingModel::NomicEmbedTextV15,
+            "all-minilm-l6-v2" => EmbeddingModel::AllMiniLML6V2,
+            "bge-small-en-v1.5" => EmbeddingModel::BGESmallENV15,
+            "bge-base-en-v1.5" => EmbeddingModel::BGEBaseENV15,
+            _ => {
+                tracing::warn!(
+                    "Unknown embedding model '{}', falling back to NomicEmbedTextV15",
+                    embedding_model
+                );
+                EmbeddingModel::NomicEmbedTextV15
+            }
+        };
+
+        let mut options = InitOptions::new(model_enum);
         options.show_download_progress = !quiet;
 
         // Indicate loading status
@@ -23,6 +42,7 @@ impl Embedder {
         Ok(Self {
             model,
             reranker: None,
+            reranker_model_name: reranker_model,
         })
     }
 
@@ -37,11 +57,20 @@ impl Embedder {
 
     pub fn init_reranker(&mut self) -> Result<(), Box<dyn Error>> {
         if self.reranker.is_none() {
-            let mut options = RerankInitOptions::new(RerankerModel::BGERerankerBase);
+            let reranker_enum = match self.reranker_model_name.to_lowercase().as_str() {
+                "bge-reranker-base" => RerankerModel::BGERerankerBase,
+                _ => {
+                    tracing::warn!(
+                        "Unknown reranker model '{}', falling back to BGERerankerBase",
+                        self.reranker_model_name
+                    );
+                    RerankerModel::BGERerankerBase
+                }
+            };
+
+            let mut options = RerankInitOptions::new(reranker_enum);
             options.show_download_progress = true;
 
-            // Indicate loading status (this can be slow)
-            // Indicate loading status (handled by caller)
             let reranker = TextRerank::try_new(options)?;
             self.reranker = Some(reranker);
         }

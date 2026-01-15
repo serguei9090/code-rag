@@ -54,32 +54,40 @@ exclusions = [
     "__pycache__"
 ]
 
+# -----------------------------------------------------------------------------
+# Operations & Logging
+# -----------------------------------------------------------------------------
+
+# Log level (trace, debug, info, warn, error)
+# Default: "info"
+log_level = "info"
+
+# Log format (text, json)
+# Default: "text"
+log_format = "text"
+
+# -----------------------------------------------------------------------------
+# Model Selection
+# -----------------------------------------------------------------------------
+
+# ONNX model to use for generating embeddings.
+# Options: nomic-embed-text-v1.5, all-minilm-l6-v2, bge-small-en-v1.5, bge-base-en-v1.5
+# Default: "nomic-embed-text-v1.5"
+embedding_model = "nomic-embed-text-v1.5"
+
+# ONNX model to use for re-ranking search results.
+# Options: bge-reranker-base
+# Default: "bge-reranker-base"
+reranker_model = "bge-reranker-base"
+
 # =============================================================================
-# RECOMMENDATIONS: WHAT TO INCLUDE NEXT
+# OPTIONAL: FUTURE TUNING (NOT YET IMPLEMENTED)
 # =============================================================================
 #
-# The following options are NOT YET implemented in the config loader but are
-# strongly recommended for the next iteration to provide full control:
-#
-# 1. Model Selection
-#    Currently hardcoded in src/embedding.rs. Making this configurable allows
-#    users to switch between speed (smaller models) and accuracy (larger models).
-#    # embedding_model = "nomic-embed-text-v1.5"
-#    # reranker_model = "bge-reranker-base"
-#
-# 2. Chunking Strategy
-#    Currently hardcoded. Configurable chunk sizes allow tuning for different
-#    codebases (e.g., larger chunks for Java, smaller for Python).
+# 1. Chunking Strategy
 #    # chunk_size_tokens = 512
 #    # chunk_overlap_tokens = 64
 #
-# 3. Hybrid Search Tuning
-#    Weights for the Reciprocal Rank Fusion (RRF) between Vector and BM25 results.
-#    # rrf_k_constant = 60
+# 2. Hybrid Search Tuning
 #    # vector_weight = 1.0
 #    # bm25_weight = 1.0
-#
-# 4. Operations & Logging
-#    Once structured logging is implemented (Phase 5), expose log levels here.
-#    # log_level = "info"  # debug, info, warn, error
-#    # log_format = "json" # text, json

@@ -53,6 +53,8 @@ pub async fn start_server(
     host: String,
     port: u16,
     db_path: String,
+    embedding_model: String,
+    reranker_model: String,
 ) -> Result<(), Box<dyn StdError>> {
     println!("Initializing server components...");
 
@@ -64,7 +66,7 @@ pub async fn start_server(
     }
 
     // 2. Init Embedder (with re-ranker)
-    let mut embedder = Embedder::new()?;
+    let mut embedder = Embedder::new(embedding_model, reranker_model)?;
     embedder.init_reranker()?; // Pre-load re-ranker
 
     // 3. Create Searcher
