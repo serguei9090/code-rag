@@ -17,8 +17,8 @@ impl Embedder {
         Ok(Self { model, reranker: None })
     }
 
-    pub fn embed(&mut self, texts: Vec<String>) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
-        let embeddings = self.model.embed(texts, None)?;
+    pub fn embed(&mut self, texts: Vec<String>, batch_size: Option<usize>) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
+        let embeddings = self.model.embed(texts, batch_size)?;
         Ok(embeddings)
     }
 

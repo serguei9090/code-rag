@@ -31,7 +31,7 @@ impl CodeSearcher {
 
     pub async fn semantic_search(&mut self, query: &str, limit: usize, extension: Option<String>, directory: Option<String>, no_rerank: bool) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if let (Some(storage), Some(embedder)) = (&self.storage, &mut self.embedder) {
-            let vectors = embedder.embed(vec![query.to_string()])?;
+            let vectors = embedder.embed(vec![query.to_string()], None)?;
             
             if let Some(vector) = vectors.first() {
                  let mut filters = Vec::new();

@@ -102,6 +102,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
             storage.init().await?;
             
             let mut embedder = Embedder::new()?;
+            
+            // Pre-cache Re-ranker
+            embedder.init_reranker()?;
+
+            // Warmup Models (Force load to RAM/ONNX Runtime init)
+            println!("Running warmup query to initialize ONNX Runtime...");
+            let warmup_text = vec!["warmup".to_string()];
+            let _ = embedder.embed(warmup_text.clone(), None)?;
+            if let Ok(_) = embedder.rerank("query", warmup_text) {
+                // Succeeded
+            }
             let chunker = CodeChunker::new();
 
             println!("Scanning files...");
@@ -181,9 +192,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")?
                 .progress_chars("#>-"));
             
-            for chunk_slice in chunks_batch.chunks(100) {
+            for chunk_slice in chunks_batch.chunks(256) {
                 let texts: Vec<String> = chunk_slice.iter().map(|c| c.code.clone()).collect();
-                let embeddings = embedder.embed(texts)?;
+                let embeddings = embedder.embed(texts, Some(256))?;
                 
                 pb_embed.inc(chunk_slice.len() as u64);
                 

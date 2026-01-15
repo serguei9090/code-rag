@@ -71,7 +71,7 @@ async fn test_index_test_assets() {
             
             if !chunks.is_empty() {
                 let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-                let embeddings = embedder.embed(texts).expect("Failed to embed");
+                let embeddings = embedder.embed(texts, None).expect("Failed to embed");
                 let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
                 storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
             }
@@ -98,7 +98,7 @@ async fn test_search_rust_function() {
     assert!(!chunks.is_empty(), "No chunks found in test.rs");
     
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-    let embeddings = embedder.embed(texts).expect("Failed to embed");
+    let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
     storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
     
@@ -124,7 +124,7 @@ async fn test_search_python_class() {
     
     let chunks = chunker.chunk_file(py_path.to_str().unwrap(), &code, mtime);
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-    let embeddings = embedder.embed(texts).expect("Failed to embed");
+    let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
     storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
     
@@ -151,7 +151,7 @@ async fn test_search_bash_script() {
     assert!(!chunks.is_empty(), "No chunks found in test.sh");
     
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-    let embeddings = embedder.embed(texts).expect("Failed to embed");
+    let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
     storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
     
@@ -180,7 +180,7 @@ async fn test_search_powershell_function() {
     assert!(!chunks.is_empty(), "No chunks found in test.ps1");
     
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-    let embeddings = embedder.embed(texts).expect("Failed to embed");
+    let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
     storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
     
@@ -207,7 +207,7 @@ async fn test_search_json_config() {
     assert!(!chunks.is_empty(), "No chunks found in test.json");
     
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-    let embeddings = embedder.embed(texts).expect("Failed to embed");
+    let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
     storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
     
@@ -237,7 +237,7 @@ async fn test_multi_language_search() {
         
         if !chunks.is_empty() {
             let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
-            let embeddings = embedder.embed(texts).expect("Failed to embed");
+            let embeddings = embedder.embed(texts, None).expect("Failed to embed");
             let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) = prepare_chunks(&chunks);
             storage.add_chunks(ids, filenames, codes, line_starts, line_ends, last_modified, calls, embeddings).await.expect("Failed to add chunks");
         }
