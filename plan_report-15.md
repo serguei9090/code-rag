@@ -13,7 +13,9 @@ This section tracks the status of features outlined in the original plan.
 | **5. Embed Batch Size** | **Done** | [Optimized] | `embed` accepts batch size, improved throughput. |
 | **7. Server Mode** | **Done** | [Optimized] | Uses `Arc<Mutex>` for shared state (zero-copy cloning). |
 | **8. Hybrid Search** | **Done** | [Optimized] | Uses `k=60` RRF and parallel query execution strategy. |
-| **6. DB Index on `filename`** | *Deferred* | - | Low priority given current dataset size. |
+| **6. DB Index on `filename`** | **Done** | [Optimized] | Filename index created for fast filtering. |
+| **9. Configuration File** | **Done** | N/A | `code-ragcnf.toml` with hierarchical loading. |
+| **10. Structured Logging** | **Done** | [Optimized] | `tracing` crate replacing `println!` for ops. |
 
 ## 2. Error Handling Analysis
 
@@ -32,7 +34,7 @@ Implement a custom `AppError` type and use `map_response` or `layer` middleware 
 
 Sorted by **Effort** (Low → High) and **Complexity**.
 
-### Low Hanging Fruit
+### Low Hanging Fruit [done]
 1.  **LanceDB Index on `filename`** (Item 6)
     *   *Effort:* Low (~40 LOC)
     *   *Complexity:* Low
@@ -80,17 +82,17 @@ This roadmap balances quick wins with long-term strategic value.
 ### Phase 1: Hardening & Clean-up (Immediate) [started]
 *Goal: Ensure the current codebase is production-ready before adding complexity.*
 
-1.  **LanceDB Index on `filename`**
+1.  **LanceDB Index on `filename`** [done]
     *   **Priority:** High
     *   **Complexity:** Low
     *   **LOC:** ~40
     *   **Reason:** Quick performance win for filtered searches.
-2.  **Global Error Handling Middleware**
+2.  **Global Error Handling Middleware** [done]
     *   **Priority:** Critical
     *   **Complexity:** Medium
     *   **LOC:** ~150
     *   **Reason:** Standardize API errors before LSP integration.
-3.  **Structured Ops (Tracing/Config)**
+3.  **Structured Ops (Tracing/Config)** [done]
     *   **Priority:** Medium
     *   **Complexity:** Medium
     *   **LOC:** ~200
@@ -128,3 +130,43 @@ This roadmap balances quick wins with long-term strategic value.
     *   **LOC:** ~200
     *   **Reason:** Only needed for massive codebases (>1M LOC).
 
+# =============================================================================
+# RECOMMENDATIONS: WHAT TO INCLUDE NEXT
+# =============================================================================
+
+The following features are missing and recommended for the next iteration, sorted from **Low Effort (Simple)** to **High Effort (Complex)**.
+
+### 1. CI/CD Pipeline
+*   **Effort:** Low
+*   **Description:** implementation of GitHub Actions for automated testing, linting (`clippy`), and release binary generation.
+*   **Value:** Ensures code quality and simplifies distribution.
+
+### 2. Model Selection (Configurable)
+*   **Effort:** Medium
+*   **Description:** Currently hardcoded in `src/embedding.rs`. Making this configurable allows users to switch between speed (smaller models) and accuracy (larger models).
+*   **Config:** `embedding_model = "nomic-embed-text-v1.5"`
+
+### 3. Chunking Strategy (Configurable)
+*   **Effort:** Medium
+*   **Description:** Currently hardcoded. Configurable chunk sizes allow tuning for different codebases (e.g., larger chunks for Java, smaller for Python).
+*   **Config:** `chunk_size_tokens = 512`, `chunk_overlap_tokens = 64`
+
+### 4. Hybrid Search Tuning
+*   **Effort:** Medium
+*   **Description:** Weights for the Reciprocal Rank Fusion (RRF) between Vector and BM25 results.
+*   **Config:** `vector_weight = 1.0`, `bm25_weight = 1.0`
+
+### 5. File System Watcher
+*   **Effort:** High
+*   **Description:** Implement `notify` crate to watch for file changes and auto-update the index in the background. Requires generic implementation of a background worker.
+*   **Value:** Developers never have to run `index --update` manually.
+
+### 6. Interactive TUI (Terminal UI)
+*   **Effort:** High
+*   **Description:** A rich terminal interface using `ratatui` for browsing search results, viewing snippets, and navigating code without leaving the CLI.
+*   **Value:** vastly improved UX for heavy CLI users.
+
+### 7. LSP Integration (Language Server Protocol)
+*   **Effort:** Very High
+*   **Description:** Wrap `code-rag` in an LSP interface so it can provide "Semantic Search" results directly in VS Code / Neovim via code actions or hover providers.
+*   **Value:** The ultimate developer experience.

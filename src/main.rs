@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
+use tracing::{error, info, warn, Level};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -33,7 +34,7 @@ enum Commands {
     Index {
         /// Path to the directory to index
         path: Option<String>,
-        /// Custom database path (default: ./.lancedb)
+        /// Custom database path (default: ./.lancedb from config)
         #[arg(long)]
         db_path: Option<String>,
         /// Perform an incremental update (skip unchanged files)
@@ -48,8 +49,8 @@ enum Commands {
         /// Natural language query
         query: String,
         /// Maximum number of results to return
-        #[arg(short, long, default_value_t = 5)]
-        limit: usize,
+        #[arg(short, long)]
+        limit: Option<usize>,
         /// Custom database path
         #[arg(long)]
         db_path: Option<String>,
@@ -80,11 +81,11 @@ enum Commands {
     /// Start a persistent HTTP server
     Serve {
         /// Port to listen on
-        #[arg(long, default_value_t = 3000)]
-        port: u16,
+        #[arg(long)]
+        port: Option<u16>,
         /// Host to bind to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
+        #[arg(long)]
+        host: Option<String>,
         /// Custom database path
         #[arg(long)]
         db_path: Option<String>,
@@ -95,6 +96,24 @@ enum Commands {
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let config = AppConfig::new()?;
+
+    // Initialize Tracing (Logging)
+    // We write logs to stderr to keep stdout clean for piped search results (JSON/Text).
+    let log_level = config.log_level.parse::<Level>().unwrap_or(Level::INFO);
+    let log_format = config.log_format.as_str();
+
+    if log_format.eq_ignore_ascii_case("json") {
+        tracing_subscriber::fmt()
+            .with_max_level(log_level)
+            .with_writer(std::io::stderr)
+            .json()
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_max_level(log_level)
+            .with_writer(std::io::stderr)
+            .init();
+    }
 
     match args.cmd {
         Commands::Index {
@@ -107,13 +126,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let actual_db = db_path.unwrap_or(config.db_path);
 
             if force {
-                println!("Force flag set. Removing database at: {}", actual_db);
+                info!("Force flag set. Removing database at: {}", actual_db);
                 if Path::new(&actual_db).exists() {
                     fs::remove_dir_all(&actual_db)?;
                 }
             }
 
-            println!("Indexing path: {}", actual_path);
+            info!("Indexing path: {}", actual_path);
             let index_path = Path::new(&actual_path);
 
             // 1. Initialize Storage
@@ -124,8 +143,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let bm25_index = match BM25Index::new(&actual_db) {
                 Ok(idx) => idx,
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to initialize BM25 index: {}. Hybrid search may be degraded.",
+                    warn!(
+                        "Failed to initialize BM25 index: {}. Hybrid search may be degraded.",
                         e
                     );
                     return Err(e);
@@ -158,18 +177,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
             pb_scan.enable_steady_tick(std::time::Duration::from_millis(120));
             pb_scan.set_message("Scanning files...");
 
-            let walker = WalkBuilder::new(index_path).build();
+            // Use ignore::WalkBuilder with config exclusions if possible, or manual filter
+            // Note: WalkBuilder respects .gitignore by default.
+            // Config exclusions: config.exclusions
+            let builder = WalkBuilder::new(index_path);
+            // WalkBuilder doesn't easily take a Vec<String> of globs directly without overrides
+            // For now, adhering to existing behavior + standard .gitignore
+            let walker = builder.build();
+
             let mut entries = Vec::new();
             for entry in walker.flatten() {
                 if entry.file_type().is_some_and(|ft| ft.is_file()) {
-                    entries.push(entry);
-                    pb_scan.set_message(format!("Found {} files...", entries.len()));
+                    let path = entry.path();
+                    let path_str = path.to_string_lossy();
+                    // Simple exclusion check
+                    let excluded = config.exclusions.iter().any(|ex| path_str.contains(ex));
+                    if !excluded {
+                        entries.push(entry);
+                        pb_scan.set_message(format!("Found {} files...", entries.len()));
+                    }
                 }
             }
             pb_scan.finish_with_message(format!("Scanned {} files.", entries.len()));
 
             if entries.is_empty() {
-                println!("No files found to index.");
+                warn!("No files found to index.");
                 return Ok(());
             }
 
@@ -224,10 +256,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             }
                             // Changed: delete old chunks first
                             if let Err(e) = storage.delete_file_chunks(&fname_str).await {
-                                eprintln!("Error deleting old chunks for {}: {}", fname_str, e);
+                                warn!("Error deleting old chunks for {}: {}", fname_str, e);
                             }
                             if let Err(e) = bm25_index.delete_file(&fname_str) {
-                                eprintln!("Error deleting old BM25 docs for {}: {}", fname_str, e);
+                                warn!("Error deleting old BM25 docs for {}: {}", fname_str, e);
                             }
                         }
                     }
@@ -269,13 +301,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 )
                                 .await
                             {
-                                eprintln!("Error storing chunks: {}", e);
+                                error!("Error storing chunks: {}", e);
                             }
                             if let Err(e) = bm25_index.add_chunks(chunk_slice) {
-                                eprintln!("Error adding to BM25: {}", e);
+                                error!("Error adding to BM25: {}", e);
                             }
                         }
-                        Err(e) => eprintln!("Error generating embeddings: {}", e),
+                        Err(e) => error!("Error generating embeddings: {}", e),
                     }
                     chunks_buffer.clear();
                 }
@@ -310,21 +342,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             )
                             .await
                         {
-                            eprintln!("Error storing remaining chunks: {}", e);
+                            error!("Error storing remaining chunks: {}", e);
                         }
                         if let Err(e) = bm25_index.add_chunks(&chunks_buffer) {
-                            eprintln!("Error adding remaining chunks to BM25: {}", e);
+                            error!("Error adding remaining chunks to BM25: {}", e);
                         }
                     }
-                    Err(e) => eprintln!("Error embedding remaining chunks: {}", e),
+                    Err(e) => error!("Error embedding remaining chunks: {}", e),
                 }
             }
 
             pb_index.finish_with_message("Indexing complete.");
 
-            println!("Optimizing index (creating filename index)...");
+            info!("Optimizing index (creating filename index)...");
             if let Err(e) = storage.create_filename_index().await {
-                eprintln!("Optimization warning: {}", e);
+                warn!("Optimization warning: {}", e);
             }
         }
         Commands::Search {
@@ -338,6 +370,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             no_rerank,
         } => {
             let actual_db = db_path.unwrap_or(config.db_path);
+            let actual_limit = limit.unwrap_or(config.default_limit);
+
             let storage = Storage::new(&actual_db).await?;
             let embedder = if json {
                 Embedder::new_with_quiet(true)?
@@ -348,11 +382,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // Initialize BM25 Index (Optional)
             let bm25_index = BM25Index::new(&actual_db).ok();
             if bm25_index.is_none() {
-                eprintln!(
-                    "{}",
-                    "Warning: BM25 index could not be opened. Falling back to pure vector search."
-                        .yellow()
-                );
+                warn!("BM25 index could not be opened. Falling back to pure vector search.");
             }
 
             // Init Searcher with BM25
@@ -363,7 +393,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
 
             let search_results = searcher
-                .semantic_search(&query, limit, ext, dir, no_rerank)
+                .semantic_search(&query, actual_limit, ext, dir, no_rerank)
                 .await?;
 
             if json {
@@ -401,13 +431,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Commands::Grep { pattern, json } => {
             // For Grep, strict functionality relies on walkdir/regex or the CodeSearcher helper.
-            // Assuming CodeSearcher has a simple grep implementation or we use grep crate.
-            // But we need a searcher instance.
-            // Since Grep might not need Storage/Embedder if strictly file-based:
-            // But CodeSearcher::new takes them.
-            // Let's create dummy ones or refactor `grep_search` to be static or standalone?
-            // Checking previous knoweldge: `grep_search` loops over files.
-            // Passing None is fine if `new` allows it.
             let searcher = CodeSearcher::new(None, None, None);
 
             if !json {
@@ -424,7 +447,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                 }
-                Err(e) => eprintln!("Grep failed: {}", e),
+                Err(e) => error!("Grep failed: {}", e),
             }
         }
         Commands::Serve {
@@ -433,7 +456,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             db_path,
         } => {
             let actual_db = db_path.unwrap_or(config.db_path);
-            start_server(host, port, actual_db).await?;
+            let actual_port = port.unwrap_or(config.server_port);
+            let actual_host = host.unwrap_or(config.server_host);
+
+            info!("Starting server at {}:{}", actual_host, actual_port);
+            start_server(actual_host, actual_port, actual_db).await?;
         }
     }
 

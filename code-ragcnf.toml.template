@@ -1,0 +1,85 @@
+# code-rag configuration template
+# Copy this file to 'code-ragcnf.toml' in your project root or ~/.config/code-rag/
+
+# -----------------------------------------------------------------------------
+# Core Paths
+# -----------------------------------------------------------------------------
+
+# Path to the LanceDB vector database.
+# Can be absolute or relative.
+# Default: "./.lancedb"
+db_path = "./.lancedb"
+
+# Default directory to index when running `code-rag index` without a path argument.
+# Default: "." (Current working directory)
+default_index_path = "."
+
+# -----------------------------------------------------------------------------
+# Search Settings
+# -----------------------------------------------------------------------------
+
+# Default number of search results to return if --limit is not specified.
+# Default: 5
+default_limit = 5
+
+# -----------------------------------------------------------------------------
+# Server Settings
+# -----------------------------------------------------------------------------
+
+# Host interface to bind the HTTP server to.
+# Use "0.0.0.0" to allow external access.
+# Default: "127.0.0.1"
+server_host = "127.0.0.1"
+
+# Port to listen on.
+# Default: 3000
+server_port = 3000
+
+# -----------------------------------------------------------------------------
+# Indexing Exclusions
+# -----------------------------------------------------------------------------
+
+# List of glob patterns or directory names to exclude from indexing.
+# These assume the standard .gitignore is also respected.
+# Default: []
+exclusions = [
+    "target",
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    ".idea",
+    ".vscode",
+    "venv",
+    "__pycache__"
+]
+
+# =============================================================================
+# RECOMMENDATIONS: WHAT TO INCLUDE NEXT
+# =============================================================================
+#
+# The following options are NOT YET implemented in the config loader but are
+# strongly recommended for the next iteration to provide full control:
+#
+# 1. Model Selection
+#    Currently hardcoded in src/embedding.rs. Making this configurable allows
+#    users to switch between speed (smaller models) and accuracy (larger models).
+#    # embedding_model = "nomic-embed-text-v1.5"
+#    # reranker_model = "bge-reranker-base"
+#
+# 2. Chunking Strategy
+#    Currently hardcoded. Configurable chunk sizes allow tuning for different
+#    codebases (e.g., larger chunks for Java, smaller for Python).
+#    # chunk_size_tokens = 512
+#    # chunk_overlap_tokens = 64
+#
+# 3. Hybrid Search Tuning
+#    Weights for the Reciprocal Rank Fusion (RRF) between Vector and BM25 results.
+#    # rrf_k_constant = 60
+#    # vector_weight = 1.0
+#    # bm25_weight = 1.0
+#
+# 4. Operations & Logging
+#    Once structured logging is implemented (Phase 5), expose log levels here.
+#    # log_level = "info"  # debug, info, warn, error
+#    # log_format = "json" # text, json

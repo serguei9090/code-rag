@@ -17,6 +17,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
+use tracing::{error, info};
 
 // Shared state holding the searcher
 // We need Mutex because CodeSearcher::semantic_search takes &mut self
@@ -110,9 +111,13 @@ async fn search_handler(
     // We use tokio::sync::Mutex because we hold the lock across an .await point (semantic_search)
     let mut searcher = state.searcher.lock().await;
 
-    println!(
-        "Handling search: '{}' (limit: {})",
-        payload.query, payload.limit
+    info!(
+        query = %payload.query,
+        limit = payload.limit,
+        ext = ?payload.ext,
+        dir = ?payload.dir,
+        no_rerank = payload.no_rerank,
+        "Handling search request"
     );
 
     match searcher
@@ -125,7 +130,13 @@ async fn search_handler(
         )
         .await
     {
-        Ok(results) => Ok((StatusCode::OK, Json(SearchResponse { results })).into_response()),
-        Err(e) => Err(AppError::from(e)),
+        Ok(results) => {
+            info!("Search successful, {} results found.", results.len());
+            Ok((StatusCode::OK, Json(SearchResponse { results })).into_response())
+        }
+        Err(e) => {
+            error!("Search failed: {:?}", e);
+            Err(AppError::from(e))
+        }
     }
 }
