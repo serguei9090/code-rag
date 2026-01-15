@@ -339,7 +339,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let actual_db = db_path.unwrap_or(config.db_path);
             let storage = Storage::new(&actual_db).await?;
-            let embedder = Embedder::new()?;
+            let embedder = if json {
+                Embedder::new_with_quiet(true)?
+            } else {
+                Embedder::new()?
+            };
 
             // Initialize BM25 Index (Optional)
             let bm25_index = BM25Index::new(&actual_db).ok();

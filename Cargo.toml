@@ -49,6 +49,7 @@ tree-sitter-solidity = "1.2.13"
 axum = "0.8.8"
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
 tantivy = "0.22"
+anyhow = "1.0.100"
 
 [dev-dependencies]
 http-body-util = "0.1.3"

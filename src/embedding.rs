@@ -10,8 +10,12 @@ pub struct Embedder {
 
 impl Embedder {
     pub fn new() -> Result<Self, Box<dyn Error>> {
+        Self::new_with_quiet(false)
+    }
+
+    pub fn new_with_quiet(quiet: bool) -> Result<Self, Box<dyn Error>> {
         let mut options = InitOptions::new(EmbeddingModel::NomicEmbedTextV15);
-        options.show_download_progress = true;
+        options.show_download_progress = !quiet;
 
         // Indicate loading status
         // Indicate loading status (handled by caller)

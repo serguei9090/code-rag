@@ -77,7 +77,7 @@ Implement the **LanceDB Index** (Item 6) to close out Phase 2 completely, then t
 
 This roadmap balances quick wins with long-term strategic value.
 
-### Phase 1: Hardening & Clean-up (Immediate)
+### Phase 1: Hardening & Clean-up (Immediate) [started]
 *Goal: Ensure the current codebase is production-ready before adding complexity.*
 
 1.  **LanceDB Index on `filename`**

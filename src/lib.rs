@@ -1,6 +1,7 @@
 pub mod bm25;
 pub mod config;
 pub mod embedding;
+pub mod error;
 pub mod indexer;
 pub mod reporting;
 pub mod search;

@@ -1,5 +1,6 @@
 use crate::bm25::BM25Index;
 use crate::embedding::Embedder;
+use crate::error::AppError;
 use crate::search::{CodeSearcher, SearchResult};
 use crate::storage::Storage;
 use axum::{
@@ -124,13 +125,7 @@ async fn search_handler(
         )
         .await
     {
-        Ok(results) => (StatusCode::OK, Json(SearchResponse { results })),
-        Err(e) => {
-            eprintln!("Search error: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(SearchResponse { results: vec![] }),
-            ) // Simplified error response
-        }
+        Ok(results) => Ok((StatusCode::OK, Json(SearchResponse { results })).into_response()),
+        Err(e) => Err(AppError::from(e)),
     }
 }

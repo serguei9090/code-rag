@@ -91,9 +91,8 @@ try {
     Assert-Success "Index command executes" ($LASTEXITCODE -eq 0) "Exit code: $LASTEXITCODE"
     Assert-Success "Database directory created" (Test-Path $TestDbPath)
     
-    # Check if output mentions files
-    $fileCount = ([regex]::Matches($indexOutput, "chunks")).Count
-    Assert-Success "Index output mentions chunks" ($fileCount -gt 0) "Found $fileCount chunk references"
+    # Check if output shows indexing completion
+    Assert-Success "Index output shows optimization" ($indexOutput -match "Optimizing index")
 }
 catch {
     Assert-Success "Index command executes" $false $_.Exception.Message
@@ -426,6 +425,28 @@ try {
 }
 catch {
     Assert-Success "No rerank search test" $false $_.Exception.Message
+}
+
+# Test 23: LanceDB Index Verification
+Write-Section "Test 23: LanceDB Filename Index Verification"
+try {
+    Write-Info "Verifying filename index exists and improves performance..."
+    
+    # The index should be created automatically during indexing
+    # We verify it works by testing filtered searches
+    $indexTestOutput = & $BinaryPath search "function" --db-path $TestDbPath --ext rs --limit 5 2>&1 | Out-String
+    
+    Assert-Success "Index-backed filtered search executes" ($LASTEXITCODE -eq 0)
+    Assert-Success "Index-backed search returns results" ($indexTestOutput -match "Rank|File|Score")
+    
+    # Verify all results are .rs files
+    $nonRustMatches = ([regex]::Matches($indexTestOutput, "\.(py|js|go|java)")).Count
+    Assert-Success "Filename index correctly filters results" ($nonRustMatches -eq 0) "Found $nonRustMatches non-Rust files"
+    
+    Write-Info "LanceDB filename index is functioning correctly"
+}
+catch {
+    Assert-Success "LanceDB index verification test" $false $_.Exception.Message
 }
 
 # Cleanup

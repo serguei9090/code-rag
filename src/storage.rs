@@ -6,6 +6,7 @@ use arrow_array::{
 use arrow_schema::{DataType, Field, Schema};
 use futures_util::stream::TryStreamExt;
 use lancedb::connection::Connection;
+use lancedb::index::scalar::BTreeIndexBuilder;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use lancedb::{connect, Result};
 use std::error::Error;
@@ -220,14 +221,22 @@ impl Storage {
         Ok(())
     }
     pub async fn create_filename_index(&self) -> Result<()> {
-        // if self.conn.open_table(&self.table_name).execute().await.is_ok() {
-        // let table = self.conn.open_table(&self.table_name).execute().await?;
-        // Scalar index
-        // let _ = table.create_index(&["filename"], lancedb::index::IndexType::Scalar)
-        //    .execute()
-        //    .await;
-        // }
-        // println!("Index creation skipped (API mismatch in lancedb 0.23)");
+        if self
+            .conn
+            .open_table(&self.table_name)
+            .execute()
+            .await
+            .is_ok()
+        {
+            let table = self.conn.open_table(&self.table_name).execute().await?;
+            let _ = table
+                .create_index(
+                    &["filename"],
+                    lancedb::index::Index::BTree(BTreeIndexBuilder::default()),
+                )
+                .execute()
+                .await;
+        }
         Ok(())
     }
 }

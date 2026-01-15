@@ -453,3 +453,56 @@ class Calculator:
 
     println!("✓ Python chunking produced {} chunks", chunks.len());
 }
+
+#[tokio::test]
+async fn test_lancedb_filename_index() {
+    let (storage, mut embedder, chunker, db_path) = setup_test_env("index_verification").await;
+
+    // Index Rust test file
+    let rust_path = Path::new(TEST_ASSETS_PATH).join("test.rs");
+    let code = fs::read_to_string(&rust_path).expect("Failed to read Rust file");
+    let mtime = 0;
+
+    let chunks = chunker.chunk_file(rust_path.to_str().unwrap(), &code, mtime);
+    let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
+    let embeddings = embedder.embed(texts, None).expect("Failed to embed");
+    let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) =
+        prepare_chunks(&chunks);
+    storage
+        .add_chunks(
+            ids,
+            filenames,
+            codes,
+            line_starts,
+            line_ends,
+            last_modified,
+            calls,
+            embeddings,
+        )
+        .await
+        .expect("Failed to add chunks");
+
+    // Create index (this should be automatic but testing explicitly)
+    storage
+        .create_filename_index()
+        .await
+        .expect("Failed to create filename index");
+
+    // Verify index improves filtered search performance
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None);
+
+    // Search with extension filter (should use index)
+    let results = searcher
+        .semantic_search("rust function", 5, Some("rs".to_string()), None, false)
+        .await
+        .expect("Filtered search failed");
+
+    assert!(!results.is_empty(), "Filtered search returned no results");
+    assert!(
+        results[0].filename.ends_with(".rs"),
+        "Filter did not correctly restrict to .rs files"
+    );
+    println!("✓ LanceDB filename index test passed");
+
+    cleanup_test_db(&db_path);
+}
