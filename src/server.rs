@@ -65,12 +65,7 @@ pub async fn start_server(host: String, port: u16, db_path: String) -> Result<()
     };
 
     // 4. Build Router
-    let app = Router::new()
-        .route("/health", get(health_handler))
-        .route("/search", post(search_handler))
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
-        .with_state(state);
+    let app = create_router(state);
 
     // 5. Run
     let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
@@ -80,6 +75,15 @@ pub async fn start_server(host: String, port: u16, db_path: String) -> Result<()
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+pub fn create_router(state: AppState) -> Router {
+    Router::new()
+        .route("/health", get(health_handler))
+        .route("/search", post(search_handler))
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::permissive())
+        .with_state(state)
 }
 
 async fn health_handler() -> impl IntoResponse {
