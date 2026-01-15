@@ -29,7 +29,7 @@ impl CodeSearcher {
         Self { storage, embedder }
     }
 
-    pub async fn semantic_search(&mut self, query: &str, limit: usize, extension: Option<String>, directory: Option<String>) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    pub async fn semantic_search(&mut self, query: &str, limit: usize, extension: Option<String>, directory: Option<String>, no_rerank: bool) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         if let (Some(storage), Some(embedder)) = (&self.storage, &mut self.embedder) {
             let vectors = embedder.embed(vec![query.to_string()])?;
             
@@ -49,8 +49,9 @@ impl CodeSearcher {
                  }
                  let filter_str = if filters.is_empty() { None } else { Some(filters.join(" AND ")) };
 
-                // Fetch more candidates for re-ranking (e.g., 50 or limit * 5)
-                 let fetch_limit = std::cmp::max(50, limit * 5);
+                 // Fetch candidates
+                 // If reranking is enabled, fetch more candidates. If disabled, fetch exact limit (or slightly more for robustness)
+                 let fetch_limit = if no_rerank { limit } else { std::cmp::max(50, limit * 5) };
                  let batches = storage.search(vector.clone(), fetch_limit, filter_str).await?;
                  
                  let mut candidates = Vec::new();
@@ -95,34 +96,24 @@ impl CodeSearcher {
                      }
                  }
                  
-                 // Re-rank
-                 let texts: Vec<String> = candidates.iter().map(|c| c.code.clone()).collect();
-                 // Attempt rerank. If it fails (e.g. model download issue), fallback to vector score?
-                 // For now, hard dependency on success or fallback.
-                 // let reranked_scores = embedder.rerank(query, texts)?; 
-                 // Actually, embedder.rerank returns indices and scores.
-                 
-                 // Check if reranker is available or should be used.
-                 // Since we implemented `rerank` to init lazily, we can just call it.
-                 // Ideally we'd have a config flag, but I'll make it always run for "Advanced Intelligence" phase verification.
-                 // Or better: try rerank, log error on failure? No, panic on failure is bad.
-                 
-                 match embedder.rerank(query, texts) {
-                     Ok(rerank_results) => {
-                         // Update scores
-                         for (original_idx, new_score) in rerank_results {
-                             if let Some(candidate) = candidates.get_mut(original_idx) {
-                                 candidate.score = new_score;
+                 if !no_rerank {
+                     // Re-rank
+                     let texts: Vec<String> = candidates.iter().map(|c| c.code.clone()).collect();
+                     
+                     match embedder.rerank(query, texts) {
+                         Ok(rerank_results) => {
+                             // Update scores
+                             for (original_idx, new_score) in rerank_results {
+                                 if let Some(candidate) = candidates.get_mut(original_idx) {
+                                     candidate.score = new_score;
+                                 }
                              }
+                             // Sort by new score (descending)
+                             candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+                         },
+                         Err(e) => {
+                             eprintln!("Reranking failed/skipped: {}. Using vector scores.", e);
                          }
-                         // Sort by new score (descending)
-                         // f32 is not Ord, use partial_cmp
-                         candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-                     },
-                     Err(e) => {
-                         eprintln!("Reranking failed/skipped: {}. Using vector scores.", e);
-                         // Keep vector scores (already sorted by LanceDB usually, but we appended batches)
-                         // LanceDB returns sorted.
                      }
                  }
 

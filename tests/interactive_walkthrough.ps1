@@ -66,7 +66,12 @@ Pause-Step "Search with JSON output (--json)"
 $t = Invoke-Timed { & $BinaryPath search "function" --db-path $DbPath --limit 1 --json }
 Show-Result $t
 
-# 7. Grep (Exact Match)
+# 7. Fast Search (No Rerank)
+Pause-Step "Fast Search without Re-ranking (--no-rerank)"
+$t = Invoke-Timed { & $BinaryPath search "function" --db-path $DbPath --limit 5 --no-rerank }
+Show-Result $t
+
+# 8. Grep (Exact Match)
 Pause-Step "Grep search for exact string 'tokio::main'"
 $t = Invoke-Timed { & $BinaryPath grep "tokio::main" }
 Show-Result $t

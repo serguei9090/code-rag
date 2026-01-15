@@ -63,6 +63,9 @@ enum Commands {
         /// Filter results by directory path
         #[arg(long)]
         dir: Option<String>,
+        /// Skip the re-ranking step for faster results
+        #[arg(long)]
+        no_rerank: bool,
     },
     /// Perform a regex-based text search across the codebase
     Grep { 
@@ -207,7 +210,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             pb_embed.finish_with_message("Indexing complete.");
         }
-        Commands::Search { query, limit, db_path, html, json, ext, dir } => {
+        Commands::Search { query, limit, db_path, html, json, ext, dir, no_rerank } => {
             let actual_db = db_path.unwrap_or(config.db_path);
             let storage = Storage::new(&actual_db).await?;
             let embedder = Embedder::new()?;
@@ -216,7 +219,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if !json {
                 println!("Searching for: '{}'", query);
             }
-            let search_results = searcher.semantic_search(&query, limit, ext, dir).await?;
+            let search_results = searcher.semantic_search(&query, limit, ext, dir, no_rerank).await?;
 
             if json {
                 println!("{}", serde_json::to_string_pretty(&search_results)?);
