@@ -4,7 +4,11 @@
 `code-rag search <QUERY> [OPTIONS]`
 
 ## Overview
-Performs semantic search using embeddings and re-ranking. Converts the query to a vector, retrieves top candidates from LanceDB, re-ranks them using a Cross-Encoder, and returns the most relevant results.
+Performs **Hybrid Search** (Vector + BM25) using embeddings and re-ranking.
+1.  **Vector Search**: Finds semantic matches (meaning).
+2.  **BM25 Search**: Finds exact keyword matches (usage).
+3.  **Fusion**: Combines results using Reciprocal Rank Fusion (RRF).
+4.  **Re-ranking**: Re-ranks top candidates using a Cross-Encoder for high precision.
 
 ## Arguments
 - `<QUERY>`: Natural language search query (required)

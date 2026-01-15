@@ -1,20 +1,21 @@
-use axum::{
-    extract::{State, Json},
-    routing::{get, post},
-    Router,
-    http::StatusCode,
-    response::IntoResponse,
-};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tower_http::trace::TraceLayer;
-use tower_http::cors::CorsLayer;
+use crate::bm25::BM25Index;
+use crate::embedding::Embedder;
 use crate::search::{CodeSearcher, SearchResult};
 use crate::storage::Storage;
-use crate::embedding::Embedder;
-use std::net::SocketAddr;
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Router,
+};
+use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
 
 // Shared state holding the searcher
 // We need Mutex because CodeSearcher::semantic_search takes &mut self
@@ -36,7 +37,9 @@ pub struct SearchRequest {
     pub no_rerank: bool,
 }
 
-fn default_limit() -> usize { 5 }
+fn default_limit() -> usize {
+    5
+}
 
 // Response payload
 #[derive(Serialize)]
@@ -44,9 +47,13 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
 }
 
-pub async fn start_server(host: String, port: u16, db_path: String) -> Result<(), Box<dyn StdError>> {
+pub async fn start_server(
+    host: String,
+    port: u16,
+    db_path: String,
+) -> Result<(), Box<dyn StdError>> {
     println!("Initializing server components...");
-    
+
     // 1. Init Storage
     let storage = Storage::new(&db_path).await?;
     // Ensure table exists (optional, but good safety)
@@ -59,7 +66,11 @@ pub async fn start_server(host: String, port: u16, db_path: String) -> Result<()
     embedder.init_reranker()?; // Pre-load re-ranker
 
     // 3. Create Searcher
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder));
+    let bm25_index = BM25Index::new(&db_path).ok();
+    if bm25_index.is_none() {
+        println!("Warning: BM25 index could not be opened. Falling back to pure vector search.");
+    }
+    let searcher = CodeSearcher::new(Some(storage), Some(embedder), bm25_index);
     let state = AppState {
         searcher: Arc::new(Mutex::new(searcher)),
     };
@@ -98,21 +109,28 @@ async fn search_handler(
     // We use tokio::sync::Mutex because we hold the lock across an .await point (semantic_search)
     let mut searcher = state.searcher.lock().await;
 
-    println!("Handling search: '{}' (limit: {})", payload.query, payload.limit);
+    println!(
+        "Handling search: '{}' (limit: {})",
+        payload.query, payload.limit
+    );
 
-    match searcher.semantic_search(
-        &payload.query,
-        payload.limit,
-        payload.ext.clone(),
-        payload.dir.clone(),
-        payload.no_rerank
-    ).await {
-        Ok(results) => {
-             (StatusCode::OK, Json(SearchResponse { results }))
-        },
+    match searcher
+        .semantic_search(
+            &payload.query,
+            payload.limit,
+            payload.ext.clone(),
+            payload.dir.clone(),
+            payload.no_rerank,
+        )
+        .await
+    {
+        Ok(results) => (StatusCode::OK, Json(SearchResponse { results })),
         Err(e) => {
             eprintln!("Search error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(SearchResponse { results: vec![] })) // Simplified error response
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(SearchResponse { results: vec![] }),
+            ) // Simplified error response
         }
     }
 }

@@ -1,4 +1,5 @@
 /target
 /release
-.lancedb
+.lancedb*
 .fastembed_cache
+*errors*.txt

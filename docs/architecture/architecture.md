@@ -10,16 +10,24 @@ graph TB
     B --> C[Tree-sitter Parser]
     C --> D[Semantic Chunks]
     D --> E[Embedder]
+    D --> E2[BM25 Indexer]
     E --> F[LanceDB]
+    E2 --> F2[Tantivy Index]
     
     G[Search Query] --> H[Query Embedder]
+    G --> H2[BM25 Query Parser]
     H --> I[Vector Search]
+    H2 --> I2[BM25 Search]
     I --> F
-    F --> J[Top 50 Candidates]
-    J --> K[Cross-Encoder Reranker]
+    I2 --> F2
+    F --> J[Vector Candidates]
+    F2 --> J2[BM25 Candidates]
+    J --> K[RRF Fusion & Reranking]
+    J2 --> K
     K --> L[Top N Results]
     
     style F fill:#e1f5ff
+    style F2 fill:#e1f5ff
     style K fill:#ffe1e1
 ```
 
@@ -89,21 +97,29 @@ pub struct CodeChunk {
 - `delete_file_chunks()`: Remove chunks by filename
 
 ### 4. CodeSearcher (`src/search.rs`)
-**Responsibility**: Orchestrate search pipeline.
+**Responsibility**: Orchestrate search pipeline (Hybrid Search).
 
-**Two-Stage Search**:
+**Hybrid Search Strategy**:
+1.  **Vector Search**: Finds semantic matches.
+2.  **BM25 Search**: Finds exact keyword matches.
+3.  **fusion**: Reciprocal Rank Fusion (RRF) combines scores.
+    - `score = 1.0 / (k + rank)` where k=60
+4.  **Re-ranking**: Cross-encoder re-ranks the top fused candidates.
+
 ```rust
 async fn semantic_search(query: &str, limit: usize) -> Vec<SearchResult> {
-    // Stage 1: Vector Search
-    let candidates = storage.search(query_vector, limit * 5).await?;
+    // Stage 1: Parallel Search
+    let (vec_results, bm25_results) = join!(vector_search(), bm25_search());
     
-    // Stage 2: Re-ranking
+    // Stage 2: RRF Fusion
+    let candidates = rrf_merge(vec_results, bm25_results);
+    
+    // Stage 3: Re-ranking
     let texts = candidates.iter().map(|c| c.code).collect();
     let reranked = embedder.rerank(query, texts)?;
     
-    // Sort by new scores and return top N
+    // Sort & Return
     candidates.sort_by_score(reranked);
-    candidates.truncate(limit);
     candidates
 }
 ```
@@ -135,15 +151,19 @@ Files → Chunker → Embedder → LanceDB
   ↓        ↓         ↓          ↓
  .rs    AST Parse  Vector   .lancedb/
  .py    Extract   [768]    code_chunks/
- .js    Chunks    dims
+ .js    Chunks    dims        +
+                              ↓
+                          Tantivy (BM25)
+                          .lancedb/bm25_index/
 ```
 
 ### Search Flow
 ```
-Query → Embed → Vector Search → Re-rank → Results
-  ↓       ↓          ↓             ↓          ↓
- "auth" [768]    Top 50      BGE-Reranker  Top 5
-        dims    candidates   Cross-Encoder
+Query → Embed → Vector Search ↘
+  ↓       ↓          ↓           RRF Fusion → Re-rank → Results
+ "auth" [768]    Top 50 (Vec) ↗    +
+        dims          +         Top 50 (BM25)
+                BM25 Search ↗
 ```
 
 ## Performance Characteristics
@@ -202,6 +222,7 @@ sequenceDiagram
 
 ### Search
 - `grep-*`: Ripgrep integration
+- `tantivy`: BM25 Search
 - `ignore`: `.gitignore` handling
 
 ## Future Enhancements
