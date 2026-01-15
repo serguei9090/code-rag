@@ -61,3 +61,12 @@ The specified directory must contain the following files:
 - `special_tokens_map.json`: Mapping for special tokens (CLS, SEP, etc.).
 
 When a path is provided, `code-rag` will bypass all Hugging Face checks and load the model directly from that directory.
+
+## Developer Testing
+To verify local model loading during development:
+1.  **Download the test model**: Run `pwsh scripts/download_test_model.ps1`. This downloads `bge-small-en-v1.5` (~130MB) into `tests/fixtures/models/`.
+2.  **Run the integration test**:
+    ```bash
+    cargo test --test local_model_test
+    ```
+    This test automatically points the engine to the fixture directory and verifies indexing and searching.

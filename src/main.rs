@@ -135,23 +135,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             info!("Indexing path: {}", actual_path);
             let index_path = Path::new(&actual_path);
 
-            // 1. Initialize Storage
-            let storage = Storage::new(&actual_db).await?;
-            storage.init().await?;
-
-            // 2. Initialize BM25 Index
-            let bm25_index = match BM25Index::new(&actual_db) {
-                Ok(idx) => idx,
-                Err(e) => {
-                    warn!(
-                        "Failed to initialize BM25 index: {}. Hybrid search may be degraded.",
-                        e
-                    );
-                    return Err(e);
-                }
-            };
-
-            // 3. Load Models with Spinner
+            // 1. Load Models with Spinner
             let pb_model = ProgressBar::new_spinner();
             pb_model.set_style(ProgressStyle::default_spinner().template("{spinner:.blue} {msg}")?);
             pb_model.enable_steady_tick(std::time::Duration::from_millis(120));
@@ -173,6 +157,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let _ = embedder.rerank("query", warmup_text).is_ok();
 
             pb_model.finish_with_message("Models loaded.");
+
+            // 2. Initialize Storage
+            let storage = Storage::new(&actual_db).await?;
+            storage.init(embedder.dim()).await?;
+
+            // 3. Initialize BM25 Index
+            let bm25_index = match BM25Index::new(&actual_db) {
+                Ok(idx) => idx,
+                Err(e) => {
+                    warn!(
+                        "Failed to initialize BM25 index: {}. Hybrid search may be degraded.",
+                        e
+                    );
+                    return Err(e);
+                }
+            };
 
             let chunker = CodeChunker::new();
 

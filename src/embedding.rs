@@ -12,6 +12,7 @@ pub struct Embedder {
     reranker: Option<TextRerank>,
     reranker_model_name: String,
     reranker_model_path: Option<String>,
+    dim: usize,
 }
 
 fn load_tokenizer_files(path: &Path) -> Result<TokenizerFiles, Box<dyn Error>> {
@@ -49,7 +50,7 @@ impl Embedder {
         let mut options = InitOptions::new(EmbeddingModel::NomicEmbedTextV15);
         options.show_download_progress = !quiet;
 
-        let model = if let Some(path_str) = embedding_model_path {
+        let mut model = if let Some(path_str) = embedding_model_path {
             let path = Path::new(&path_str);
             tracing::info!("Loading user-defined embedding model from: {}", path_str);
 
@@ -78,12 +79,22 @@ impl Embedder {
             TextEmbedding::try_new(options)?
         };
 
+        // Determine dimension
+        let warmup_text = vec!["warmup".to_string()];
+        let warmup_vecs = model.embed(warmup_text, None)?;
+        let dim = warmup_vecs.first().map(|v| v.len()).unwrap_or(768);
+
         Ok(Self {
             model,
             reranker: None,
             reranker_model_name: reranker_model,
             reranker_model_path,
+            dim,
         })
+    }
+
+    pub fn dim(&self) -> usize {
+        self.dim
     }
 
     pub fn embed(

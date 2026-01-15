@@ -27,7 +27,7 @@ impl Storage {
         })
     }
 
-    pub async fn init(&self) -> Result<()> {
+    pub async fn init(&self, dim: usize) -> Result<()> {
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),
             Field::new("filename", DataType::Utf8, false),
@@ -42,7 +42,10 @@ impl Storage {
             ),
             Field::new(
                 "vector",
-                DataType::FixedSizeList(Arc::new(Field::new("item", DataType::Float32, true)), 768),
+                DataType::FixedSizeList(
+                    Arc::new(Field::new("item", DataType::Float32, true)),
+                    dim as i32,
+                ),
                 false,
             ),
         ]));
@@ -74,6 +77,15 @@ impl Storage {
         calls: Vec<Vec<String>>,
         vectors: Vec<Vec<f32>>,
     ) -> std::result::Result<(), Box<dyn Error>> {
+        let table = self.conn.open_table(&self.table_name).execute().await?;
+        let table_schema = table.schema().await?;
+        let vector_field = table_schema.field_with_name("vector").unwrap();
+        let dim_val = if let DataType::FixedSizeList(_, d) = vector_field.data_type() {
+            *d
+        } else {
+            768
+        };
+
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),
             Field::new("filename", DataType::Utf8, false),
@@ -88,7 +100,10 @@ impl Storage {
             ),
             Field::new(
                 "vector",
-                DataType::FixedSizeList(Arc::new(Field::new("item", DataType::Float32, true)), 768),
+                DataType::FixedSizeList(
+                    Arc::new(Field::new("item", DataType::Float32, true)),
+                    dim_val,
+                ),
                 false,
             ),
         ]));
@@ -114,7 +129,7 @@ impl Storage {
         let flat_vectors: Vec<f32> = vectors.into_iter().flatten().collect();
         let values = Float32Array::from(flat_vectors);
         let field = Arc::new(Field::new("item", DataType::Float32, true));
-        let vector_array = FixedSizeListArray::try_new(field, 768, Arc::new(values), None)?;
+        let vector_array = FixedSizeListArray::try_new(field, dim_val, Arc::new(values), None)?;
 
         let batch = RecordBatch::try_new(
             schema.clone(),
