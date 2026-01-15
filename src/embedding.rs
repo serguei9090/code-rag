@@ -11,6 +11,8 @@ impl Embedder {
         let mut options = InitOptions::new(EmbeddingModel::NomicEmbedTextV15);
         options.show_download_progress = true;
         
+        // Indicate loading status
+        println!("Loading embedding model (NomicEmbedTextV15)...");
         let model = TextEmbedding::try_new(options)?;
         Ok(Self { model, reranker: None })
     }
@@ -24,6 +26,9 @@ impl Embedder {
         if self.reranker.is_none() {
             let mut options = RerankInitOptions::new(RerankerModel::BGERerankerBase);
             options.show_download_progress = true;
+            
+            // Indicate loading status (this can be slow)
+            println!("Initializing re-ranker (BGERerankerBase) - this may take a moment...");
             let reranker = TextRerank::try_new(options)?;
             self.reranker = Some(reranker);
         }

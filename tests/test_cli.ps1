@@ -412,6 +412,22 @@ catch {
     Assert-Success "Directory filter test" $false $_.Exception.Message
 }
 
+# Test 22: No Rerank Search
+Write-Section "Test 22: No Rerank Search"
+try {
+    Write-Info "Testing --no-rerank flag..."
+    $startTime = Get-Date
+    $fastOutput = & $BinaryPath search "function" --db-path $TestDbPath --no-rerank --limit 5 2>&1 | Out-String
+    $duration = (Get-Date) - $startTime
+    
+    Assert-Success "No rerank search executes" ($LASTEXITCODE -eq 0)
+    Assert-Success "No rerank search returns results" ($fastOutput -match "Rank|File|Score")
+    Write-Info "Execution time: $($duration.TotalSeconds)s"
+}
+catch {
+    Assert-Success "No rerank search test" $false $_.Exception.Message
+}
+
 # Cleanup
 Write-Section "Cleanup"
 Cleanup-TestDb

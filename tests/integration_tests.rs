@@ -104,7 +104,7 @@ async fn test_search_rust_function() {
     
     // Search for Rust function
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
-    let results = searcher.semantic_search("rust function example", 5).await.expect("Search failed");
+    let results = searcher.semantic_search("rust function example", 5, None, None, false).await.expect("Search failed");
     
     assert!(!results.is_empty(), "Search returned no results");
     assert!(results[0].filename.contains("test.rs"), "Top result should be from test.rs");
@@ -130,7 +130,7 @@ async fn test_search_python_class() {
     
     // Search for Python content
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
-    let results = searcher.semantic_search("python function", 5).await.expect("Search failed");
+    let results = searcher.semantic_search("python function", 5, None, None, false).await.expect("Search failed");
     
     assert!(!results.is_empty(), "Search returned no results for Python");
     println!("✓ Found {} results for Python search", results.len());
@@ -157,7 +157,7 @@ async fn test_search_bash_script() {
     
     // Search for Bash function
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
-    let results = searcher.semantic_search("backup logs", 5).await.expect("Search failed");
+    let results = searcher.semantic_search("backup logs", 5, None, None, false).await.expect("Search failed");
     
     assert!(!results.is_empty(), "Search returned no results for Bash");
     assert!(results[0].code.contains("backup_logs") || results[0].code.contains("log"), 
@@ -186,7 +186,7 @@ async fn test_search_powershell_function() {
     
     // Search for PowerShell function
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
-    let results = searcher.semantic_search("system status", 5).await.expect("Search failed");
+    let results = searcher.semantic_search("system status", 5, None, None, false).await.expect("Search failed");
     
     assert!(!results.is_empty(), "Search returned no results for PowerShell");
     println!("✓ Found {} results for PowerShell search", results.len());
@@ -213,7 +213,7 @@ async fn test_search_json_config() {
     
     // Search for JSON content
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
-    let results = searcher.semantic_search("configuration database", 5).await.expect("Search failed");
+    let results = searcher.semantic_search("configuration database", 5, None, None, false).await.expect("Search failed");
     
     assert!(!results.is_empty(), "Search returned no results for JSON");
     println!("✓ Found {} results for JSON search", results.len());
@@ -245,7 +245,7 @@ async fn test_multi_language_search() {
     
     // Search across all languages
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder));
-    let results = searcher.semantic_search("function definition", 10).await.expect("Search failed");
+    let results = searcher.semantic_search("function definition", 10, None, None, false).await.expect("Search failed");
     
     assert!(!results.is_empty(), "Multi-language search returned no results");
     assert!(total_chunks >= 4, "Expected at least 4 chunks from 4 files");
