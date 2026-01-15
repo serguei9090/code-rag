@@ -119,6 +119,14 @@ async fn semantic_search(query: &str, limit: usize) -> Vec<SearchResult> {
 - Call hierarchy tags
 - Relevance scores
 
+### 6. Server (`src/server.rs`)
+**Responsibility**: Provide HTTP API for indexing and search.
+
+**Endpoints**:
+- `POST /search`: JSON search API
+- `POST /index`: Trigger indexing job
+- `GET /health`: Health check
+
 ## Data Flow
 
 ### Indexing Flow
@@ -202,4 +210,4 @@ sequenceDiagram
 2. **Graph Database**: Store call graphs
 3. **LSP Integration**: Real-time indexing
 4. **Web UI**: Browser-based interface
-5. **Multi-language Support**: Bash, PowerShell, YAML, etc.
+5. **IDE Plugins**: VS Code / JetBrains integration

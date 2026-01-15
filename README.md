@@ -72,6 +72,8 @@ code-rag index --force
 - Generates embeddings
 - Saves them to `./.lancedb/code_chunks`
 
+See `docs/commands/index_cmd.md` for full reference.
+
 ### 2️⃣ Search using natural language
 
 ```bash
@@ -109,12 +111,22 @@ code-rag search "config parser" --ext py   # Only Python files
 code-rag search "api handler" --dir "src/api"
 ```
 
+**NEW: Skip Re-ranking for speed:**
+
+```bash
+code-rag search "quick query" --no-rerank
+```
+
 **What it does:**
 - Converts your query to an embedding
 - Performs a hybrid search (Vector + Re-ranking)
 - Uses `BGE-Reranker` to refine the top results
 - Returns the most similar code chunks
 - Displays extracted call hierarchy (what functions are called)
+
+- Displays extracted call hierarchy (what functions are called)
+
+See `docs/commands/search.md` for full reference.
 
 ### 3️⃣ Grep-style text search
 
@@ -128,7 +140,22 @@ code-rag grep "tokio::main"
 code-rag grep "async fn" --json
 ```
 
-This is a simple text search, not semantic.
+This is a simple text search, not semantic. See `docs/commands/grep.md`.
+
+### 4️⃣ Start HTTP Server
+
+```bash
+code-rag serve --port 3000
+```
+
+Starts a persistent HTTP server for API access.
+
+**Options:**
+- `--port <PORT>`: Port to listen on (default: 3000)
+- `--host <HOST>`: Host to bind to (default: 127.0.0.1)
+- `--db-path <PATH>`: Custom database path
+
+See `docs/commands/serve.md` or `docs/features/server_mode.md` for details.
 
 ## 🧠 Embedding model used
 
@@ -138,9 +165,7 @@ Your app uses: **NomicEmbedTextV15**
 - Downloaded automatically on first use
 - Cached on your machine
 
-## 📁 Supported languages
-
-**Core Languages:**
+**Supported Files:**
 - Rust (`.rs`)
 - Python (`.py`)
 - JavaScript/TypeScript (`.js`, `.jsx`, `.ts`, `.tsx`)
@@ -150,24 +175,18 @@ Your app uses: **NomicEmbedTextV15**
 - C# (`.cs`)
 - Ruby (`.rb`)
 - PHP (`.php`)
-
-**Web:**
 - HTML (`.html`)
 - CSS (`.css`)
-
-**Scripting:**
-- Bash (`.sh`, `.bash`)
+- Bash/Shell (`.sh`, `.bash`)
 - PowerShell (`.ps1`)
-
-**Data Formats:**
-- JSON (`.json`)
 - YAML (`.yaml`, `.yml`)
-
-**NEW in Phase 2:**
+- JSON (`.json`)
 - Zig (`.zig`)
 - Elixir (`.ex`, `.exs`)
 - Haskell (`.hs`)
 - Solidity (`.sol`)
+
+See [Supported Languages](docs/features/supported_languages.md) for full details on what is extracted for each language.
 
 ## 🗑️ How to reset the database
 
