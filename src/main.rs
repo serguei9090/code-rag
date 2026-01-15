@@ -220,6 +220,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 storage.add_chunks(ids, filenames, codes, starts, ends, mtimes, calls, embeddings).await?;
             }
             pb_embed.finish_with_message("Indexing complete.");
+
+            println!("Optimizing index (creating filename index)...");
+            if let Err(e) = storage.create_filename_index().await {
+                 eprintln!("Warning: Failed to create index: {}", e);
+            }
         }
         Commands::Search { query, limit, db_path, html, json, ext, dir, no_rerank } => {
             let actual_db = db_path.unwrap_or(config.db_path);

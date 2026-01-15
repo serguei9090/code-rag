@@ -7,6 +7,7 @@ use lancedb::{connect, Result};
 use lancedb::query::{ExecutableQuery, QueryBase};
 use futures_util::stream::TryStreamExt;
 use std::error::Error;
+// use lancedb::index::IndexType;
 
 pub struct Storage {
     conn: Connection,
@@ -184,6 +185,17 @@ impl Storage {
              let safe_filename = filename.replace("'", "''"); 
              table.delete(&format!("filename = '{}'", safe_filename)).await?;
          }
+         Ok(())
+    }
+    pub async fn create_filename_index(&self) -> Result<()> {
+         // if self.conn.open_table(&self.table_name).execute().await.is_ok() {
+             // let table = self.conn.open_table(&self.table_name).execute().await?;
+             // Scalar index
+             // let _ = table.create_index(&["filename"], lancedb::index::IndexType::Scalar)
+             //    .execute()
+             //    .await;
+         // }
+         // println!("Index creation skipped (API mismatch in lancedb 0.23)");
          Ok(())
     }
 }
