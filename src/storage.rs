@@ -51,6 +51,7 @@ impl Storage {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_chunks(
         &self,
         ids: Vec<String>,

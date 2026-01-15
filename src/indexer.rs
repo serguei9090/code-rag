@@ -12,6 +12,12 @@ pub struct CodeChunk {
 
 pub struct CodeChunker {}
 
+impl Default for CodeChunker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CodeChunker {
     pub fn new() -> Self {
         Self {}
@@ -33,7 +39,7 @@ impl CodeChunker {
              "html" => Some(tree_sitter_html::LANGUAGE.into()),
              "css" => Some(tree_sitter_css::LANGUAGE.into()),
              "sh" | "bash" => Some(tree_sitter_bash::LANGUAGE.into()),
-             "ps1" => Some(tree_sitter_powershell::language().into()),
+             "ps1" => Some(tree_sitter_powershell::language()),
              // "dockerfile" | "Dockerfile" => Some(tree_sitter_dockerfile::language().into()),
              "yaml" | "yml" => Some(tree_sitter_yaml::LANGUAGE.into()),
              "json" => Some(tree_sitter_json::LANGUAGE.into()),
@@ -74,6 +80,7 @@ impl CodeChunker {
         chunks
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn traverse(&self, node: &Node, code: &str, filename: &str, chunks: &mut Vec<CodeChunk>, ext: &str, mtime: i64, depth: usize) {
         let kind = node.kind();
         

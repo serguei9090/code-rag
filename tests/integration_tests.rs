@@ -31,6 +31,7 @@ async fn setup_test_env(test_name: &str) -> (Storage, Embedder, CodeChunker, Str
     (storage, embedder, chunker, db_path)
 }
 
+#[allow(clippy::type_complexity)]
 fn prepare_chunks(chunks: &[code_rag::indexer::CodeChunk]) -> (Vec<String>, Vec<String>, Vec<String>, Vec<i32>, Vec<i32>, Vec<i64>, Vec<Vec<String>>) {
     let ids = chunks.iter().map(|c| format!("{}:{}", c.filename, c.line_start)).collect();
     let filenames = chunks.iter().map(|c| c.filename.clone()).collect();

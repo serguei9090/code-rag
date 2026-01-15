@@ -36,7 +36,7 @@ impl CodeSearcher {
             if let Some(vector) = vectors.first() {
                  let mut filters = Vec::new();
                  if let Some(ext) = extension {
-                     let clean_ext = if ext.starts_with('.') { &ext[1..] } else { &ext };
+                     let clean_ext = if let Some(stripped) = ext.strip_prefix('.') { stripped } else { &ext };
                      filters.push(format!("filename LIKE '%.{}'", clean_ext));
                  }
                  if let Some(dir) = directory {
@@ -137,7 +137,7 @@ impl CodeSearcher {
         for result in walker {
             match result {
                 Ok(entry) => {
-                    if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+                    if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                         continue;
                     }
 

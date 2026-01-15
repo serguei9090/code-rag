@@ -4,3 +4,4 @@ pub mod embedding;
 pub mod search;
 pub mod config;
 pub mod reporting;
+pub mod server;

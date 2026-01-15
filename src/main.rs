@@ -5,6 +5,7 @@ use code_rag::embedding::Embedder;
 use code_rag::search::CodeSearcher;
 use code_rag::config::AppConfig;
 use code_rag::reporting::generate_html_report;
+use code_rag::server::start_server;
 use ignore::WalkBuilder;
 use std::path::Path;
 use std::fs;
@@ -75,6 +76,18 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Start a persistent HTTP server
+    Serve {
+        /// Port to listen on
+        #[arg(long, default_value_t = 3000)]
+        port: u16,
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Custom database path
+        #[arg(long)]
+        db_path: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -110,7 +123,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Running warmup query to initialize ONNX Runtime...");
             let warmup_text = vec!["warmup".to_string()];
             let _ = embedder.embed(warmup_text.clone(), None)?;
-            if let Ok(_) = embedder.rerank("query", warmup_text) {
+            if embedder.rerank("query", warmup_text).is_ok() {
                 // Succeeded
             }
             let chunker = CodeChunker::new();
@@ -134,7 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             for result in walker {
                 match result {
                     Ok(entry) => {
-                        if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+                        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                             continue;
                         }
                         
@@ -272,6 +285,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                  },
                  Err(e) => eprintln!("Grep failed: {}", e),
              }
+
+        }
+        Commands::Serve { port, host, db_path } => {
+            let actual_db = db_path.unwrap_or(config.db_path);
+            start_server(host, port, actual_db).await?;
         }
     }
     
