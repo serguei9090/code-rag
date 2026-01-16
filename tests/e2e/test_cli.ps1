@@ -14,9 +14,9 @@ $TestsFailed = 0
 $TestAssets = "$ProjectRoot/test_assets"
 
 # Colors for output
-function Write-Success { param($msg) Write-Host "✓ $msg" -ForegroundColor Green }
-function Write-Failure { param($msg) Write-Host "✗ $msg" -ForegroundColor Red }
-function Write-Info { param($msg) Write-Host "→ $msg" -ForegroundColor Cyan }
+function Write-Success { param($msg) Write-Host "[OK] $msg" -ForegroundColor Green }
+function Write-Failure { param($msg) Write-Host "[FAIL] $msg" -ForegroundColor Red }
+function Write-Info { param($msg) Write-Host "-> $msg" -ForegroundColor Cyan }
 function Write-Section { param($msg) Write-Host "`n=== $msg ===" -ForegroundColor Yellow }
 
 # Cleanup function

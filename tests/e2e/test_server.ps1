@@ -51,7 +51,7 @@ try {
                 Write-Error "Expected status 400 or 500, got $statusCode"
                 throw
             }
-            Write-Host "✓ Error handling test passed (invalid JSON)"
+            Write-Host "[OK] Error handling test passed (invalid JSON)"
         }
     }
     catch {
@@ -75,7 +75,7 @@ try {
                 Write-Error "Expected status 400 or 500, got $statusCode"
                 throw
             }
-            Write-Host "✓ Error handling test passed (missing required field)"
+            Write-Host "[OK] Error handling test passed (missing required field)"
         }
     }
     catch {

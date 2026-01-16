@@ -241,17 +241,34 @@ code-rag search "how embeddings are generated" --limit 5
 
 ## ⚙️ Build
 
-### Windows (MSVC)
+### Windows
 
+**Debug Build:**
 ```powershell
-cargo build --release --bin code-rag
+.\build.ps1
 ```
 
-Binary: `target\release\code-rag.exe`
+**Release Build:**
+```powershell
+.\build.ps1 release
+```
 
-### Linux (Docker)
+**Interactive Menu:**
+```powershell
+.\interactive_build.ps1
+```
 
-Use your Docker pipeline.
+### Linux / macOS
+
+**Debug Build:**
+```bash
+./build.sh
+```
+
+**Release Build:**
+```bash
+./build.sh release
+```
 
 ## 🔒 Privacy
 

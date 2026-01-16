@@ -7,7 +7,7 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 Write-Host "==> Building Windows MSVC binary locally..." -ForegroundColor Cyan
 
 # Ensure MSVC toolchain
-rustup default stable-x86_64-pc-windows-msvc | Out-Null
+# rustup default stable-x86_64-pc-windows-msvc | Out-Null
 
 # Clean is optional; useful when switching targets or fixing native deps
 # cargo clean
