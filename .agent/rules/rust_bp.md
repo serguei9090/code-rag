@@ -1,5 +1,6 @@
 ---
-trigger: always_on
+trigger: glob
+globs: *rs
 ---
 
 Comprehensive Rust Best Practices Guide

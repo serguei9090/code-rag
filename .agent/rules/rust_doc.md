@@ -1,3 +1,8 @@
+---
+trigger: glob
+globs: *rs
+---
+
 # Rust Coding Standards & Documentation Rules
 
 This document defines the mandatory coding standards for the `code-rag` Rust project.

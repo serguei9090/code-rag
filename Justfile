@@ -31,3 +31,8 @@ ci: fmt clippy test audit
 # Clean build artifacts
 clean:
     cargo clean
+
+# Clean .lancedb test directories
+clean-data:
+    @powershell -Command "Get-ChildItem -Filter '.lancedb-*' -Recurse | Remove-Item -Recurse -Force"
+

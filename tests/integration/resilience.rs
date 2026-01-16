@@ -14,6 +14,10 @@ async fn test_corrupt_database() {
     writeln!(file, "NOT A VALID LANCE FILE").unwrap();
 
     // Verification would be creating a searcher on this path and verifying it doesn't panic
+    // ... verification logic ...
+
+    // Cleanup
+    cleanup_test_db(&db_path);
 }
 
 #[tokio::test]
