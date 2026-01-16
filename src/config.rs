@@ -21,6 +21,7 @@ pub struct AppConfig {
     pub vector_weight: f32,
     pub bm25_weight: f32,
     pub rrf_k: f64,
+    pub merge_policy: String,
 }
 
 impl AppConfig {
@@ -42,7 +43,8 @@ impl AppConfig {
             .set_default("chunk_overlap", 128)?
             .set_default("vector_weight", 1.0)?
             .set_default("bm25_weight", 1.0)?
-            .set_default("rrf_k", 60.0)?;
+            .set_default("rrf_k", 60.0)?
+            .set_default("merge_policy", "log")?;
 
         // 1. File: code-ragcnf.toml (Current Directory)
         if PathBuf::from("code-ragcnf.toml").exists() {

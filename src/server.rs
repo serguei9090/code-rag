@@ -77,7 +77,8 @@ pub async fn start_server(
     embedder.init_reranker()?; // Pre-load re-ranker
 
     // 3. Create Searcher
-    let bm25_index = BM25Index::new(&db_path, true).ok();
+    // 3. Create Searcher
+    let bm25_index = BM25Index::new(&db_path, true, "log").ok();
     if bm25_index.is_none() {
         println!("Warning: BM25 index could not be opened. Falling back to pure vector search.");
     }

@@ -28,7 +28,7 @@ pub struct BM25Result {
 }
 
 impl BM25Index {
-    pub fn new(db_path: &str, readonly: bool) -> Result<Self> {
+    pub fn new(db_path: &str, readonly: bool, merge_policy_type: &str) -> Result<Self> {
         let index_path = Path::new(db_path).join("bm25_index");
         if !index_path.exists() {
             fs::create_dir_all(&index_path)?;
@@ -36,9 +36,7 @@ impl BM25Index {
 
         let mut schema_builder = Schema::builder();
         schema_builder.add_text_field("id", STRING | STORED); // Unique ID
-        schema_builder.add_text_field("filename", STRING | STORED); // Filename (not tokenized for search, but for retrieving)
-                                                                    // We use TEXT for code to allow full-text search.
-                                                                    // We might want to use a specific tokenizer for code if desired, but standard is fine for now.
+        schema_builder.add_text_field("filename", STRING | STORED); // Filename
         schema_builder.add_text_field("code", TEXT | STORED);
         schema_builder.add_u64_field("line_start", STORED);
         schema_builder.add_u64_field("line_end", STORED);
@@ -54,12 +52,30 @@ impl BM25Index {
             None
         } else {
             match index.writer(50_000_000) {
-                Ok(w) => Some(Arc::new(Mutex::new(w))),
+                Ok(w) => {
+                    // Apply Merge Policy
+                    match merge_policy_type {
+                        "log" | "fast-write" => {
+                            let mut policy = tantivy::merge_policy::LogMergePolicy::default();
+                            if merge_policy_type == "fast-write" {
+                                policy.set_min_layer_size(10);
+                            } else {
+                                policy.set_min_layer_size(8);
+                            }
+                            w.set_merge_policy(Box::new(policy));
+                        }
+                        "fast-search" => {
+                            // Default behavior
+                        }
+                        _ => {
+                            let mut policy = tantivy::merge_policy::LogMergePolicy::default();
+                            policy.set_min_layer_size(8);
+                            w.set_merge_policy(Box::new(policy));
+                        }
+                    }
+                    Some(Arc::new(Mutex::new(w)))
+                }
                 Err(e) => {
-                    // If we can't open writer (e.g. locked by another process), we can warn or fail.
-                    // For the 'Index' and 'Watch' commands, this should fail.
-                    // But if this was an opportunistic write, we could just be None.
-                    // Since 'readonly=false' implies intent to write, we should propagate error.
                     return Err(anyhow::anyhow!(e));
                 }
             }
@@ -210,7 +226,7 @@ mod tests {
     fn setup_test_index() -> (BM25Index, TempDir) {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let db_path = temp_dir.path().to_str().unwrap();
-        let index = BM25Index::new(db_path, false).expect("Failed to create index");
+        let index = BM25Index::new(db_path, false, "log").expect("Failed to create index");
         (index, temp_dir)
     }
 

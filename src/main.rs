@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
             storage.init(embedder.dim()).await?;
 
             // 3. Initialize BM25 Index
-            let bm25_index = match BM25Index::new(&actual_db, false) {
+            let bm25_index = match BM25Index::new(&actual_db, false, &config.merge_policy) {
                 Ok(idx) => idx,
                 Err(e) => {
                     warn!(
@@ -404,7 +404,8 @@ async fn main() -> anyhow::Result<()> {
             };
 
             // Initialize BM25 Index (Optional)
-            let bm25_index = BM25Index::new(&actual_db, true).ok();
+            // Pass "log" or any default, as readonly=true makes it irrelevant
+            let bm25_index = BM25Index::new(&actual_db, true, "log").ok();
             if bm25_index.is_none() {
                 warn!("BM25 index could not be opened. Falling back to pure vector search.");
             }
@@ -527,7 +528,7 @@ async fn main() -> anyhow::Result<()> {
             let storage = Storage::new(&actual_db).await?;
             storage.init(embedder.dim()).await?; // Ensure schema
 
-            let bm25_index = match BM25Index::new(&actual_db, false) {
+            let bm25_index = match BM25Index::new(&actual_db, false, &config.merge_policy) {
                 Ok(idx) => idx,
                 Err(e) => {
                     error!("Failed to initialize BM25 index: {}", e);

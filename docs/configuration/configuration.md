@@ -71,6 +71,22 @@ This is useful for setting defaults across all projects.
 
 See `code-rag.toml.example` in the project root for a complete template.
 
+## Merge Policy
+
+The `merge_policy` setting controls how the underlying search engine (Tantivy) handles index segments. This affects indexing speed and search latency.
+
+| Policy | Description | Recommended Use Case |
+| :--- | :--- | :--- |
+| `log` | Default balanced policy. Good trade-off between write speed and read speed. Uses logarithmic merging. | General usage, read/write mixed workloads. |
+| `fast-write` | optimized for indexing speed. Sets a larger minimum segment size (10 docs) to reduce merge frequency during heavy writes. | Bulk indexing, initial index creation, CI/CD pipelines. |
+| `fast-search` | Optimized for search performance. Uses standard segment sizing to keep the index compact, potentially at the cost of slower indexing. | Read-heavy workloads, production servers where indexing is infrequent. |
+
+Example:
+```toml
+merge_policy = "fast-write"
+```
+
+
 ## Common Scenarios
 
 ### Scenario 1: Per-Project Database

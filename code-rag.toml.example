@@ -22,6 +22,14 @@ db_path = './.lancedb'
 # Example: default_index_path = 'C:\Projects\MyRepo'
 default_index_path = '.'
 
+# Merge Policy for BM25 Indexing
+# Options:
+# "log" (Default) - Balanced read/write performance.
+# "fast-write" - Optimized for high-throughput indexing (larger segments).
+# "fast-search" - Optimized for search latency (smaller segments, more merging).
+merge_policy = "log"
+
+
 # ==========================================
 # SUPPORTED EXTENSIONS
 # ==========================================
