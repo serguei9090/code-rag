@@ -51,13 +51,13 @@ Based on the code analysis:
 - [x] **Enhance `lefthook.yml`:** Add `cargo audit` to the pre-commit checks.
 
 ### Level 2: Automation (High Priority)
-- [ ] **Create GitHub Actions:** Add `.github/workflows/ci.yml` to run:
+- [x] **Create GitHub Actions:** Add `.github/workflows/ci.yml` to run:
   - `cargo fmt --check`
   - `cargo clippy -- -D warnings`
   - `cargo test`
   - `cargo audit`
-- [ ] **Standardize Tasks:** Consider adding a `Justfile` to wrap the PowerShell scripts for cross-platform compatibility (optional but recommended).
+- [x] **Standardize Tasks:** Added a `Justfile` to wrap common commands.
 
 ### Level 3: Robustness (Medium Priority)
-- [ ] **Implement Gap Report Tests:** Execute the plan in `gap_report.md`.
-- [ ] **Add `cargo-deny`:** Create `deny.toml` to enforce license compliance.
+- [x] **Implement Gap Report Tests:** Execute the plan in `gap_report.md`.
+- [x] **Add `cargo-deny`:** Create `deny.toml` to enforce license compliance.
