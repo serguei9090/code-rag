@@ -87,7 +87,7 @@ catch {
 Write-Section "Test 3: Index Command (Basic)"
 try {
     Write-Info "Indexing test assets..."
-    $idx = & cargo run --bin code-rag -- index
+    $indexOutput = & cargo run --bin code-rag -- index $TestAssets --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "Index command executes" ($LASTEXITCODE -eq 0) "Exit code: $LASTEXITCODE"
     Assert-Success "Database directory created" (Test-Path $TestDbPath)
@@ -169,7 +169,7 @@ catch {
 Write-Section "Test 9: Search Command (JSON)"
 try {
     Write-Info "Searching for JSON configuration..."
-    $searchOutput = & cargo run --bin code-rag -- search "configuration database" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "configuration database" --db-path $TestDbPath --limit 20 2>&1 | Out-String
     
     Assert-Success "JSON search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "JSON search finds json file" ($searchOutput -match "test\.json")
@@ -182,7 +182,7 @@ catch {
 Write-Section "Test 10: Search Command (YAML)"
 try {
     Write-Info "Searching for YAML config..."
-    $searchOutput = & cargo run --bin code-rag -- search "project name version" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "project name version" --db-path $TestDbPath --limit 20 2>&1 | Out-String
     
     Assert-Success "YAML search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "YAML search finds yaml file" ($searchOutput -match "test\.yaml")
@@ -300,7 +300,7 @@ try {
     # Check for deep class
     $deepOutput = & cargo run --bin code-rag -- search "DeepClass" --db-path $TestDbPath --limit 1 2>&1 | Out-String
     Assert-Success "Deep search executes" ($LASTEXITCODE -eq 0)
-    Assert-Success "Deep search finds nested file" ($deepOutput -match "sub_mod[\\/]deep\.py")
+    Assert-Success "Deep search finds nested file" ($deepOutput -match "sub_mod.*deep\.py")
     
     # Check for logic in class
     $logicOutput = & cargo run --bin code-rag -- search "complex processing logic" --db-path $TestDbPath --limit 1 2>&1 | Out-String

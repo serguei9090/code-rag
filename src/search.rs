@@ -66,7 +66,7 @@ impl CodeSearcher {
 
         if let Some(vector) = vectors.first() {
             let mut filters = Vec::new();
-            if let Some(ext_val) = ext {
+            if let Some(ext_val) = &ext {
                 let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
                     stripped
                 } else {
@@ -74,7 +74,7 @@ impl CodeSearcher {
                 };
                 filters.push(format!("filename LIKE '%.{}'", clean_ext));
             }
-            if let Some(dir_val) = dir {
+            if let Some(dir_val) = &dir {
                 // Normalize input to forward slashes since DB is normalized
                 let clean_dir = dir_val.replace("\\", "/");
                 filters.push(format!("filename LIKE '%{}%'", clean_dir));
@@ -184,22 +184,45 @@ impl CodeSearcher {
 
                         // Add unique BM25 hits
                         for res in &bm25_results {
-                            if !existing_ids.contains(&res.id) {
-                                // Construct SearchResult from BM25Result
-                                // Note: 'calls' might be empty since we didn't index it in BM25 yet.
-                                // If that's critical, we should add 'calls' to BM25 index too.
-                                // For now, empty is acceptable for BM25-only hits.
-                                candidates.push(SearchResult {
-                                    rank: 0,
-                                    score: 0.0,
-                                    filename: res.filename.clone(),
-                                    code: res.code.clone(),
-                                    line_start: res.line_start as i32,
-                                    line_end: res.line_end as i32,
-                                    calls: Vec::new(),
-                                });
-                                existing_ids.insert(res.id.clone());
+                            if existing_ids.contains(&res.id) {
+                                continue;
                             }
+
+                            // Manual Filter (Fix for pollution)
+                            if let Some(ext_val) = &ext {
+                                let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
+                                    stripped
+                                } else {
+                                    ext_val
+                                };
+                                let suffix = format!(".{}", clean_ext);
+                                if !res.filename.ends_with(&suffix) {
+                                    continue;
+                                }
+                            }
+
+                            if let Some(dir_val) = &dir {
+                                let clean_dir = dir_val.replace("\\", "/");
+                                // Normalize filename too just in case
+                                if !res.filename.replace("\\", "/").contains(&clean_dir) {
+                                    continue;
+                                }
+                            }
+
+                            // Construct SearchResult from BM25Result
+                            // Note: 'calls' might be empty since we didn't index it in BM25 yet.
+                            // If that's critical, we should add 'calls' to BM25 index too.
+                            // For now, empty is acceptable for BM25-only hits.
+                            candidates.push(SearchResult {
+                                rank: 0,
+                                score: 0.0,
+                                filename: res.filename.clone(),
+                                code: res.code.clone(),
+                                line_start: res.line_start as i32,
+                                line_end: res.line_end as i32,
+                                calls: Vec::new(),
+                            });
+                            existing_ids.insert(res.id.clone());
                         }
 
                         for (i, candidate) in candidates.iter_mut().enumerate() {
