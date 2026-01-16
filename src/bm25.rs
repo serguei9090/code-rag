@@ -1,6 +1,6 @@
 use crate::indexer::CodeChunk;
 
-use std::error::Error;
+use anyhow::Result;
 
 use std::fs;
 use std::path::Path;
@@ -28,7 +28,7 @@ pub struct BM25Result {
 }
 
 impl BM25Index {
-    pub fn new(db_path: &str, readonly: bool) -> Result<Self, Box<dyn Error>> {
+    pub fn new(db_path: &str, readonly: bool) -> Result<Self> {
         let index_path = Path::new(db_path).join("bm25_index");
         if !index_path.exists() {
             fs::create_dir_all(&index_path)?;
@@ -60,14 +60,14 @@ impl BM25Index {
                     // For the 'Index' and 'Watch' commands, this should fail.
                     // But if this was an opportunistic write, we could just be None.
                     // Since 'readonly=false' implies intent to write, we should propagate error.
-                    return Err(Box::new(e));
+                    return Err(anyhow::anyhow!(e));
                 }
             }
         };
 
         let reader = index
             .reader_builder()
-            .reload_policy(ReloadPolicy::OnCommit) // Better for concurrent readers
+            .reload_policy(ReloadPolicy::Manual)
             .try_into()?;
 
         Ok(Self {
@@ -78,11 +78,14 @@ impl BM25Index {
         })
     }
 
-    pub fn add_chunks(&self, chunks: &[CodeChunk]) -> Result<(), Box<dyn Error>> {
-        let writer_arc = self.writer.as_ref().ok_or("Index is read-only")?;
+    pub fn add_chunks(&self, chunks: &[CodeChunk]) -> Result<()> {
+        let writer_arc = self
+            .writer
+            .as_ref()
+            .ok_or(anyhow::anyhow!("Index is read-only"))?;
         let mut writer = writer_arc
             .lock()
-            .map_err(|e| format!("Lock poisoned: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
 
         let id_field = self.schema.get_field("id").expect("Schema invalid");
         let filename_field = self.schema.get_field("filename").expect("Schema invalid");
@@ -112,11 +115,14 @@ impl BM25Index {
         Ok(())
     }
 
-    pub fn delete_file(&self, filename: &str) -> Result<(), Box<dyn Error>> {
-        let writer_arc = self.writer.as_ref().ok_or("Index is read-only")?;
+    pub fn delete_file(&self, filename: &str) -> Result<()> {
+        let writer_arc = self
+            .writer
+            .as_ref()
+            .ok_or(anyhow::anyhow!("Index is read-only"))?;
         let mut writer = writer_arc
             .lock()
-            .map_err(|e| format!("Lock poisoned: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
         let filename_field = self.schema.get_field("filename").expect("Schema invalid");
         // Since 'filename' is STRING (not analyzed), we can delete by exact match term
         writer.delete_term(Term::from_field_text(filename_field, filename));
@@ -124,7 +130,7 @@ impl BM25Index {
         Ok(())
     }
 
-    pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<BM25Result>, Box<dyn Error>> {
+    pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<BM25Result>> {
         let searcher = self.reader.searcher();
         let code_field = self.schema.get_field("code").expect("Schema invalid");
         let filename_field = self.schema.get_field("filename").expect("Schema invalid"); // searching filenames too?

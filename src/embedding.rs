@@ -1,9 +1,9 @@
+use anyhow::Result;
 use fastembed::{
     EmbeddingModel, InitOptions, InitOptionsUserDefined, OnnxSource, RerankInitOptions,
     RerankInitOptionsUserDefined, RerankerModel, TextEmbedding, TextRerank, TokenizerFiles,
     UserDefinedEmbeddingModel, UserDefinedRerankingModel,
 };
-use std::error::Error;
 use std::fs;
 use std::path::Path;
 
@@ -15,7 +15,7 @@ pub struct Embedder {
     dim: usize,
 }
 
-fn load_tokenizer_files(path: &Path) -> Result<TokenizerFiles, Box<dyn Error>> {
+fn load_tokenizer_files(path: &Path) -> Result<TokenizerFiles> {
     Ok(TokenizerFiles {
         tokenizer_file: fs::read(path.join("tokenizer.json"))?,
         config_file: fs::read(path.join("config.json"))?,
@@ -30,7 +30,7 @@ impl Embedder {
         reranker_model: String,
         embedding_model_path: Option<String>,
         reranker_model_path: Option<String>,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self> {
         Self::new_with_quiet(
             false,
             embedding_model,
@@ -46,7 +46,7 @@ impl Embedder {
         reranker_model: String,
         embedding_model_path: Option<String>,
         reranker_model_path: Option<String>,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self> {
         let mut options = InitOptions::new(EmbeddingModel::NomicEmbedTextV15);
         options.show_download_progress = !quiet;
 
@@ -101,12 +101,12 @@ impl Embedder {
         &mut self,
         texts: Vec<String>,
         batch_size: Option<usize>,
-    ) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
+    ) -> Result<Vec<Vec<f32>>> {
         let embeddings = self.model.embed(texts, batch_size)?;
         Ok(embeddings)
     }
 
-    pub fn init_reranker(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn init_reranker(&mut self) -> Result<()> {
         if self.reranker.is_none() {
             let mut options = RerankInitOptions::new(RerankerModel::BGERerankerBase);
             options.show_download_progress = true;
@@ -142,11 +142,7 @@ impl Embedder {
         Ok(())
     }
 
-    pub fn rerank(
-        &mut self,
-        query: &str,
-        documents: Vec<String>,
-    ) -> Result<Vec<(usize, f32)>, Box<dyn Error>> {
+    pub fn rerank(&mut self, query: &str, documents: Vec<String>) -> Result<Vec<(usize, f32)>> {
         self.init_reranker()?;
         if let Some(reranker) = &mut self.reranker {
             // Pass reference to documents to satisfy AsRef<[S]> ?
@@ -155,7 +151,7 @@ impl Embedder {
             let results = reranker.rerank(query, &refs, true, None)?;
             Ok(results.iter().map(|r| (r.index, r.score)).collect())
         } else {
-            Err("Reranker not initialized".into())
+            Err(anyhow::anyhow!("Reranker not initialized"))
         }
     }
 }

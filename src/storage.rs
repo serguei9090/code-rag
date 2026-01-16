@@ -1,3 +1,4 @@
+use anyhow::Result;
 use arrow_array::builder::{ListBuilder, StringBuilder};
 use arrow_array::{
     FixedSizeListArray, Float32Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator,
@@ -5,11 +6,10 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, Field, Schema};
 use futures_util::stream::TryStreamExt;
+use lancedb::connect;
 use lancedb::connection::Connection;
 use lancedb::index::scalar::BTreeIndexBuilder;
 use lancedb::query::{ExecutableQuery, QueryBase};
-use lancedb::{connect, Result};
-use std::error::Error;
 use std::sync::Arc;
 // use lancedb::index::IndexType;
 
@@ -76,7 +76,7 @@ impl Storage {
         last_modified: Vec<i64>,
         calls: Vec<Vec<String>>,
         vectors: Vec<Vec<f32>>,
-    ) -> std::result::Result<(), Box<dyn Error>> {
+    ) -> Result<()> {
         let table = self.conn.open_table(&self.table_name).execute().await?;
         let table_schema = table.schema().await?;
         let vector_field = table_schema.field_with_name("vector").unwrap();

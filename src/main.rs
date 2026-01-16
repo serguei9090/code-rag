@@ -12,7 +12,6 @@ use colored::*;
 use ignore::WalkBuilder;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs;
 use std::path::Path;
 use tracing::{error, info, warn, Level};
@@ -102,7 +101,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let config = AppConfig::new()?;
 
@@ -532,7 +531,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Ok(idx) => idx,
                 Err(e) => {
                     error!("Failed to initialize BM25 index: {}", e);
-                    return Err(Box::new(e));
+                    return Err(e);
                 }
             };
 

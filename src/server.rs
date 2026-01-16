@@ -3,6 +3,7 @@ use crate::embedding::Embedder;
 use crate::error::AppError;
 use crate::search::{CodeSearcher, SearchResult};
 use crate::storage::Storage;
+use anyhow::Result;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -11,7 +12,6 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
-use std::error::Error as StdError;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -57,7 +57,7 @@ pub async fn start_server(
     reranker_model: String,
     embedding_model_path: Option<String>,
     reranker_model_path: Option<String>,
-) -> Result<(), Box<dyn StdError>> {
+) -> Result<()> {
     println!("Initializing server components...");
 
     // 1. Init Storage

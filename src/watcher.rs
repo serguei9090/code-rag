@@ -3,14 +3,14 @@ use crate::embedding::Embedder;
 use crate::indexer::CodeChunker;
 use crate::ops::indexer::CodeIndexer;
 use crate::storage::Storage;
-use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode, DebounceEventResult};
+use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
 use std::path::Path;
 use std::time::Duration;
 use tracing::{error, info};
 
 pub async fn start_watcher(
     path: &str,
-    mut storage: Storage,
+    storage: Storage,
     mut embedder: Embedder,
     mut bm25: BM25Index,
     chunker: CodeChunker,
@@ -29,14 +29,14 @@ pub async fn start_watcher(
     // We need to keep the components alive and mutable.
     // Since notify runs in a separate thread (or system event loop) but communicates via channel,
     // we can process events in the main async loop.
-    
+
     // However, rx is blocking. We should use a blocking task or a non-blocking channel if we want strict async.
-    // For simplicity in this CLI tool, we can loop over the channel in a blocking_spawn or similar, 
+    // For simplicity in this CLI tool, we can loop over the channel in a blocking_spawn or similar,
     // but better is to iterate and await inside the loop.
-    
+
     // Since we need to call async methods on storage/indexer, we can't easily be in a blocking loop unless we block_on.
     // Let's use a standard loop checking the channel.
-    
+
     let mut indexer = CodeIndexer::new(&storage, &mut embedder, &mut bm25, &chunker);
 
     for result in rx {
@@ -45,19 +45,20 @@ pub async fn start_watcher(
                 for event in events {
                     let path = event.path;
                     let path_lossy = path.to_string_lossy();
-                    
+
                     // Simple exclusion for .git and target/lancedb
-                    if path_lossy.contains(".git") 
-                        || path_lossy.contains("node_modules") 
-                        || path_lossy.contains("target") 
-                        || path_lossy.contains(".lancedb") {
+                    if path_lossy.contains(".git")
+                        || path_lossy.contains("node_modules")
+                        || path_lossy.contains("target")
+                        || path_lossy.contains(".lancedb")
+                    {
                         continue;
                     }
 
                     // Check if file still exists (Modification vs Deletion)
                     if path.exists() {
                         // It's a Create or Write
-                         match std::fs::metadata(&path) {
+                        match std::fs::metadata(&path) {
                             Ok(metadata) => {
                                 let mtime = metadata
                                     .modified()
@@ -65,17 +66,19 @@ pub async fn start_watcher(
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
                                     .as_secs() as i64;
-                                
+
                                 if let Err(e) = indexer.index_file(&path, mtime).await {
                                     error!("Failed to re-index {}: {}", path.display(), e);
                                 }
                             }
-                            Err(e) => error!("Failed to read metadata for {}: {}", path.display(), e),
+                            Err(e) => {
+                                error!("Failed to read metadata for {}: {}", path.display(), e)
+                            }
                         }
                     } else {
                         // It's a Remove (or Move away)
                         if let Err(e) = indexer.remove_file(&path).await {
-                             error!("Failed to remove index for {}: {}", path.display(), e);
+                            error!("Failed to remove index for {}: {}", path.display(), e);
                         }
                     }
                 }
