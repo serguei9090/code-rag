@@ -292,6 +292,10 @@ graph LR
 - Web UI
 - Git blame integration
 
+## 🤝 Contributing
+
+We use [Lefthook](https://github.com/evilmartians/lefthook) to ensure code quality. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
+
 ## 🆘 Troubleshooting
 
 **“My search returns nothing”**
