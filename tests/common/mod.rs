@@ -40,7 +40,7 @@ pub async fn setup_test_env(test_name: &str) -> (Storage, Embedder, CodeChunker,
         .init(embedder.dim())
         .await
         .expect("Failed to init storage");
-    let chunker = CodeChunker::new();
+    let chunker = CodeChunker::default();
     (storage, embedder, chunker, db_path)
 }
 
