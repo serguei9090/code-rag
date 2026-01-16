@@ -5,8 +5,8 @@ This report analyzes the current test coverage of `code-rag` and outlines a plan
 
 **Current State:**
 - **E2E/CLI (`tests/e2e/test_cli.ps1`):** High coverage. Validates all commands, flags, and major workflows.
-- **Integration (`tests/integration/`):** Good coverage of core flows (indexing, searching, server endpoints).
-- **Unit (`src/`):** Low coverage. Mostly limited to `indexer.rs`.
+- **Integration (`tests/integration/`):** High coverage. Core flows + Resilience (Error handling, Corrupt DBs) covered.
+- **Unit (`src/`):** Good coverage. `indexer.rs` (Chunking/Overlap) and `search.rs` (Scoring/Sorting) now covered.
 
 ## Missing Feature Tests & Implementation Plan
 
@@ -22,6 +22,7 @@ This report analyzes the current test coverage of `code-rag` and outlines a plan
   - **Test: `test_empty_file_indexing`:** Index an empty file and assert 0 chunks created without error.
   - **Test: `test_large_file_chunking`:** Generate a 5MB dummy file, index it, and verify valid chunk count and performance (<1s).
   - **Test: `test_invalid_syntax`:** Index a `.rs` file containing Python code (or random garbage). Assert parser does not panic and still attempts to extract text/comments if possible, or returns graceful empty result.
+  - **Test: `test_invalid_regex`:** Verify correct error handling (not panic) when an invalid regex pattern is supplied to grep search.
 
 ### 2. Logic & Algorithms (Unit Tests)
 **Gaps:**
@@ -55,8 +56,8 @@ This report analyzes the current test coverage of `code-rag` and outlines a plan
   - **Test: `test_concurrent_searches`:** Spawn 20 async tasks hitting the search endpoint simultaneously. Assert all return 200 OK and valid JSON. This verifies `Arc<Mutex<CodeSearcher>>` doesn't deadlock.
 
 ## Summary Checklist
-- [ ] Add `tests/integration/resilience.rs` (Edge cases, Error handling)
-- [ ] Add unit tests to `src/search.rs` (RRF Logic)
-- [ ] Add unit tests to `src/indexer.rs` (Overlap/Size logic)
-- [ ] Add unit tests to `src/config.rs` (Env vars)
-- [ ] Add concurrency test to `tests/integration/server.rs`
+- [x] Add `tests/integration/resilience.rs` (Edge cases, Error handling)
+- [x] Add unit tests to `src/search.rs` (RRF Logic)
+- [x] Add unit tests to `src/indexer.rs` (Overlap/Size logic)
+- [x] Add unit tests to `src/config.rs` (Env vars)
+- [x] Add concurrency test to `tests/integration/server.rs`

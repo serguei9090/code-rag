@@ -93,3 +93,19 @@ async fn test_invalid_syntax() {
     // Cleanup
     let _ = std::fs::remove_file(file_path);
 }
+
+#[tokio::test]
+async fn test_invalid_regex() {
+    let (storage, embedder, _, _) = setup_test_env("invalid_regex").await;
+    // We need fully qualified path or use statement if CodeSearcher is not imported.
+    // Ideally we should import it.
+    use code_rag::search::CodeSearcher;
+
+    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+
+    // Test invalid regex pattern (e.g. unclosed parenthesis)
+    let result = searcher.grep_search("fn(", ".");
+
+    // Should return Err, not panic
+    assert!(result.is_err(), "Invalid regex should return Error");
+}
