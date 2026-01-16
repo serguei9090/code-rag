@@ -81,13 +81,36 @@ embedding_model = "nomic-embed-text-v1.5"
 reranker_model = "bge-reranker-base"
 
 # =============================================================================
-# OPTIONAL: FUTURE TUNING (NOT YET IMPLEMENTED)
+# Chunking Strategy
 # =============================================================================
-#
-# 1. Chunking Strategy
-#    # chunk_size_tokens = 512
-#    # chunk_overlap_tokens = 64
-#
-# 2. Hybrid Search Tuning
-#    # vector_weight = 1.0
-#    # bm25_weight = 1.0
+
+# Maximum size of a single chunk in characters.
+# Semantic chunks (functions/classes) larger than this will be split.
+# Default: 1024
+chunk_size = 1024
+
+# Overlap between split chunks in characters.
+# Ensures context is preserved at boundaries.
+# Default: 128
+chunk_overlap = 128
+
+# =============================================================================
+# Hybrid Search Tuning (Reciprocal Rank Fusion)
+# =============================================================================
+
+# Weight for Semantic (Vector) Search results.
+# Higher values prioritize conceptual matches.
+# Default: 1.0
+vector_weight = 1.0
+
+# Weight for Keyword (BM25) Search results.
+# Higher values prioritize exact keyword matches.
+# Default: 1.0
+bm25_weight = 1.0
+
+# Ranking constant 'k' for RRF algorithm.
+# Controls the balance between high-rank and low-rank results.
+# Lower 'k' (e.g., 10) gives huge advantage to top 1-3 results.
+# Higher 'k' (e.g., 60) gives a smoother distribution.
+# Default: 60.0
+rrf_k = 60.0

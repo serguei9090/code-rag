@@ -25,6 +25,9 @@ pub struct CodeSearcher {
     storage: Option<Storage>,
     embedder: Option<Embedder>,
     bm25: Option<BM25Index>,
+    vector_weight: f32,
+    bm25_weight: f32,
+    rrf_k: f64,
 }
 
 impl CodeSearcher {
@@ -32,11 +35,17 @@ impl CodeSearcher {
         storage: Option<Storage>,
         embedder: Option<Embedder>,
         bm25: Option<BM25Index>,
+        vector_weight: f32,
+        bm25_weight: f32,
+        rrf_k: f64,
     ) -> Self {
         Self {
             storage,
             embedder,
             bm25,
+            vector_weight,
+            bm25_weight,
+            rrf_k,
         }
     }
 
@@ -193,7 +202,6 @@ impl CodeSearcher {
                             }
                         }
 
-                        let k = 60.0;
                         for (i, candidate) in candidates.iter_mut().enumerate() {
                             // Vector rank is 'i + 1' IF it was in original vector list.
                             // But 'candidates' now has appended items.
@@ -211,15 +219,7 @@ impl CodeSearcher {
                             );
 
                             // Determine Vector Rank
-                            // If candidate was in original `vector_results`, its rank is its index in that original list + 1.
-                            // Current `candidates` list preserves order: Vector hits (0..N) then BM25-only hits (N..M).
-                            // So if i < vector_count, rank = i+1. Else rank = infinity (score contribution 0 from vector).
-                            // Wait, `vector_results` was batch-based, we flattened it.
-                            // So `i` < `vector_hits_count`.
-                            // I need to know how many were from vector search.
-
                             let vec_rank = if i < seen_ids.len() {
-                                // seen_ids populated from vector results only
                                 Some(i + 1)
                             } else {
                                 None
@@ -227,8 +227,15 @@ impl CodeSearcher {
 
                             let bm25_rank = bm25_ranks.get(&id).copied();
 
-                            let vec_score = vec_rank.map(|r| 1.0 / (k + r as f32)).unwrap_or(0.0);
-                            let bm25_score = bm25_rank.map(|r| 1.0 / (k + r as f32)).unwrap_or(0.0);
+                            let vec_score = vec_rank
+                                .map(|r| 1.0 / (self.rrf_k + r as f64))
+                                .unwrap_or(0.0) as f32
+                                * self.vector_weight;
+
+                            let bm25_score = bm25_rank
+                                .map(|r| 1.0 / (self.rrf_k + r as f64))
+                                .unwrap_or(0.0) as f32
+                                * self.bm25_weight;
 
                             candidate.score = vec_score + bm25_score;
                         }

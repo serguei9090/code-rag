@@ -81,7 +81,7 @@ pub async fn start_server(
     if bm25_index.is_none() {
         println!("Warning: BM25 index could not be opened. Falling back to pure vector search.");
     }
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), bm25_index);
+    let searcher = CodeSearcher::new(Some(storage), Some(embedder), bm25_index, 1.0, 1.0, 60.0);
     let state = AppState {
         searcher: Arc::new(Mutex::new(searcher)),
     };

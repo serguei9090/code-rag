@@ -2,4 +2,4 @@
 /release
 .lancedb*
 .fastembed_cache
-*errors*.txt
+*error*.txt

@@ -83,7 +83,7 @@ async fn test_local_model_loading() {
         .expect("Failed to add chunks");
 
     // 4. Create Searcher
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
 
     // 5. Perform a search
     let results = searcher

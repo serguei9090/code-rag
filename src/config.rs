@@ -18,6 +18,9 @@ pub struct AppConfig {
     pub reranker_model_path: Option<String>,
     pub chunk_size: usize,
     pub chunk_overlap: usize,
+    pub vector_weight: f32,
+    pub bm25_weight: f32,
+    pub rrf_k: f64,
 }
 
 impl AppConfig {
@@ -36,7 +39,10 @@ impl AppConfig {
             .set_default("embedding_model", "nomic-embed-text-v1.5")?
             .set_default("reranker_model", "bge-reranker-base")?
             .set_default("chunk_size", 1024)?
-            .set_default("chunk_overlap", 128)?;
+            .set_default("chunk_overlap", 128)?
+            .set_default("vector_weight", 1.0)?
+            .set_default("bm25_weight", 1.0)?
+            .set_default("rrf_k", 60.0)?;
 
         // 1. File: code-ragcnf.toml (Current Directory)
         if PathBuf::from("code-ragcnf.toml").exists() {

@@ -9,13 +9,13 @@ The tasks are ordered from **Lowest Effort** (Configuration tweaks) to **Highest
 
 ## Prioritized Implementation Roadmap
 
-### 1. Configurable Model Selection
+### 1. Configurable Model Selection [done]
 *   **Effort:** Medium
 *   **Current State:** Hardcoded to `nomic-embed-text-v1.5` and `bge-reranker-base` in `src/embedding.rs`.
 *   **What it is for:** Allows the user to specify which ONNX models to use via `code-ragcnf.toml`.
 *   **What it improves:** **Flexibility**. Users can trade off between speed (smaller models) and accuracy (larger models) or use specialized models for different languages.
 
-### 2. Configurable Chunking Strategy
+### 2. Configurable Chunking Strategy [done]
 *   **Effort:** Medium
 *   **Current State:** Hardcoded chunk sizes in `src/indexer.rs` (defaulting often to function boundaries or arbitrary limits).
 *   **What it is for:** Exposes `chunk_size` and `overlap` parameters in the configuration file.
@@ -27,7 +27,7 @@ The tasks are ordered from **Lowest Effort** (Configuration tweaks) to **Highest
 *   **Current State:** Reciprocal Rank Fusion (RRF) constants are hardcoded (`k=60`, weights=1.0).
 *   **What it is for:** Adds configuration options to weight Vector Search vs. Keyword Search (BM25).
 *   **What it improves:** **Precision**. Allows fine-tuning the search algorithm. For example, a user strictly looking for exact error codes can increase the BM25 weight, while a user doing conceptual search can prioritize vectors.
-*   **Documentation Required:** Write doc `RRFWeights.md` inside `docs/configurations`.
+*   **Documentation Required:** Write doc `RRFWeights.md` inside `docs/configurations`, and update the conf template `code-ragcnf.toml.template`
 
 ### 4. File System Watcher (`notify`)
 *   **Effort:** High

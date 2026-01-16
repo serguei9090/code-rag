@@ -402,7 +402,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
 
             // Init Searcher with BM25
-            let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), bm25_index);
+            let mut searcher = CodeSearcher::new(
+                Some(storage),
+                Some(embedder),
+                bm25_index,
+                config.vector_weight,
+                config.bm25_weight,
+                config.rrf_k,
+            );
 
             if !json {
                 println!("Searching for: '{}'", query);
@@ -447,7 +454,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Commands::Grep { pattern, json } => {
             // For Grep, strict functionality relies on walkdir/regex or the CodeSearcher helper.
-            let searcher = CodeSearcher::new(None, None, None);
+            let searcher = CodeSearcher::new(
+                None,
+                None,
+                None,
+                config.vector_weight,
+                config.bm25_weight,
+                config.rrf_k,
+            );
 
             if !json {
                 println!("Grepping for: '{}'", pattern);
