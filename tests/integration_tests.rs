@@ -359,7 +359,7 @@ async fn test_multi_language_search() {
 
 #[test]
 fn test_language_detection() {
-    let _chunker = CodeChunker::new();
+    let _chunker = CodeChunker::default();
 
     // Test language detection for all supported extensions
     assert!(
@@ -401,7 +401,7 @@ fn test_language_detection() {
 
 #[test]
 fn test_chunking_rust_file() {
-    let chunker = CodeChunker::new();
+    let chunker = CodeChunker::default();
     let rust_code = r#"
 fn main() {
     println!("Hello, world!");
@@ -432,7 +432,7 @@ fn helper() {
 
 #[test]
 fn test_chunking_python_file() {
-    let chunker = CodeChunker::new();
+    let chunker = CodeChunker::default();
     let python_code = r#"
 def greet(name):
     return f"Hello, {name}"

@@ -10,17 +10,23 @@ pub struct CodeChunk {
     pub calls: Vec<String>,
 }
 
-pub struct CodeChunker {}
+pub struct CodeChunker {
+    pub max_chunk_size: usize,
+    pub chunk_overlap: usize,
+}
 
 impl Default for CodeChunker {
     fn default() -> Self {
-        Self::new()
+        Self::new(1024, 128)
     }
 }
 
 impl CodeChunker {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(max_chunk_size: usize, chunk_overlap: usize) -> Self {
+        Self {
+            max_chunk_size,
+            chunk_overlap,
+        }
     }
 
     pub fn get_language(extension: &str) -> Option<Language> {
@@ -178,14 +184,28 @@ impl CodeChunker {
             // Extract calls
             let calls = self.find_calls(node, code);
 
-            chunks.push(CodeChunk {
-                filename: filename.to_string(),
-                code: chunk_content.to_string(),
-                line_start: start_position.row + 1,
-                line_end: end_position.row + 1,
-                last_modified: mtime,
-                calls,
-            });
+            if chunk_content.len() > self.max_chunk_size {
+                let sub_chunks = self.split_text(chunk_content);
+                for sub_code in sub_chunks {
+                    chunks.push(CodeChunk {
+                        filename: filename.to_string(),
+                        code: sub_code,
+                        line_start: start_position.row + 1,
+                        line_end: end_position.row + 1,
+                        last_modified: mtime,
+                        calls: calls.clone(),
+                    });
+                }
+            } else {
+                chunks.push(CodeChunk {
+                    filename: filename.to_string(),
+                    code: chunk_content.to_string(),
+                    line_start: start_position.row + 1,
+                    line_end: end_position.row + 1,
+                    last_modified: mtime,
+                    calls,
+                });
+            }
 
             let is_container = kind.contains("class")
                 || kind.contains("impl")
@@ -233,5 +253,31 @@ impl CodeChunker {
             }
         }
         None
+    }
+
+    fn split_text(&self, text: &str) -> Vec<String> {
+        if text.len() <= self.max_chunk_size {
+            return vec![text.to_string()];
+        }
+
+        let mut chunks = Vec::new();
+        let chars: Vec<char> = text.chars().collect();
+        let total_chars = chars.len();
+        let mut start = 0;
+
+        while start < total_chars {
+            let end = std::cmp::min(start + self.max_chunk_size, total_chars);
+            let s: String = chars[start..end].iter().collect();
+            chunks.push(s);
+
+            if end == total_chars {
+                break;
+            }
+
+            // Ensure we move forward
+            start += self.max_chunk_size - self.chunk_overlap;
+        }
+
+        chunks
     }
 }

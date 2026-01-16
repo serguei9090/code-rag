@@ -174,7 +174,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             };
 
-            let chunker = CodeChunker::new();
+            let chunker = CodeChunker::new(config.chunk_size, config.chunk_overlap);
 
             // 4. Scan Files (Collect first for determinate progress bar)
             let pb_scan = ProgressBar::new_spinner();

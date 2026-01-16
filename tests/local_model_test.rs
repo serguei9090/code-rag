@@ -59,7 +59,7 @@ async fn test_local_model_loading() {
     let code = "fn hello_world() { println!(\"Hello!\"); }";
     fs::write(&test_file, code).unwrap();
 
-    let chunker = CodeChunker::new();
+    let chunker = CodeChunker::default();
     let chunks = chunker.chunk_file("test.rs", code, 0);
     assert!(!chunks.is_empty());
 
