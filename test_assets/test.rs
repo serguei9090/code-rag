@@ -5,3 +5,9 @@ pub fn dummy_setup_fn() {
     println!("This function exists just to be indexed!");
     // Rust function
 }
+
+// Some more code 
+pub fn dummy_setup_fn() {
+    println!("This function exists just to be indexed again!");
+    // Rust function
+}

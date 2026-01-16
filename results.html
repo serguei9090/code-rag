@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Code-RAG Search Results</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; max_width: 800px; margin: 0 auto; padding: 20px; background: #f4f4f9; }
+        .header { background: #333; color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .result-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .meta { display: flex; justify-content: space-between; color: #666; font-size: 0.9em; margin-bottom: 10px; }
+        .score { font-weight: bold; color: #2ecc71; }
+        .filename { color: #3498db; font-weight: bold; }
+        .calls { font-size: 0.85em; color: #d35400; margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px; }
+        .call-tag { background: #fae5d3; padding: 2px 6px; border-radius: 4px; margin-right: 5px; display: inline-block; }
+        pre { background: #f8f8f8; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 0.9em; border: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Search Results</h1>
+        <p>Query: <strong>Indexing Logic</strong></p>
+    </div>
+
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#1</span>
+            <span class="filename">test_assets/advanced_structure/processor.py:5-6</span>
+            <span class="score">Score: -2.6944</span>
+        </div>
+        <pre><code>def __init__(self, data):
+        self.data = data</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#2</span>
+            <span class="filename">test_assets/test.zig:8-11</span>
+            <span class="score">Score: -4.1649</span>
+        </div>
+        <pre><code>fn add_numbers(a: i32, b: i32) i32 {
+    // Zig function logic
+    return a + b;
+}</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#3</span>
+            <span class="filename">test_assets/advanced_structure/processor.py:1-13</span>
+            <span class="score">Score: -4.2378</span>
+        </div>
+        <pre><code>class DataProcessor:
+    """
+    A class that simulates data processing.
+    """
+    def __init__(self, data):
+        self.data = data
+
+    def process_data(self):
+        # complex processing logic
+        return [d * 2 for d in self.data]
+
+    def _internal_method(self):
+        print("This is a private method starting with underscore")</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#4</span>
+            <span class="filename">test_assets/test.yaml:10-14</span>
+            <span class="score">Score: -4.9639</span>
+        </div>
+        <pre><code>features:
+  - semantic-search
+  - re-ranking
+  - call-hierarchy
+</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#5</span>
+            <span class="filename">test_assets/test.go:16-18</span>
+            <span class="score">Score: -5.1065</span>
+        </div>
+        <pre><code>type AuthService struct {
+	users map[int]User
+}</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#6</span>
+            <span class="filename">test_assets/test.py:1-1</span>
+            <span class="score">Score: -5.2287</span>
+        </div>
+        <pre><code>GLOBAL_VAR = "I am global"</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#7</span>
+            <span class="filename">test_assets/test.js:91-91</span>
+            <span class="score">Score: -5.3102</span>
+        </div>
+        <pre><code>module.exports = { User, AuthService, handleLogin, createUser };</code></pre>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#8</span>
+            <span class="filename">test_assets/advanced_structure/dunder_test.py:5-7</span>
+            <span class="score">Score: -5.3381</span>
+        </div>
+        <pre><code>def __init__(self):
+        self.__hidden = True
+        print(f"Secret initialized: {self.__hidden}")</code></pre>
+        
+        <div class="calls">
+            <strong>Calls:</strong> 
+            
+            <span class="call-tag">print</span>
+            
+        </div>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#9</span>
+            <span class="filename">test_assets/advanced_structure/sub_mod/deep.py:1-6</span>
+            <span class="score">Score: -5.5034</span>
+        </div>
+        <pre><code>def deep_function_call():
+    """
+    This function is nested deep in the directory structure.
+    Used to verify recursive indexing.
+    """
+    print("Code RAG should find me here!")</code></pre>
+        
+        <div class="calls">
+            <strong>Calls:</strong> 
+            
+            <span class="call-tag">print</span>
+            
+        </div>
+        
+    </div>
+    
+    <div class="result-card">
+        <div class="meta">
+            <span class="rank">#10</span>
+            <span class="filename">test_assets/test.rs:10-13</span>
+            <span class="score">Score: -6.0157</span>
+        </div>
+        <pre><code>pub fn dummy_setup_fn() {
+    println!("This function exists just to be indexed again!");
+    // Rust function
+}</code></pre>
+        
+        <div class="calls">
+            <strong>Calls:</strong> 
+            
+            <span class="call-tag">println</span>
+            
+        </div>
+        
+    </div>
+    
+</body>
+</html>
+    

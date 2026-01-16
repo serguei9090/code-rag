@@ -156,13 +156,10 @@ async fn main() -> anyhow::Result<()> {
                 config.reranker_model_path.clone(),
             )?;
 
-            pb_model.set_message("Initializing re-ranker...");
-            embedder.init_reranker()?;
-
             pb_model.set_message("Warming up ONNX Runtime...");
             let warmup_text = vec!["warmup".to_string()];
             let _ = embedder.embed(warmup_text.clone(), None)?;
-            let _ = embedder.rerank("query", warmup_text).is_ok();
+            // Reranker is not needed for indexing, so we don't init or warmup here.
 
             pb_model.finish_with_message("Models loaded.");
 
