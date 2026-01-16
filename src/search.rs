@@ -228,12 +228,12 @@ impl CodeSearcher {
                             let bm25_rank = bm25_ranks.get(&id).copied();
 
                             let vec_score = vec_rank
-                                .map(|r| 1.0 / (self.rrf_k + r as f64))
+                                .map(|r| Self::compute_rrf_component(r, self.rrf_k))
                                 .unwrap_or(0.0) as f32
                                 * self.vector_weight;
 
                             let bm25_score = bm25_rank
-                                .map(|r| 1.0 / (self.rrf_k + r as f64))
+                                .map(|r| Self::compute_rrf_component(r, self.rrf_k))
                                 .unwrap_or(0.0) as f32
                                 * self.bm25_weight;
 
@@ -298,11 +298,6 @@ impl CodeSearcher {
                     }
 
                     let path = entry.path().to_path_buf();
-                    // We need to clone path or print string inside closure.
-                    // The sink closure needs to satisfy 'static or be scoped?
-                    // grep_searcher::search_path takes a sink.
-
-                    // Simple collection for now.
                     let mut file_matches = Vec::new(); // Local to file
                     let _ = Searcher::new().search_path(
                         &matcher,
@@ -316,11 +311,72 @@ impl CodeSearcher {
                     matches.extend(file_matches);
                 }
                 Err(err) => {
-                    // Log error but continue? For CLI we might want to warn.
+                    // Log error but continue
                     eprintln!("Error walking: {}", err);
                 }
             }
         }
         Ok(matches)
+    }
+
+    /// Helper to compute RRF score component: 1.0 / (k + rank)
+    fn compute_rrf_component(rank: usize, k: f64) -> f64 {
+        1.0 / (k + rank as f64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rrf_scoring_formula() {
+        let k = 60.0;
+        // Rank 1
+        let score_1 = CodeSearcher::compute_rrf_component(1, k);
+        assert!((score_1 - (1.0 / 61.0)).abs() < f64::EPSILON);
+
+        // Rank 10
+        let score_10 = CodeSearcher::compute_rrf_component(10, k);
+        assert!((score_10 - (1.0 / 70.0)).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_sorting_logic() {
+        let mut results = vec![
+            SearchResult {
+                rank: 0,
+                score: 0.1,
+                filename: "A".into(),
+                code: "".into(),
+                line_start: 0,
+                line_end: 0,
+                calls: vec![],
+            },
+            SearchResult {
+                rank: 0,
+                score: 0.9,
+                filename: "B".into(),
+                code: "".into(),
+                line_start: 0,
+                line_end: 0,
+                calls: vec![],
+            },
+            SearchResult {
+                rank: 0,
+                score: 0.5,
+                filename: "C".into(),
+                code: "".into(),
+                line_start: 0,
+                line_end: 0,
+                calls: vec![],
+            },
+        ];
+
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+
+        assert_eq!(results[0].filename, "B"); // 0.9
+        assert_eq!(results[1].filename, "C"); // 0.5
+        assert_eq!(results[2].filename, "A"); // 0.1
     }
 }

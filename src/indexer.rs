@@ -274,10 +274,62 @@ impl CodeChunker {
                 break;
             }
 
-            // Ensure we move forward
-            start += self.max_chunk_size - self.chunk_overlap;
+            // Ensure we move forward and respect overlap
+            // If overlap >= max_chunk_size, we would get stuck or go backward.
+            // Default is 1024 / 128, so delta is positive.
+            let step = if self.max_chunk_size > self.chunk_overlap {
+                self.max_chunk_size - self.chunk_overlap
+            } else {
+                1 // Fallback to avoid infinite loop if config is weird
+            };
+            start += step;
         }
 
         chunks
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chunk_overlap() {
+        // Chunk size 10, overlap 2. Step = 8.
+        let chunker = CodeChunker::new(10, 2);
+        let text = "1234567890EXTRA"; // 15 chars
+
+        // Chunk 1: "1234567890" (chars 0..10)
+        // Next start: 0 + (10-2) = 8
+        // Chunk 2: "90EXTRA" (chars 8..15) -> "90EXTRA" len 7
+
+        let chunks = chunker.split_text(text);
+
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0], "1234567890");
+        assert_eq!(chunks[1], "90EXTRA"); // overlap is "90"
+
+        // verify overlap
+        assert!(chunks[1].starts_with("90"));
+    }
+
+    #[test]
+    fn test_exact_size_limit() {
+        let chunker = CodeChunker::new(5, 0);
+        let text = "1234567890";
+
+        let chunks = chunker.split_text(text);
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0], "12345");
+        assert_eq!(chunks[1], "67890");
+    }
+
+    #[test]
+    fn test_small_text_no_split() {
+        let chunker = CodeChunker::new(100, 10);
+        let text = "Short text";
+        let chunks = chunker.split_text(text);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0], "Short text");
     }
 }

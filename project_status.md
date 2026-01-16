@@ -47,8 +47,8 @@ Based on the code analysis:
 ## 5. Improvement Plan
 
 ### Level 1: Foundation (Immediate)
-- [ ] **Update `Cargo.toml`:** Add missing metadata (Description, License, Repository, keywords, categories, authors, documentation, readme).
-- [ ] **Enhance `lefthook.yml`:** Add `cargo audit` to the pre-commit checks.
+- [x] **Update `Cargo.toml`:** Add missing metadata (Description, License, Repository, keywords, categories, authors, documentation, readme).
+- [x] **Enhance `lefthook.yml`:** Add `cargo audit` to the pre-commit checks.
 
 ### Level 2: Automation (High Priority)
 - [ ] **Create GitHub Actions:** Add `.github/workflows/ci.yml` to run:

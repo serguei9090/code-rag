@@ -2,6 +2,14 @@
 name = "code-rag"
 version = "0.1.0"
 edition = "2021"
+description = "High-Performance Offline Code RAG CLI"
+license = "MIT"
+repository = "https://github.com/example/code-rag"
+authors = ["Authorized User"]
+keywords = ["rag", "cli", "search", "code", "ai"]
+categories = ["command-line-utilities", "search-engines"]
+documentation = "https://docs.rs/code-rag"
+readme = "README.md"
 
 [dependencies]
 arrow-array = "56.2.0"
