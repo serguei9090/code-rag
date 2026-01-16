@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
-mod common;
+use crate::common;
 use common::prepare_chunks;
 
 #[tokio::test]

@@ -3,14 +3,15 @@
 # Tests the compiled binary through all commands and validates outputs
 
 param(
+    [string]$ProjectRoot = "$PSScriptRoot/../..",
     [string]$BinaryPath = ".\target\release\code-rag.exe",
-    [string]$TestDbPath = ".\.lancedb-blackbox-test"
+    [string]$TestDbPath = "$PSScriptRoot/../..//.lancedb-blackbox-test"
 )
 
 $ErrorActionPreference = "Stop"
 $TestsPassed = 0
 $TestsFailed = 0
-$TestAssets = ".\test_assets"
+$TestAssets = "$ProjectRoot/test_assets"
 
 # Colors for output
 function Write-Success { param($msg) Write-Host "✓ $msg" -ForegroundColor Green }
@@ -61,7 +62,7 @@ Write-Success "Test database cleaned"
 # Test 1: Version Command
 Write-Section "Test 1: Version Command"
 try {
-    $version = & $BinaryPath --version 2>&1
+    $version = & cargo run --bin code-rag -- --version 2>&1
     Assert-Success "Version command executes" ($LASTEXITCODE -eq 0) "Exit code: $LASTEXITCODE"
     Assert-Success "Version output contains 'code-rag'" ($version -match "code-rag") "Output: $version"
 }
@@ -72,7 +73,7 @@ catch {
 # Test 2: Help Command
 Write-Section "Test 2: Help Command"
 try {
-    $help = & $BinaryPath --help 2>&1
+    $help = & cargo run --bin code-rag -- --help 2>&1
     Assert-Success "Help command executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Help contains 'index' subcommand" ($help -match "index")
     Assert-Success "Help contains 'search' subcommand" ($help -match "search")
@@ -86,7 +87,7 @@ catch {
 Write-Section "Test 3: Index Command (Basic)"
 try {
     Write-Info "Indexing test assets..."
-    $indexOutput = & $BinaryPath index $TestAssets --db-path $TestDbPath 2>&1 | Out-String
+    $idx = & cargo run --bin code-rag -- index
     
     Assert-Success "Index command executes" ($LASTEXITCODE -eq 0) "Exit code: $LASTEXITCODE"
     Assert-Success "Database directory created" (Test-Path $TestDbPath)
@@ -102,7 +103,7 @@ catch {
 Write-Section "Test 4: Index Command (Force Re-index)"
 try {
     Write-Info "Force re-indexing..."
-    $forceOutput = & $BinaryPath index $TestAssets --db-path $TestDbPath --force 2>&1 | Out-String
+    $forceOutput = & cargo run --bin code-rag -- index $TestAssets --db-path $TestDbPath --force 2>&1 | Out-String
     
     Assert-Success "Force re-index executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Force flag acknowledged" ($forceOutput -match "Force|Removing")
@@ -115,7 +116,7 @@ catch {
 Write-Section "Test 5: Search Command (Rust)"
 try {
     Write-Info "Searching for Rust function..."
-    $searchOutput = & $BinaryPath search "rust function" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "rust function" --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "Search command executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Search returns results" ($searchOutput -match "Rank|File|Score")
@@ -129,7 +130,7 @@ catch {
 Write-Section "Test 6: Search Command (Python)"
 try {
     Write-Info "Searching for Python code..."
-    $searchOutput = & $BinaryPath search "python function" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "python function" --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "Python search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Python search finds results" ($searchOutput -match "test\.py")
@@ -142,7 +143,7 @@ catch {
 Write-Section "Test 7: Search Command (Bash)"
 try {
     Write-Info "Searching for Bash script..."
-    $searchOutput = & $BinaryPath search "backup logs" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "backup logs" --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "Bash search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Bash search finds shell script" ($searchOutput -match "test\.sh")
@@ -155,7 +156,7 @@ catch {
 Write-Section "Test 8: Search Command (PowerShell)"
 try {
     Write-Info "Searching for PowerShell function..."
-    $searchOutput = & $BinaryPath search "system status" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "system status" --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "PowerShell search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "PowerShell search finds ps1 file" ($searchOutput -match "test\.ps1")
@@ -168,7 +169,7 @@ catch {
 Write-Section "Test 9: Search Command (JSON)"
 try {
     Write-Info "Searching for JSON configuration..."
-    $searchOutput = & $BinaryPath search "configuration database" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "configuration database" --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "JSON search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "JSON search finds json file" ($searchOutput -match "test\.json")
@@ -181,7 +182,7 @@ catch {
 Write-Section "Test 10: Search Command (YAML)"
 try {
     Write-Info "Searching for YAML config..."
-    $searchOutput = & $BinaryPath search "project name version" --db-path $TestDbPath 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "project name version" --db-path $TestDbPath 2>&1 | Out-String
     
     Assert-Success "YAML search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "YAML search finds yaml file" ($searchOutput -match "test\.yaml")
@@ -194,7 +195,7 @@ catch {
 Write-Section "Test 11: Search Command (Limit Parameter)"
 try {
     Write-Info "Testing limit parameter..."
-    $searchOutput = & $BinaryPath search "function" --db-path $TestDbPath --limit 3 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "function" --db-path $TestDbPath --limit 3 2>&1 | Out-String
     
     Assert-Success "Search with limit executes" ($LASTEXITCODE -eq 0)
     
@@ -213,7 +214,7 @@ try {
     $htmlPath = ".\results.html"
     if (Test-Path $htmlPath) { Remove-Item $htmlPath }
     
-    $searchOutput = & $BinaryPath search "function" --db-path $TestDbPath --html 2>&1 | Out-String
+    $searchOutput = & cargo run --bin code-rag -- search "function" --db-path $TestDbPath --html 2>&1 | Out-String
     
     Assert-Success "HTML report generation executes" ($LASTEXITCODE -eq 0)
     Assert-Success "HTML file created" (Test-Path $htmlPath)
@@ -232,7 +233,7 @@ catch {
 Write-Section "Test 13: Grep Command (Exact Match)"
 try {
     Write-Info "Testing grep for exact pattern..."
-    $grepOutput = & $BinaryPath grep "function" 2>&1 | Out-String
+    $grepOutput = & cargo run --bin code-rag -- grep "function" 2>&1 | Out-String
     
     Assert-Success "Grep command executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Grep finds matches" ($grepOutput.Length -gt 0)
@@ -245,7 +246,7 @@ catch {
 Write-Section "Test 14: Grep Command (Case Sensitivity)"
 try {
     Write-Info "Testing grep case sensitivity..."
-    $grepOutput = & $BinaryPath grep "FUNCTION" 2>&1 | Out-String
+    $grepOutput = & cargo run --bin code-rag -- grep "FUNCTION" 2>&1 | Out-String
     
     Assert-Success "Grep case-insensitive executes" ($LASTEXITCODE -eq 0)
     # Should find matches even with different case
@@ -275,7 +276,7 @@ try {
     $foundLanguages = 0
     foreach ($lang in $languages.Keys) {
         $pattern = $languages[$lang]
-        $result = & $BinaryPath grep $pattern 2>&1 | Out-String
+        $result = & cargo run --bin code-rag -- grep $pattern 2>&1 | Out-String
         if ($result.Length -gt 0) {
             $foundLanguages++
             Write-Success "$lang code found"
@@ -297,23 +298,23 @@ try {
     Write-Info "Verifying nested Python modules..."
     
     # Check for deep class
-    $deepOutput = & $BinaryPath search "DeepClass" --db-path $TestDbPath --limit 1 2>&1 | Out-String
+    $deepOutput = & cargo run --bin code-rag -- search "DeepClass" --db-path $TestDbPath --limit 1 2>&1 | Out-String
     Assert-Success "Deep search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Deep search finds nested file" ($deepOutput -match "sub_mod[\\/]deep\.py")
     
     # Check for logic in class
-    $logicOutput = & $BinaryPath search "complex processing logic" --db-path $TestDbPath --limit 1 2>&1 | Out-String
+    $logicOutput = & cargo run --bin code-rag -- search "complex processing logic" --db-path $TestDbPath --limit 1 2>&1 | Out-String
     Assert-Success "Logic search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Logic search finds processor class" ($logicOutput -match "processor\.py")
 
     # Check for dunder (double underscore) class
-    $dunderOutput = & $BinaryPath search "__SecretInternal" --db-path $TestDbPath --limit 1 2>&1 | Out-String
+    $dunderOutput = & cargo run --bin code-rag -- search "__SecretInternal" --db-path $TestDbPath --limit 1 2>&1 | Out-String
     Assert-Success "Dunder search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Dunder search finds class" ($dunderOutput -match "dunder_test\.py")
 
     # Check that __pycache__ content is IGNORED (Negative Test)
     # Note: explicit grep for file path to see if it exists in index
-    $ignoredOutput = & $BinaryPath grep "should_not_be_indexed" 2>&1 | Out-String
+    $ignoredOutput = & cargo run --bin code-rag -- grep "should_not_be_indexed" 2>&1 | Out-String
     if ($ignoredOutput -match "cached_logic\.py") {
         Write-Failure "Indexing failed to ignore __pycache__"
         $script:TestsFailed++
@@ -331,7 +332,7 @@ catch {
 Write-Section "Test 17: JSON Output (Search)"
 try {
     Write-Info "Testing JSON search output..."
-    $jsonOutput = & $BinaryPath search "Rust function" --db-path $TestDbPath --json 2>&1 | Out-String
+    $jsonOutput = & cargo run --bin code-rag -- search "Rust function" --db-path $TestDbPath --json | Out-String
     
     # Try to parse as JSON
     $results = $jsonOutput | ConvertFrom-Json
@@ -347,7 +348,7 @@ catch {
 Write-Section "Test 18: JSON Output (Grep)"
 try {
     Write-Info "Testing JSON grep output..."
-    $jsonOutput = & $BinaryPath grep "function" --json 2>&1 | Out-String
+    $jsonOutput = & cargo run --bin code-rag -- grep "function" --json | Out-String
     
     $results = $jsonOutput | ConvertFrom-Json
     Assert-Success "JSON grep executes" ($LASTEXITCODE -eq 0)
@@ -364,12 +365,12 @@ try {
     Write-Info "Verifying Zig and Elixir indexing..."
     
     # First re-index to pick up new files
-    & $BinaryPath index $TestAssets --db-path $TestDbPath --force | Out-String
+    & cargo run --bin code-rag -- index $TestAssets --db-path $TestDbPath --force | Out-String
     
-    $zigResult = & $BinaryPath grep "Zig function" 2>&1 | Out-String
+    $zigResult = & cargo run --bin code-rag -- grep "Zig function" 2>&1 | Out-String
     Assert-Success "Zig code indexed" ($zigResult -match "test\.zig")
     
-    $exResult = & $BinaryPath grep "Elixir function" 2>&1 | Out-String
+    $exResult = & cargo run --bin code-rag -- grep "Elixir function" 2>&1 | Out-String
     Assert-Success "Elixir code indexed" ($exResult -match "test\.ex")
 }
 catch {
@@ -380,7 +381,7 @@ catch {
 Write-Section "Test 20: Metadata Filtering (Extension)"
 try {
     Write-Info "Testing --ext filter..."
-    $rustOnlyOutput = & $BinaryPath search "function" --db-path $TestDbPath --ext rs --limit 10 2>&1 | Out-String
+    $rustOnlyOutput = & cargo run --bin code-rag -- search "function" --db-path $TestDbPath --ext rs --limit 10 2>&1 | Out-String
     
     Assert-Success "Extension filter executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Extension filter finds Rust files" ($rustOnlyOutput -match "test\.rs")
@@ -402,7 +403,7 @@ catch {
 Write-Section "Test 21: Metadata Filtering (Directory)"
 try {
     Write-Info "Testing --dir filter..."
-    $advancedDirOutput = & $BinaryPath search "class" --db-path $TestDbPath --dir "test_assets\advanced_structure" --limit 10 2>&1 | Out-String
+    $advancedDirOutput = & cargo run --bin code-rag -- search "class" --db-path $TestDbPath --dir "test_assets\advanced_structure" --limit 10 2>&1 | Out-String
     
     Assert-Success "Directory filter executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Directory filter finds files in target dir" ($advancedDirOutput -match "advanced_structure")
@@ -416,7 +417,7 @@ Write-Section "Test 22: No Rerank Search"
 try {
     Write-Info "Testing --no-rerank flag..."
     $startTime = Get-Date
-    $fastOutput = & $BinaryPath search "function" --db-path $TestDbPath --no-rerank --limit 5 2>&1 | Out-String
+    $fastOutput = & cargo run --bin code-rag -- search "function" --db-path $TestDbPath --no-rerank --limit 5 2>&1 | Out-String
     $duration = (Get-Date) - $startTime
     
     Assert-Success "No rerank search executes" ($LASTEXITCODE -eq 0)
@@ -434,7 +435,7 @@ try {
     
     # The index should be created automatically during indexing
     # We verify it works by testing filtered searches
-    $indexTestOutput = & $BinaryPath search "function" --db-path $TestDbPath --ext rs --limit 5 2>&1 | Out-String
+    $indexTestOutput = & cargo run --bin code-rag -- search "function" --db-path $TestDbPath --ext rs --limit 5 2>&1 | Out-String
     
     Assert-Success "Index-backed filtered search executes" ($LASTEXITCODE -eq 0)
     Assert-Success "Index-backed search returns results" ($indexTestOutput -match "Rank|File|Score")

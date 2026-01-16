@@ -1,16 +1,16 @@
+use crate::common;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
 use code_rag::search::CodeSearcher;
 use code_rag::server::{create_router, AppState};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tower::ServiceExt;
-mod common;
 use common::{cleanup_test_db, prepare_chunks, setup_test_env, TEST_ASSETS_PATH};
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_health_check() {

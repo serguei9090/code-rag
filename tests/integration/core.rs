@@ -1,3 +1,4 @@
+use code_rag::bm25::BM25Index;
 use code_rag::embedding::Embedder;
 use code_rag::indexer::CodeChunker;
 use code_rag::search::CodeSearcher;
@@ -6,7 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-mod common;
+use crate::common;
 use common::{cleanup_test_db, prepare_chunks, setup_test_env, TEST_ASSETS_PATH};
 
 #[tokio::test]

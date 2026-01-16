@@ -1,6 +1,6 @@
 $port = 3000
 Write-Host "Starting code-rag server on port $port..."
-$process = Start-Process -FilePath "./target/release/code-rag.exe" -ArgumentList "serve", "--port", "$port" -PassThru -NoNewWindow
+$process = Start-Process -FilePath "cargo" -ArgumentList "run", "--bin", "code-rag", "--", "serve", "--port", "$port" -PassThru -NoNewWindow
 Start-Sleep -Seconds 10 # Wait for model loading
 
 try {
