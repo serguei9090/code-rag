@@ -22,14 +22,14 @@ The tasks are ordered from **Lowest Effort** (Configuration tweaks) to **Highest
 *   **What it improves:** **Recall & Context**. Different languages and coding styles require different chunking strategies (e.g., verbose Java vs. concise Python). Tuning this improves search relevance.
 *   **Documentation Required:** Create a documentation with recommended chunk size by different languages, `chunk_strategy.md` inside `docs/configurations`.
 
-### 3. Hybrid Search Tuning (RRF Weights)
+### 3. Hybrid Search Tuning (RRF Weights) [done]
 *   **Effort:** Medium
 *   **Current State:** Reciprocal Rank Fusion (RRF) constants are hardcoded (`k=60`, weights=1.0).
 *   **What it is for:** Adds configuration options to weight Vector Search vs. Keyword Search (BM25).
 *   **What it improves:** **Precision**. Allows fine-tuning the search algorithm. For example, a user strictly looking for exact error codes can increase the BM25 weight, while a user doing conceptual search can prioritize vectors.
 *   **Documentation Required:** Write doc `RRFWeights.md` inside `docs/configurations`, and update the conf template `code-ragcnf.toml.template`
 
-### 4. File System Watcher (`notify`)
+### 4. File System Watcher (`notify`) [done]
 *   **Effort:** High
 *   **Current State:** Users must manually run `code-rag index` or `code-rag index --update` to refresh the DB.
 *   **What it is for:** A background process (daemon) that watches the project directory for file changes and updates the index in real-time.

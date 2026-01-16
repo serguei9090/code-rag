@@ -13,7 +13,7 @@ use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument};
 pub struct BM25Index {
     index: Index,
     reader: IndexReader,
-    writer: Arc<Mutex<IndexWriter>>,
+    writer: Option<Arc<Mutex<IndexWriter>>>,
     schema: Schema,
 }
 
@@ -28,7 +28,7 @@ pub struct BM25Result {
 }
 
 impl BM25Index {
-    pub fn new(db_path: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn new(db_path: &str, readonly: bool) -> Result<Self, Box<dyn Error>> {
         let index_path = Path::new(db_path).join("bm25_index");
         if !index_path.exists() {
             fs::create_dir_all(&index_path)?;
@@ -50,24 +50,37 @@ impl BM25Index {
             schema.clone(),
         )?;
 
-        let writer = index.writer(50_000_000)?; // 50MB buffer
+        let writer = if readonly {
+            None
+        } else {
+            match index.writer(50_000_000) {
+                Ok(w) => Some(Arc::new(Mutex::new(w))),
+                Err(e) => {
+                    // If we can't open writer (e.g. locked by another process), we can warn or fail.
+                    // For the 'Index' and 'Watch' commands, this should fail.
+                    // But if this was an opportunistic write, we could just be None.
+                    // Since 'readonly=false' implies intent to write, we should propagate error.
+                    return Err(Box::new(e));
+                }
+            }
+        };
 
         let reader = index
             .reader_builder()
-            .reload_policy(ReloadPolicy::Manual)
+            .reload_policy(ReloadPolicy::OnCommit) // Better for concurrent readers
             .try_into()?;
 
         Ok(Self {
             index,
             reader,
-            writer: Arc::new(Mutex::new(writer)),
+            writer,
             schema,
         })
     }
 
     pub fn add_chunks(&self, chunks: &[CodeChunk]) -> Result<(), Box<dyn Error>> {
-        let mut writer = self
-            .writer
+        let writer_arc = self.writer.as_ref().ok_or("Index is read-only")?;
+        let mut writer = writer_arc
             .lock()
             .map_err(|e| format!("Lock poisoned: {}", e))?;
 
@@ -100,8 +113,8 @@ impl BM25Index {
     }
 
     pub fn delete_file(&self, filename: &str) -> Result<(), Box<dyn Error>> {
-        let mut writer = self
-            .writer
+        let writer_arc = self.writer.as_ref().ok_or("Index is read-only")?;
+        let mut writer = writer_arc
             .lock()
             .map_err(|e| format!("Lock poisoned: {}", e))?;
         let filename_field = self.schema.get_field("filename").expect("Schema invalid");
@@ -191,7 +204,7 @@ mod tests {
     fn setup_test_index() -> (BM25Index, TempDir) {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let db_path = temp_dir.path().to_str().unwrap();
-        let index = BM25Index::new(db_path).expect("Failed to create index");
+        let index = BM25Index::new(db_path, false).expect("Failed to create index");
         (index, temp_dir)
     }
 

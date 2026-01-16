@@ -7,6 +7,7 @@ use code_rag::reporting::generate_html_report;
 use code_rag::search::CodeSearcher;
 use code_rag::server::start_server;
 use code_rag::storage::Storage;
+use code_rag::watcher::start_watcher;
 use colored::*;
 use ignore::WalkBuilder;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -90,6 +91,14 @@ enum Commands {
         #[arg(long)]
         db_path: Option<String>,
     },
+    /// Watch the directory for changes and update the index
+    Watch {
+        /// Path to watch (default: current directory or configured index path)
+        path: Option<String>,
+        /// Custom database path
+        #[arg(long)]
+        db_path: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -163,7 +172,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             storage.init(embedder.dim()).await?;
 
             // 3. Initialize BM25 Index
-            let bm25_index = match BM25Index::new(&actual_db) {
+            let bm25_index = match BM25Index::new(&actual_db, false) {
                 Ok(idx) => idx,
                 Err(e) => {
                     warn!(
@@ -396,7 +405,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             };
 
             // Initialize BM25 Index (Optional)
-            let bm25_index = BM25Index::new(&actual_db).ok();
+            let bm25_index = BM25Index::new(&actual_db, true).ok();
             if bm25_index.is_none() {
                 warn!("BM25 index could not be opened. Falling back to pure vector search.");
             }
@@ -500,6 +509,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 config.reranker_model_path.clone(),
             )
             .await?;
+        }
+        Commands::Watch { path, db_path } => {
+            let actual_path = path.unwrap_or(config.default_index_path);
+            let actual_db = db_path.unwrap_or(config.db_path);
+
+            info!("Initializing watcher for path: {}", actual_path);
+
+            // 1. Initialize Components
+            let mut embedder = Embedder::new(
+                config.embedding_model.clone(),
+                config.reranker_model.clone(),
+                config.embedding_model_path.clone(),
+                config.reranker_model_path.clone(),
+            )?;
+            embedder.init_reranker()?;
+
+            let storage = Storage::new(&actual_db).await?;
+            storage.init(embedder.dim()).await?; // Ensure schema
+
+            let bm25_index = match BM25Index::new(&actual_db, false) {
+                Ok(idx) => idx,
+                Err(e) => {
+                    error!("Failed to initialize BM25 index: {}", e);
+                    return Err(Box::new(e));
+                }
+            };
+
+            let chunker = CodeChunker::new(config.chunk_size, config.chunk_overlap);
+
+            // 2. Start Watcher
+            // This is a blocking call (due to our channel loop implementation)
+            start_watcher(&actual_path, storage, embedder, bm25_index, chunker).await?;
         }
     }
 
