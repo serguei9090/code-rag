@@ -70,7 +70,7 @@ impl CodeSearcher {
                 let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
                     stripped
                 } else {
-                    &ext_val
+                    ext_val
                 };
                 filters.push(format!("filename LIKE '%.{}'", clean_ext));
             }

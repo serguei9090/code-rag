@@ -110,15 +110,23 @@ async fn main() -> anyhow::Result<()> {
     let log_level = config.log_level.parse::<Level>().unwrap_or(Level::INFO);
     let log_format = config.log_format.as_str();
 
+    // Use EnvFilter to suppress noisy logs from dependencies while keeping code-rag at INFO
+    let filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(log_level.into())
+        .from_env_lossy()
+        .add_directive("lance=warn".parse().unwrap())
+        .add_directive("tantivy=warn".parse().unwrap())
+        .add_directive("opendal=warn".parse().unwrap()); // Common noisy crates
+
     if log_format.eq_ignore_ascii_case("json") {
         tracing_subscriber::fmt()
-            .with_max_level(log_level)
+            .with_env_filter(filter)
             .with_writer(std::io::stderr)
             .json()
             .init();
     } else {
         tracing_subscriber::fmt()
-            .with_max_level(log_level)
+            .with_env_filter(filter)
             .with_writer(std::io::stderr)
             .init();
     }
@@ -223,6 +231,7 @@ async fn main() -> anyhow::Result<()> {
                     .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")?
                     .progress_chars("#>-"),
             );
+            pb_index.enable_steady_tick(std::time::Duration::from_millis(120));
             pb_index.set_message("Indexing...");
 
             // For incremental updates
@@ -283,6 +292,7 @@ async fn main() -> anyhow::Result<()> {
 
                 // Flush buffer if large enough
                 if chunks_buffer.len() >= 256 {
+                    pb_index.set_message("Embedding batch...");
                     let chunk_slice = &chunks_buffer;
                     let texts: Vec<String> = chunk_slice.iter().map(|c| c.code.clone()).collect();
                     match embedder.embed(texts, Some(256)) {
