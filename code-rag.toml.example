@@ -29,6 +29,23 @@ default_index_path = '.'
 # "fast-search" - Optimized for search latency (smaller segments, more merging).
 merge_policy = "log"
 
+# ==========================================
+# LOGGING CONFIGURATION
+# ==========================================
+# Control application logging behavior.
+#
+# log_to_file: If true, logs are written to "logs/client.log" (CLI) or "logs/server.log" (Server).
+# log_path: Directory to store log files. Defaults to "./logs".
+# log_level: filtering level (error, warn, info, debug, trace). Defaults to "info".
+#
+# Examples:
+# log_to_file = true
+# log_path = './logs'
+# log_level = 'debug'
+log_to_file = false
+# log_path = './logs'
+log_level = 'info'
+
 
 # ==========================================
 # SUPPORTED EXTENSIONS

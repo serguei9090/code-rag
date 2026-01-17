@@ -14,9 +14,11 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use time::macros::format_description;
 use tracing::{error, info, warn, Level};
+use tracing_subscriber::prelude::*;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(
     name = "code-rag",
     version,
@@ -28,7 +30,7 @@ struct Args {
     cmd: Commands,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 enum Commands {
     /// Index a directory of source code
     Index {
@@ -106,30 +108,72 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::new()?;
 
     // Initialize Tracing (Logging)
-    // We write logs to stderr to keep stdout clean for piped search results (JSON/Text).
     let log_level = config.log_level.parse::<Level>().unwrap_or(Level::INFO);
     let log_format = config.log_format.as_str();
 
-    // Use EnvFilter to suppress noisy logs from dependencies while keeping code-rag at INFO
+    // Setup Local Timer
+    // Uses the `time` crate with `local-offset` feature to get the system's local timezone.
+    let timer = tracing_subscriber::fmt::time::LocalTime::new(format_description!(
+        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:6][offset_hour sign:mandatory]:[offset_minute]"
+    ));
+
+    // 1. EnvFilter: Common filter for both layers (suppress noisy crates)
     let filter = tracing_subscriber::EnvFilter::builder()
         .with_default_directive(log_level.into())
         .from_env_lossy()
         .add_directive("lance=warn".parse().unwrap())
         .add_directive("tantivy=warn".parse().unwrap())
-        .add_directive("opendal=warn".parse().unwrap()); // Common noisy crates
+        .add_directive("opendal=warn".parse().unwrap());
 
-    if log_format.eq_ignore_ascii_case("json") {
-        tracing_subscriber::fmt()
-            .with_env_filter(filter)
+    // 2. Stderr Layer: For user feedback
+    let stderr_layer = if log_format.eq_ignore_ascii_case("json") {
+        tracing_subscriber::fmt::layer()
             .with_writer(std::io::stderr)
+            .with_timer(timer.clone())
             .json()
-            .init();
+            .boxed()
     } else {
-        tracing_subscriber::fmt()
-            .with_env_filter(filter)
+        tracing_subscriber::fmt::layer()
             .with_writer(std::io::stderr)
-            .init();
-    }
+            .with_timer(timer.clone())
+            .boxed()
+    };
+
+    // 3. File Layer: Optional file logging
+    let file_layer = if config.log_to_file {
+        let log_dir = config
+            .log_path
+            .clone()
+            .unwrap_or_else(|| "./logs".to_string());
+
+        // Determine log filename based on subcommand
+        let log_filename = match &args.cmd {
+            Commands::Serve { .. } => "server.log",
+            _ => "client.log",
+        };
+
+        // Rolling file appender (Daily rotation)
+        let file_appender = tracing_appender::rolling::daily(&log_dir, log_filename);
+
+        Some(
+            tracing_subscriber::fmt::layer()
+                .with_writer(file_appender)
+                .with_ansi(false) // No colors in file
+                .with_timer(timer)
+                .boxed(),
+        )
+    } else {
+        None
+    };
+
+    // 4. Initialize Registry
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(stderr_layer)
+        .with(file_layer)
+        .init();
+
+    info!("code-rag started. Log level: {}", log_level);
 
     match args.cmd {
         Commands::Index {

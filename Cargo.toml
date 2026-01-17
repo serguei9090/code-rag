@@ -63,9 +63,12 @@ tracing-subscriber = { version = "0.3.18", features = [
     "env-filter",
     "fmt",
     "json",
+    "local-time",
 ] }
 notify = "8.2.0"
 notify-debouncer-mini = "0.7.0"
+tracing-appender = "0.2.4"
+time = { version = "0.3", features = ["macros", "formatting", "local-offset"] }
 
 [dev-dependencies]
 http-body-util = "0.1.3"

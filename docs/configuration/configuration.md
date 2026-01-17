@@ -7,14 +7,15 @@
 Settings are loaded in this order (highest priority first):
 
 1. **CLI Arguments** (e.g., `--db-path`)
-2. **Local Config** (`./code-rag.toml` in current directory)
-3. **Global Config** (`~/.code-rag/config.toml`)
+1. **CLI Arguments** (e.g., `--db-path`)
+2. **Local Config** (`./config_rag.toml` in current directory)
+3. **Global Config** (`~/.config/code-rag/config_rag.toml`)
 4. **Environment Variables** (prefix: `CODE_RAG_`)
 5. **Built-in Defaults**
 
 ## Configuration File Format
 
-### Example `code-rag.toml`
+### Example `config_rag.toml`
 
 ```toml
 # Database location (relative or absolute)
@@ -62,14 +63,14 @@ $env:CODE_RAG_DEFAULT_INDEX_PATH = "./src"
 ## Global Configuration
 
 Create a global config file at:
-- **Linux/macOS**: `~/.code-rag/config.toml`
-- **Windows**: `C:\Users\<YourName>\.code-rag\config.toml`
+- **Linux/macOS**: `~/.config/code-rag/config_rag.toml`
+- **Windows**: `C:\Users\<YourName>\AppData\Roaming\code-rag\config_rag.toml`
 
 This is useful for setting defaults across all projects.
 
 ## Configuration Template
 
-See `code-rag.toml.example` in the project root for a complete template.
+See `config_rag.toml.template` in the project root for a complete template.
 
 ## Merge Policy
 
@@ -86,19 +87,38 @@ Example:
 merge_policy = "fast-write"
 ```
 
+## Logging Configuration
+
+You can enable detailed file-based logging for debugging or auditing purposes.
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `log_to_file` | bool | Enables writing logs to files (`logs/client.log` or `logs/server.log`). | `false` |
+| `log_path` | string | Directory where log files are stored. | `./logs` |
+| `log_level` | string | Verbosity level (`error`, `warn`, `info`, `debug`, `trace`). | `info` |
+
+Example:
+```toml
+# Enable debug logging to a specific folder
+log_to_file = true
+log_path = 'C:\Logs\CodeRag'
+log_level = 'debug'
+```
+*Note: Logs are rotated daily and timestamped with your local machine time.*
+
 
 ## Common Scenarios
 
 ### Scenario 1: Per-Project Database
 ```toml
-# ./code-rag.toml
+# ./config_rag.toml
 db_path = './.lancedb'
 default_index_path = './src'
 ```
 
 ### Scenario 2: Centralized Database
 ```toml
-# ~/.code-rag/config.toml
+# ~/.config/code-rag/config_rag.toml
 db_path = '~/.cache/code-rag/db'
 ```
 

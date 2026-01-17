@@ -48,3 +48,17 @@ So, while you *see* the log message scrolling by, the underlying expensive work 
     *   Search is relatively lightweight, primarily using memory to store the loaded results and perform the reranking on a small subset (e.g., top 50-100 items).
 
 **Summary:** You should expect the app to use around **500MB - 1GB** of RAM during operation, primarily due to the AI models. Code execution itself is efficient Rust.
+
+## Case 4: Log Configuration
+
+**Question:** "ok question so I have log level depend of what i put on the config I will get the log level?"
+
+**Answer:** **Yes, for your application code, but with "Noise Cancellation" for dependencies.**
+
+*   **Config Level (`log_level`):** The value you set in `code-rag.toml` (e.g., `"debug"`) **WILL** apply to all of the `code-rag` logic. If you set it to `trace`, you will see every detail of the app's internal workings.
+*   **Overrides (Noise Filters):** To prevent the progress bar from glitching and your console from flooding, I have **hardcoded filters** for specific noisy libraries:
+    *   `lance` (Database) -> Locked to `WARN`
+    *   `tantivy` (Search Index) -> Locked to `WARN`
+    *   `opendal` (Storage) -> Locked to `WARN`
+
+So effectively: **Your Code = Your Config**, but **Internal Database Noise = Muted**.

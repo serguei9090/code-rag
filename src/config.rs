@@ -22,6 +22,8 @@ pub struct AppConfig {
     pub bm25_weight: f32,
     pub rrf_k: f64,
     pub merge_policy: String,
+    pub log_to_file: bool,
+    pub log_path: Option<String>,
 }
 
 impl AppConfig {
@@ -36,7 +38,7 @@ impl AppConfig {
             .set_default("exclusions", Vec::<String>::new())?
             .set_default("log_level", "info")?
             .set_default("log_format", "text")?
-            .set_default("embedding_model", "nomic-embed-text-v1.5")?
+            .set_default("log_to_file", false)?
             .set_default("embedding_model", "nomic-embed-text-v1.5")?
             .set_default("reranker_model", "bge-reranker-base")?
             .set_default("chunk_size", 1024)?
@@ -46,15 +48,15 @@ impl AppConfig {
             .set_default("rrf_k", 60.0)?
             .set_default("merge_policy", "log")?;
 
-        // 1. File: code-ragcnf.toml (Current Directory)
-        if PathBuf::from("code-ragcnf.toml").exists() {
-            s = s.add_source(File::with_name("code-ragcnf"));
+        // 1. File: config_rag.toml (Current Directory)
+        if PathBuf::from("config_rag.toml").exists() {
+            s = s.add_source(File::with_name("config_rag"));
         }
 
-        // 2. File: ~/.config/code-rag/code-ragcnf.toml (User Config)
+        // 2. File: ~/.config/code-rag/config_rag.toml (User Config)
         if let Some(mut home) = dirs::config_dir() {
             home.push("code-rag");
-            home.push("code-ragcnf");
+            home.push("config_rag");
             // Check for both without extension and with .toml extension
             s = s.add_source(File::from(home).required(false));
         }

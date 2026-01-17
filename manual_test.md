@@ -121,7 +121,25 @@ This document outlines the manual verification steps to ensure the `code-rag` ap
   3. Verify the watcher logs an update event.
   4. Perform a search in another terminal to confirm the change is indexed.
 
-## 7. Cleanup
+## 7. Logging & Debugging
+
+- [ ] **Verify File Logging (Client)**
+  Run a command with logging enabled and check `logs/client.log`.
+  ```powershell
+  $env:CODE_RAG__LOG_TO_FILE="true"; ./target/debug/code-rag grep "test"
+  Get-Content logs/client.log.* | Select-Object -Last 5
+  ```
+- [ ] **Verify File Logging (Server)**
+  Start server with logging and check `logs/server.log`.
+  ```powershell
+  $env:CODE_RAG__LOG_TO_FILE="true"; ./target/debug/code-rag serve --port 9999
+  # (Wait for startup, then CTRL+C)
+  Get-Content logs/server.log.* | Select-Object -Last 5
+  ```
+- [ ] **Optimize Memory**
+  Verify RAM usage remains low during indexing (check Task Manager during `index`).
+
+## 8. Cleanup
 
 - [ ] **Remove Database**
   Manually remove the `.lancedb` directory to reset the state.
