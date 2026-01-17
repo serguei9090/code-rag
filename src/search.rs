@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_sorting_logic() {
-        let mut results = vec![
+        let mut results = [
             SearchResult {
                 rank: 0,
                 score: 0.1,
@@ -374,7 +374,7 @@ mod tests {
                 code: "".into(),
                 line_start: 0,
                 line_end: 0,
-                calls: vec![],
+                calls: Vec::new(),
             },
             SearchResult {
                 rank: 0,
@@ -383,7 +383,7 @@ mod tests {
                 code: "".into(),
                 line_start: 0,
                 line_end: 0,
-                calls: vec![],
+                calls: Vec::new(),
             },
             SearchResult {
                 rank: 0,
@@ -392,7 +392,7 @@ mod tests {
                 code: "".into(),
                 line_start: 0,
                 line_end: 0,
-                calls: vec![],
+                calls: Vec::new(),
             },
         ];
 

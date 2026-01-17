@@ -10,17 +10,31 @@ use crate::reporting::generate_html_report;
 use crate::search::CodeSearcher;
 use crate::storage::Storage;
 
+pub struct SearchOptions {
+    pub limit: Option<usize>,
+    pub db_path: Option<String>,
+    pub html: bool,
+    pub json: bool,
+    pub ext: Option<String>,
+    pub dir: Option<String>,
+    pub no_rerank: bool,
+}
+
 pub async fn search_codebase(
     query: String,
-    limit: Option<usize>,
-    db_path: Option<String>,
-    html: bool,
-    json: bool,
-    ext: Option<String>,
-    dir: Option<String>,
-    no_rerank: bool,
+    options: SearchOptions,
     config: &AppConfig,
 ) -> Result<(), CodeRagError> {
+    let SearchOptions {
+        limit,
+        db_path,
+        html,
+        json,
+        ext,
+        dir,
+        no_rerank,
+    } = options;
+
     let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
     let actual_limit = limit.unwrap_or(config.default_limit);
 

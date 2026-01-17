@@ -1,12 +1,9 @@
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use time::macros::format_description;
-use tracing::Level;
-use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 use code_rag::commands::{index, search, serve, watch};
 use code_rag::config::AppConfig;
+use code_rag::telemetry::{init_telemetry, AppMode};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -98,11 +95,20 @@ async fn main() -> anyhow::Result<()> {
     // NOTE: In a real app we might peek at args to find -c first, logic simplified here.
     let config = AppConfig::new().context("Failed to load configuration")?;
 
-    // 2. Setup Logging
-    let _guard = init_logging(&config);
-
-    // 3. Parse Args
+    // 2. Parse Args Early to determine Telemetry Mode
     let args = Args::parse();
+
+    // 3. Setup Telemetry
+    // If command is Serve, we use Server mode (OTLP), otherwise CLI mode (Chrome/Local)
+    let app_mode = match args.command {
+        Commands::Serve { .. } => AppMode::Server,
+        _ => AppMode::Cli,
+    };
+
+    // Initialize telemetry. This guard must be held until the end of main.
+    // Note: init_telemetry internally handles logging initialization for now,
+    // replacing the old init_logging function.
+    let _guard = init_telemetry(app_mode, &config).context("Failed to initialize telemetry")?;
 
     // 4. Execute Command
     match args.command {
@@ -122,8 +128,16 @@ async fn main() -> anyhow::Result<()> {
             dir,
             no_rerank,
         } => {
-            search::search_codebase(query, limit, None, html, json, ext, dir, no_rerank, &config)
-                .await?;
+            let options = search::SearchOptions {
+                limit,
+                db_path: None,
+                html,
+                json,
+                ext,
+                dir,
+                no_rerank,
+            };
+            search::search_codebase(query, options, &config).await?;
         }
         Commands::Grep { pattern, json } => {
             search::grep_codebase(pattern, json, &config)?;
@@ -137,56 +151,4 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn init_logging(config: &AppConfig) -> Option<WorkerGuard> {
-    let log_level = config.log_level.parse::<Level>().unwrap_or(Level::INFO);
-    let log_format = &config.log_format;
-
-    // Setup Local Timer
-    let timer = tracing_subscriber::fmt::time::LocalTime::new(format_description!(
-        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:6][offset_hour sign:mandatory]:[offset_minute]"
-    ));
-
-    // Stderr Layer (User Feedback)
-    let stderr_layer = if log_format.eq_ignore_ascii_case("json") {
-        tracing_subscriber::fmt::layer()
-            .with_writer(std::io::stderr)
-            .with_timer(timer.clone())
-            .json()
-            .boxed()
-    } else {
-        tracing_subscriber::fmt::layer()
-            .with_writer(std::io::stderr)
-            .with_timer(timer.clone())
-            .boxed()
-    };
-
-    // Filter stderr: Warnings/Errors always shown, Info shown if level >= Info
-    let stderr_filter =
-        tracing_subscriber::filter::Targets::new().with_target("code_rag", log_level);
-
-    let registry = tracing_subscriber::registry().with(stderr_layer.with_filter(stderr_filter));
-
-    // File Layer (Optional)
-    if config.log_to_file {
-        let file_appender = tracing_appender::rolling::daily(&config.log_dir, "code-rag.log");
-        let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-
-        let file_layer = tracing_subscriber::fmt::layer()
-            .with_writer(non_blocking)
-            .with_ansi(false)
-            .with_timer(timer)
-            .boxed();
-
-        let file_filter =
-            tracing_subscriber::filter::Targets::new().with_target("code_rag", log_level);
-
-        registry.with(file_layer.with_filter(file_filter)).init();
-
-        Some(guard)
-    } else {
-        registry.init();
-        None
-    }
 }

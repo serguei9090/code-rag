@@ -106,6 +106,24 @@ log_level = 'debug'
 ```
 *Note: Logs are rotated daily and timestamped with your local machine time.*
 
+## Telemetry
+
+`code-rag` can emit distributed traces (via OpenTelemetry) and metrics.
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `telemetry_enabled` | bool | If true, enables tracing and metrics. | `false` |
+| `telemetry_endpoint` | string | OTLP endpoint for sending traces (e.g., Jaeger, OTEL Collector). | `http://localhost:4317` |
+
+Example:
+```toml
+telemetry_enabled = true
+telemetry_endpoint = "http://my-jaeger-instance:4317"
+```
+
+In CLI mode, tracing is saved to local `trace-*.json` files regardless of the endpoint.
+In Server mode, traces are sent to the configured `telemetry_endpoint`.
+
 
 ## Common Scenarios
 

@@ -11,6 +11,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use prometheus::{Encoder, TextEncoder};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -103,6 +104,7 @@ pub async fn start_server(
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        .route("/metrics", get(metrics_handler))
         .route("/search", post(search_handler))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
@@ -111,6 +113,34 @@ pub fn create_router(state: AppState) -> Router {
 
 async fn health_handler() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
+}
+
+async fn metrics_handler() -> impl IntoResponse {
+    let encoder = TextEncoder::new();
+    let metric_families = prometheus::gather();
+    let mut buffer = vec![];
+
+    if let Err(e) = encoder.encode(&metric_families, &mut buffer) {
+        error!("Failed to encode metrics: {}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(axum::http::header::CONTENT_TYPE, "text/plain")],
+            "Internal Server Error".into(),
+        );
+    }
+
+    // Convert buffer to String to own the data
+    let response_body =
+        String::from_utf8(buffer).unwrap_or_else(|_| "Error encoding metrics".to_string());
+
+    (
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4",
+        )],
+        response_body,
+    )
 }
 
 async fn search_handler(

@@ -31,25 +31,36 @@ This document outlines the planned feature progression for `code-rag`, organized
     -   Embedding generation speed (CPU).
 
 ### Phase 0.5: Telemetry (Observability)
-**Goal:** Gather anonymous usage/performance stats locally to understand bottlenecks.
+**Goal:** Implement "Dynamic Layering" telemetry that adapts to the runtime mode (CLI vs. Server).
 
-#### Options for Local Telemetry
-must be optional
-The Strategy: "Dynamic Layering"
-You will write one init_telemetry function that checks which command was run.
+#### 1. Dependencies
+- **Common:** `tracing`, `tracing-subscriber`, `sysinfo`.
+- **CLI Mode:** `tracing-chrome`.
+- **Server Mode:** `opentelemetry`, `opentelemetry-otlp`, `opentelemetry_sdk`, `tracing-opentelemetry`, `opentelemetry-prometheus`, `axum` (for metrics endpoint).
 
-If my-cli start-server: It initializes the full Prometheus + Jaeger pipeline (so you can monitor memory leaks and model latency over days).
+#### 2. Logic: `telemetry.rs`
+- Implement `init_telemetry(mode: AppMode)`.
+- **Mode A: CLI (Ask command)**
+    - Initialize `tracing-chrome` layer.
+    - Write trace to local file (e.g., `trace-{timestamp}.json`).
+    - **Constraint:** Zero network/docker usage.
+- **Mode B: Server (Serve command)**
+    - Initialize full OpenTelemetry pipeline.
+    - **Tracing:** Push to Jaeger (OTLP via gRPC `localhost:4317`).
+    - **Metrics:** Expose Prometheus endpoint (scrape config).
+    - **Critical Monitor:** Register an Asynchronous Gauge using `sysinfo` to track `app_memory_usage_bytes` (Process RAM) to prevent OOM.
 
-If my-cli ask "query": It initializes tracing-chrome (so you can debug that specific query via a local file).
-Yes, this is critical for a RAG server. If your model loads into RAM (or VRAM) and you don't track it, you will eventually hit an OOM (Out of Memory) crash, and you won't know why.
+#### 3. Infrastructure
+- Generate `docker-compose.yaml` with:
+    - **Jaeger:** Ports 16686 (UI), 4317 (OTLP).
+    - **Prometheus:** Port 9090 (configured to scrape host).
+    - **Grafana:** Port 3001 (provisioned for visualization).
 
-In OpenTelemetry, the correct tool for this is an Asynchronous Gauge.
-
-Counter: Things that go up only (e.g., "Requests Served").
-
-Gauge: Things that go up and down (e.g., "RAM Usage").
-
-Asynchronous: Means "measure this only when Prometheus asks for it" (Scrape), rather than calculating it every millisecond.
+#### 4. Implementation Steps
+- [ ] Update `Cargo.toml`.
+- [ ] Create `telemetry.rs` with `AppMode` enum and logic.
+- [ ] In `main.rs`, switch telemetry based on subcommand (`Ask` vs `Serve`).
+- [ ] Ensure Server web-layer exposes `/metrics`.
 ---
 
 ## Phase 1: Multi-Workspace Support

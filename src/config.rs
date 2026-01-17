@@ -24,6 +24,8 @@ pub struct AppConfig {
     pub merge_policy: String,
     pub log_to_file: bool,
     pub log_dir: String,
+    pub telemetry_enabled: bool,
+    pub telemetry_endpoint: String,
 }
 
 impl AppConfig {
@@ -47,7 +49,9 @@ impl AppConfig {
             .set_default("vector_weight", 1.0)?
             .set_default("bm25_weight", 1.0)?
             .set_default("rrf_k", 60.0)?
-            .set_default("merge_policy", "log")?;
+            .set_default("merge_policy", "log")?
+            .set_default("telemetry_enabled", false)?
+            .set_default("telemetry_endpoint", "http://localhost:4317")?;
 
         // 1. File: config_rag.toml (Current Directory)
         if PathBuf::from("config_rag.toml").exists() {

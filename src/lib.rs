@@ -9,6 +9,8 @@ pub mod reporting;
 pub mod search;
 pub mod server;
 pub mod storage;
+
+pub mod telemetry;
 pub mod watcher;
 
 // Re-export core types for convenience

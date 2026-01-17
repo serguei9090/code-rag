@@ -92,7 +92,6 @@ async fn test_invalid_syntax() {
 
     // Should return result without panicking.
     // Count might be 0 or >0 depending on fallback.
-    assert!(chunks.len() >= 0);
 
     // Cleanup
     let _ = std::fs::remove_file(file_path);

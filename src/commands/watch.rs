@@ -50,12 +50,7 @@ pub async fn watch_codebase(
     // 2. Start Watcher
     start_watcher(&actual_path, storage, embedder, bm25_index, chunker)
         .await
-        .map_err(|e| {
-            CodeRagError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
+        .map_err(|e| CodeRagError::Io(std::io::Error::other(e.to_string())))?;
 
     Ok(())
 }

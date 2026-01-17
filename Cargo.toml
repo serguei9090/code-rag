@@ -77,6 +77,18 @@ notify = "8.2.0"
 notify-debouncer-mini = "0.7.0"
 tracing-appender = "0.2.4"
 time = { version = "0.3", features = ["macros", "formatting", "local-offset"] }
+sysinfo = "0.30"
+tracing-chrome = "0.7"
+opentelemetry = { version = "0.22", features = ["metrics", "logs"] }
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.15", features = [
+    "tonic",
+    "metrics",
+    "logs",
+] }
+tracing-opentelemetry = "0.23"
+opentelemetry-prometheus = "0.15"
+prometheus = "0.13"
 
 [dev-dependencies]
 http-body-util = "0.1.3"
