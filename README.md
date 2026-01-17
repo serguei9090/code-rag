@@ -272,9 +272,26 @@ code-rag search "how embeddings are generated" --limit 5
 
 ## 🔒 Privacy
 
-- ✅ No cloud calls
-- ✅ No telemetry
+- ✅ No cloud calls (Embeddings run locally)
+- ✅ **Opt-in Only** Telemetry (Disabled by default)
 - ✅ Everything stored locally in `./.lancedb`
+
+## 📊 Telemetry (Optional)
+
+`code-rag` supports OpenTelemetry for tracing and metrics. This is **disabled by default**.
+
+To enable it, set `telemetry_enabled = true` in your `config_rag.toml`.
+
+**Infrastructure:**
+We provide a pre-configured observability stack (Jaeger, Prometheus, Grafana).
+
+```bash
+docker-compose -f docker-compose.telemetry.yml up -d
+```
+
+- **Jaeger (Traces):** http://localhost:16686
+- **Prometheus (Metrics):** http://localhost:9090
+- **Grafana (Dashboards):** http://localhost:3000
 
 ## 🧱 Internal architecture (simple)
 
