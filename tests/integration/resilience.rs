@@ -58,7 +58,7 @@ async fn test_large_file_chunking() {
     let code = std::fs::read_to_string(&file_path).unwrap();
 
     let start = Instant::now();
-    let chunks = chunker.chunk_file(file_path.to_str().unwrap(), &code, 0);
+    let _chunks = chunker.chunk_file(file_path.to_str().unwrap(), &code, 0);
     let duration = start.elapsed();
 
     // Should produce chunks (comments are captured as chunks in some languages or at least processed)
@@ -88,7 +88,7 @@ async fn test_invalid_syntax() {
 
     let code = std::fs::read_to_string(&file_path).unwrap();
 
-    let chunks = chunker.chunk_file(file_path.to_str().unwrap(), &code, 0);
+    let _chunks = chunker.chunk_file(file_path.to_str().unwrap(), &code, 0);
 
     // Should return result without panicking.
     // Count might be 0 or >0 depending on fallback.

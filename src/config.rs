@@ -30,6 +30,10 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn new() -> Result<Self, ConfigError> {
+        Self::load(true)
+    }
+
+    pub fn load(include_files: bool) -> Result<Self, ConfigError> {
         // Defaults
         let mut s = Config::builder()
             .set_default("db_path", "./.lancedb")?
@@ -53,17 +57,19 @@ impl AppConfig {
             .set_default("telemetry_enabled", false)?
             .set_default("telemetry_endpoint", "http://localhost:4317")?;
 
-        // 1. File: config_rag.toml (Current Directory)
-        if PathBuf::from("config_rag.toml").exists() {
-            s = s.add_source(File::with_name("config_rag"));
-        }
+        if include_files {
+            // 1. File: ~/.config/code-rag/config_rag.toml (User Config)
+            if let Some(mut home) = dirs::config_dir() {
+                home.push("code-rag");
+                home.push("config_rag");
+                // Check for both without extension and with .toml extension
+                s = s.add_source(File::from(home).required(false));
+            }
 
-        // 2. File: ~/.config/code-rag/config_rag.toml (User Config)
-        if let Some(mut home) = dirs::config_dir() {
-            home.push("code-rag");
-            home.push("config_rag");
-            // Check for both without extension and with .toml extension
-            s = s.add_source(File::from(home).required(false));
+            // 2. File: config_rag.toml (Current Directory) - takes precedence
+            if PathBuf::from("config_rag.toml").exists() {
+                s = s.add_source(File::with_name("config_rag"));
+            }
         }
 
         // 3. Environment: CODE_RAG__KEY=VALUE
@@ -80,22 +86,22 @@ mod tests {
     use std::env;
 
     #[test]
-    fn test_default_config() {
+    fn test_config_sequential() {
+        // Part 1: Default Logic
         // Ensure no env vars interfere
         env::remove_var("CODE_RAG__DB_PATH");
+        env::remove_var("CODE_RAG__DEFAULT_LIMIT");
 
-        let config = AppConfig::new().expect("Failed to load default config");
+        let config = AppConfig::load(false).expect("Failed to load default config");
         assert_eq!(config.db_path, "./.lancedb");
         assert_eq!(config.default_limit, 5);
         assert_eq!(config.vector_weight, 1.0);
-    }
 
-    #[test]
-    fn test_env_override() {
+        // Part 2: Env Override Logic
         env::set_var("CODE_RAG__DB_PATH", "/tmp/test_db");
         env::set_var("CODE_RAG__DEFAULT_LIMIT", "10");
 
-        let config = AppConfig::new().expect("Failed to load config with env vars");
+        let config = AppConfig::load(false).expect("Failed to load config with env vars");
         assert_eq!(config.db_path, "/tmp/test_db");
         assert_eq!(config.default_limit, 10);
 

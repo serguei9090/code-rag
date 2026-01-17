@@ -10,7 +10,7 @@ fmt:
 
 # Check code style and common mistakes
 clippy:
-    cargo clippy -- -D warnings
+    cargo clippy --all-targets --all-features -- -D warnings
 
 # Run all tests
 test:

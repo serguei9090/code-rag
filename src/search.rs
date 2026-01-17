@@ -21,6 +21,13 @@ pub struct SearchResult {
     pub calls: Vec<String>,
 }
 
+impl SearchResult {
+    pub fn merge(_chunks: Vec<SearchResult>) -> Self {
+        // Implementation detail if needed, but we use ContextOptimizer
+        unimplemented!()
+    }
+}
+
 pub struct CodeSearcher {
     storage: Option<Storage>,
     embedder: Option<Embedder>,
@@ -49,6 +56,7 @@ impl CodeSearcher {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn semantic_search(
         &mut self,
         query: &str,
@@ -57,6 +65,7 @@ impl CodeSearcher {
         dir: Option<String>,
         no_rerank: bool,
         workspace: Option<String>,
+        max_tokens: Option<usize>,
     ) -> Result<Vec<SearchResult>> {
         let storage = self.storage.as_ref().context("Storage not initialized")?;
         let embedder = self.embedder.as_mut().context("Embedder not initialized")?;
@@ -304,7 +313,28 @@ impl CodeSearcher {
                 res.rank = i + 1;
             }
 
-            Ok(final_results)
+            if let Some(tokens) = max_tokens {
+                use crate::context::ContextOptimizer;
+                let optimizer = ContextOptimizer::new(tokens);
+                let merged_chunks = optimizer.optimize(final_results)?;
+
+                // Map back to SearchResult
+                let mut mapped_results = Vec::new();
+                for (i, chunk) in merged_chunks.into_iter().enumerate() {
+                    mapped_results.push(SearchResult {
+                        rank: i + 1,
+                        score: chunk.max_score, // Use max score of the group
+                        filename: chunk.filename,
+                        code: chunk.code,
+                        line_start: chunk.start_line,
+                        line_end: chunk.end_line,
+                        calls: Vec::new(), // Lost calls info in simplified merge, could improve later
+                    });
+                }
+                Ok(mapped_results)
+            } else {
+                Ok(final_results)
+            }
         } else {
             Err(anyhow!("No embedding generated"))
         }

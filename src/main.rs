@@ -68,6 +68,10 @@ enum Commands {
         /// Workspace name (default: "default")
         #[arg(short, long, default_value = "default")]
         workspace: String,
+
+        /// Optimize context to fit within N tokens (e.g. 8000)
+        #[arg(long)]
+        max_tokens: Option<usize>,
     },
     /// Grep search (regex)
     Grep {
@@ -141,6 +145,7 @@ async fn main() -> anyhow::Result<()> {
             dir,
             no_rerank,
             workspace,
+            max_tokens,
         } => {
             let options = search::SearchOptions {
                 limit,
@@ -151,6 +156,7 @@ async fn main() -> anyhow::Result<()> {
                 dir,
                 no_rerank,
                 workspace: Some(workspace),
+                max_tokens,
             };
             search::search_codebase(query, options, &config).await?;
         }

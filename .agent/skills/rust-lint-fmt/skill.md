@@ -43,4 +43,4 @@ Use when iterating quickly.
 Commands:
 ```sh
 cargo fmt
-cargo clippy -- -D warnings
+cargo clippy --all-targets --all-features -- -D warnings

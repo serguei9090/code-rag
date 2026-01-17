@@ -3,7 +3,7 @@ use code_rag::indexer::CodeChunker;
 use code_rag::search::CodeSearcher;
 use code_rag::storage::Storage;
 use std::fs;
-use std::path::Path;
+
 use tempfile::tempdir;
 
 use crate::common;
@@ -88,7 +88,7 @@ async fn test_local_model_loading() {
 
     // 5. Perform a search
     let results = searcher
-        .semantic_search("hello", 1, None, None, true, None)
+        .semantic_search("hello", 1, None, None, true, None, None)
         .await
         .expect("Search failed");
 

@@ -1,6 +1,7 @@
 pub mod bm25;
 pub mod commands;
 pub mod config;
+pub mod context;
 pub mod core;
 pub mod embedding;
 pub mod indexer;

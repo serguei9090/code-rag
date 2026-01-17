@@ -5,6 +5,7 @@ use std::fs;
 use tempfile::TempDir;
 
 #[test]
+#[allow(deprecated)]
 fn test_workspace_isolation() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("lancedb");

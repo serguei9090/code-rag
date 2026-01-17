@@ -38,6 +38,7 @@ pub struct SearchRequest {
     pub dir: Option<String>,
     #[serde(default)]
     pub no_rerank: bool,
+    pub max_tokens: Option<usize>,
 }
 
 fn default_limit() -> usize {
@@ -167,7 +168,8 @@ async fn search_handler(
             payload.ext.clone(),
             payload.dir.clone(),
             payload.no_rerank,
-            None, // workspace (default/global for now)
+            None, // workspace (default/global for none)
+            payload.max_tokens,
         )
         .await
     {

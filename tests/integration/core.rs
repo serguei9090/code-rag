@@ -1,5 +1,5 @@
 use code_rag::bm25::BM25Index;
-use code_rag::embedding::Embedder;
+
 use code_rag::indexer::CodeChunker;
 use code_rag::search::CodeSearcher;
 
@@ -32,7 +32,7 @@ async fn test_index_test_assets() {
     for file in test_files {
         let path = Path::new(TEST_ASSETS_PATH).join(file);
         // Initialize BM25 Index
-        let bm25_index =
+        let _bm25_index =
             BM25Index::new(&db_path, false, "log").expect("Failed to create BM25 index");
         if path.exists() {
             let code = fs::read_to_string(&path).expect("Failed to read file");
@@ -115,7 +115,7 @@ async fn test_search_rust_function() {
     // Search for Rust function
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("rust function example", 5, None, None, false, None)
+        .semantic_search("rust function example", 5, None, None, false, None, None)
         .await
         .expect("Search failed");
 
@@ -161,7 +161,7 @@ async fn test_search_python_class() {
     // Search for Python content
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("python function", 5, None, None, false, None)
+        .semantic_search("python function", 5, None, None, false, None, None)
         .await
         .expect("Search failed");
 
@@ -205,7 +205,7 @@ async fn test_search_bash_script() {
     // Search for Bash function
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("backup logs", 5, None, None, false, None)
+        .semantic_search("backup logs", 5, None, None, false, None, None)
         .await
         .expect("Search failed");
 
@@ -253,7 +253,7 @@ async fn test_search_powershell_function() {
     // Search for PowerShell function
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("system status", 5, None, None, false, None)
+        .semantic_search("system status", 5, None, None, false, None, None)
         .await
         .expect("Search failed");
 
@@ -300,7 +300,7 @@ async fn test_search_json_config() {
     // Search for JSON content
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("configuration database", 5, None, None, false, None)
+        .semantic_search("configuration database", 5, None, None, false, None, None)
         .await
         .expect("Search failed");
 
@@ -349,7 +349,7 @@ async fn test_multi_language_search() {
     // Search across all languages
     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("function definition", 10, None, None, false, None)
+        .semantic_search("function definition", 10, None, None, false, None, None)
         .await
         .expect("Search failed");
 
@@ -510,6 +510,7 @@ async fn test_lancedb_filename_index() {
             Some("rs".to_string()),
             None,
             false,
+            None,
             None,
         )
         .await

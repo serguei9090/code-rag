@@ -349,7 +349,7 @@ mod tests {
 
                 // Invariant 2: No chunk exceeds max size
                 for chunk in &chunks {
-                     prop_assert!(chunk.len() <= 50, "Chunk size exceeded max_chunk_size");
+                     prop_assert!(chunk.chars().count() <= 50, "Chunk size exceeded max_chunk_size");
                 }
 
                 // Invariant 3: If input is smaller than max size, it should be 1 chunk
