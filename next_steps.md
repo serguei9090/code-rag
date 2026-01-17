@@ -77,7 +77,7 @@ This document outlines the planned feature progression for `code-rag`, organized
 
 ---
 
-## Phase 2: Context Window Optimization (Smart Context)
+## Phase 2: Context Window Optimization (Smart Context) [done]
 * **Complexity:** Medium (Algorithmic)
 * **Goal:** Optimize search results for LLM consumption.
 
@@ -90,9 +90,10 @@ LLMs have a limited context window (e.g., 8k, 32k tokens). Searching often retur
 **With Optimization (Good):** The tool detects these are adjacent and merges them into **one block** (`FileA.rs` lines 10-40) before sending to the LLM. It also prioritizes "definition" chunks (structs/functions) over "implementation" details if space is tight.
 
 ### Implementation Plan
-- [ ] **Token Counter:** Integrate `tiktoken-rs` or similar.
-- [ ] **Smart Merge:** Algorithm to coalesce adjacent/overlapping chunks.
-- [ ] **Budget Selector:** "Knapsack" algorithm to fit best content into `N` tokens.
+- [x] **Token Counter:** Integrate `tiktoken-rs` or similar.
+- [x] **Smart Merge:** Algorithm to coalesce adjacent/overlapping chunks.
+- [x] **Budget Selector:** "Knapsack" algorithm to fit best content into `N` tokens.
+- [x] **Maintenance:** Resolved technical debt (Clippy warnings, config precedence, test isolation).
 
 ---
 
