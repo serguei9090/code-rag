@@ -57,13 +57,13 @@ This document outlines the planned feature progression for `code-rag`, organized
     - **Grafana:** Port 3001 (provisioned for visualization).
 
 #### 4. Implementation Steps
-- [ ] Update `Cargo.toml`.
-- [ ] Create `telemetry.rs` with `AppMode` enum and logic.
-- [ ] In `main.rs`, switch telemetry based on subcommand (`Ask` vs `Serve`).
-- [ ] Ensure Server web-layer exposes `/metrics`.
+- [X] Update `Cargo.toml`.
+- [X] Create `telemetry.rs` with `AppMode` enum and logic.
+- [X] In `main.rs`, switch telemetry based on subcommand (`Ask` vs `Serve`).
+- [X] Ensure Server web-layer exposes `/metrics`.
 ---
 
-## Phase 1: Multi-Workspace Support
+## Phase 1: Multi-Workspace Support [done]
 * **Complexity:** Low (Architecture/Config)
 * **Goal:** Enable a single `code-rag` database to efficiently manage multiple distinct projects.
 
@@ -71,9 +71,9 @@ This document outlines the planned feature progression for `code-rag`, organized
 **Yes.** If you do not specify a workspace, the system defaults to a "default" workspace. This ensures backward compatibility—users who don't care about workspaces can ignore this feature completely.
 
 ### Implementation Plan
-- [ ] **Schema Update:** Add a `workspace` column (defaulting to "default") to LanceDB.
-- [ ] **CLI Update:** Add `--workspace <NAME>` argument.
-- [ ] **Filter Logic:** Apply `workspace == current_workspace` filter during search.
+- [x] **Schema Update:** Add a `workspace` column (defaulting to "default") to LanceDB.
+- [x] **CLI Update:** Add `--workspace <NAME>` argument.
+- [x] **Filter Logic:** Apply `workspace == current_workspace` filter during search.
 
 ---
 
