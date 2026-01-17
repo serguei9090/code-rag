@@ -16,16 +16,16 @@ This document outlines the planned feature progression for `code-rag`, organized
     -   Use `anyhow` + `Context` in the binary for user-friendly error messages (e.g., "Failed to open config file at X" instead of "File not found").
 
 ### Phase 0.2: Comprehensive Testing
-- [ ] **Unit Tests:** High coverage for `chunker.rs` and `config.rs`.
-- [ ] **Integration Tests:** Expand the `tests/` folder. Test the **Server API** properly using `reqwest` to hit the running server endpoints.
-- [ ] **Property-Based Testing:** Use `proptest` to generate random file contents and fuzz the indexer to ensure it never crashes on bad input.
+- [x] **Unit Tests:** High coverage for `chunker.rs` and `config.rs`.
+- [x] **Integration Tests:** Expand the `tests/` folder. Test the **Server API** properly using `reqwest` to hit the running server endpoints.
+- [x] **Property-Based Testing:** Use `proptest` to generate random file contents and fuzz the indexer to ensure it never crashes on bad input.
 
 ### Phase 0.3: Release Engineering
-- [ ] **Semantic Versioning:** Set up `cargo-release` or GitHub Actions to automate version bumping (Major.Minor.Patch) and strict changelog generation.
+- [x] **Semantic Versioning:** Set up `cargo-release` or GitHub Actions to automate version bumping (Major.Minor.Patch) and strict changelog generation.
 
 ### Phase 0.4: Benchmarking
-- [ ] **Criterion Setup:** Add a `benches/` directory with `criterion`.
-- [ ] **Critical Paths:** Create benchmarks for:
+- [x] **Criterion Setup:** Add a `benches/` directory with `criterion`.
+- [x] **Critical Paths:** Create benchmarks for:
     -   Indexing throughput (files/sec).
     -   Search latency (P95 and P99).
     -   Embedding generation speed (CPU).
