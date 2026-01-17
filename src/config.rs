@@ -69,3 +69,34 @@ impl AppConfig {
         s.build()?.try_deserialize()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn test_default_config() {
+        // Ensure no env vars interfere
+        env::remove_var("CODE_RAG__DB_PATH");
+
+        let config = AppConfig::new().expect("Failed to load default config");
+        assert_eq!(config.db_path, "./.lancedb");
+        assert_eq!(config.default_limit, 5);
+        assert_eq!(config.vector_weight, 1.0);
+    }
+
+    #[test]
+    fn test_env_override() {
+        env::set_var("CODE_RAG__DB_PATH", "/tmp/test_db");
+        env::set_var("CODE_RAG__DEFAULT_LIMIT", "10");
+
+        let config = AppConfig::new().expect("Failed to load config with env vars");
+        assert_eq!(config.db_path, "/tmp/test_db");
+        assert_eq!(config.default_limit, 10);
+
+        // Cleanup
+        env::remove_var("CODE_RAG__DB_PATH");
+        env::remove_var("CODE_RAG__DEFAULT_LIMIT");
+    }
+}

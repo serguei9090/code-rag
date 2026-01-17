@@ -2,10 +2,9 @@ use code_rag::bm25::BM25Index;
 use code_rag::embedding::Embedder;
 use code_rag::indexer::CodeChunker;
 use code_rag::search::CodeSearcher;
-use code_rag::storage::Storage;
+
 use std::fs;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::common;
 use common::{cleanup_test_db, prepare_chunks, setup_test_env, TEST_ASSETS_PATH};
@@ -33,7 +32,8 @@ async fn test_index_test_assets() {
     for file in test_files {
         let path = Path::new(TEST_ASSETS_PATH).join(file);
         // Initialize BM25 Index
-        let bm25_index = BM25Index::new(&db_path, false).expect("Failed to create BM25 index");
+        let bm25_index =
+            BM25Index::new(&db_path, false, "log").expect("Failed to create BM25 index");
         if path.exists() {
             let code = fs::read_to_string(&path).expect("Failed to read file");
             let mtime = fs::metadata(&path)

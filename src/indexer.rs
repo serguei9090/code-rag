@@ -332,4 +332,40 @@ mod tests {
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0], "Short text");
     }
+
+    #[cfg(test)]
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #[test]
+            fn test_chunk_split_invariants(s in "\\PC*") {
+                let chunker = CodeChunker::new(50, 10);
+                let chunks = chunker.split_text(&s);
+
+                // Invariant 1: Concatenation should cover content (not strictly true with overlap)
+                // Invariant 1.5: Every character in source must appear in at least one chunk (unless dropped)
+
+                // Invariant 2: No chunk exceeds max size
+                for chunk in &chunks {
+                     prop_assert!(chunk.len() <= 50, "Chunk size exceeded max_chunk_size");
+                }
+
+                // Invariant 3: If input is smaller than max size, it should be 1 chunk
+                if s.len() <= 50 && !s.is_empty() {
+                     prop_assert_eq!(chunks.len(), 1);
+                     prop_assert_eq!(&chunks[0], &s);
+                }
+            }
+
+            #[test]
+            fn test_no_crash_on_random_code(s in "\\PC*") {
+                 // Try to chunk random strings as if they were Rust code
+                 // It shouldn't panic even if syntax is garbage
+                 let chunker = CodeChunker::default();
+                 let _ = chunker.chunk_file("test.rs", &s, 0);
+            }
+        }
+    }
 }
