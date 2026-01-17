@@ -23,7 +23,7 @@ pub struct AppConfig {
     pub rrf_k: f64,
     pub merge_policy: String,
     pub log_to_file: bool,
-    pub log_path: Option<String>,
+    pub log_dir: String,
 }
 
 impl AppConfig {
@@ -39,6 +39,7 @@ impl AppConfig {
             .set_default("log_level", "info")?
             .set_default("log_format", "text")?
             .set_default("log_to_file", false)?
+            .set_default("log_dir", "logs")?
             .set_default("embedding_model", "nomic-embed-text-v1.5")?
             .set_default("reranker_model", "bge-reranker-base")?
             .set_default("chunk_size", 1024)?

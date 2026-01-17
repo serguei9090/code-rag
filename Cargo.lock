@@ -985,6 +985,7 @@ dependencies = [
  "serde_json",
  "tantivy 0.22.1",
  "tempfile",
+ "thiserror 1.0.69",
  "time",
  "tokio",
  "tower",

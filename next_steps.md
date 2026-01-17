@@ -7,11 +7,11 @@ This document outlines the planned feature progression for `code-rag`, organized
 * **Goal:** Pay down technical debt, improve reliability, and establish "Pro" quality standards before major feature work.
 
 ### Phase 0.1: Code Organization & Refactoring
-- [ ] **Library Split:** Move core logic (indexing, search, server) into `src/lib.rs`. `src/main.rs` should only handle CLI argument parsing and call library functions.
-- [ ] **Module Restructuring:**
+- [x] **Library Split:** Move core logic (indexing, search, server) into `src/lib.rs`. `src/main.rs` should only handle CLI argument parsing and call library functions.
+- [x] **Module Restructuring:**
     -   `src/commands/`: Separate files for `index.rs`, `search.rs`, `serve.rs`.
     -   `src/core/`: Proper domain logic separation.
-- [ ] **Error Handling Upgrade:**
+- [x] **Error Handling Upgrade:**
     -   Replace generic `Box<dyn Error>` with specific types using `thiserror` in the library.
     -   Use `anyhow` + `Context` in the binary for user-friendly error messages (e.g., "Failed to open config file at X" instead of "File not found").
 
@@ -34,15 +34,22 @@ This document outlines the planned feature progression for `code-rag`, organized
 **Goal:** Gather anonymous usage/performance stats locally to understand bottlenecks.
 
 #### Options for Local Telemetry
-1.  **Local Metrics File (Recommended Start)** 📄
-    *   **How:** Use the `metrics` crate. Dump counters/histograms to `~/.code-rag/stats/`.
-    *   **Pros:** Simple, local, no dependencies.
-2.  **Prometheus Exporter** 📊
-    *   **How:** Expose `/metrics` endpoint.
-    *   **Pros:** Grafana dashboards.
-3.  **Jaeger Tracing** 🕸️
-    *   **How:** Full OpenTelemetry tracing.
-    *   **Pros:** Visual debugging of latency waterfalls.
+must be optional
+The Strategy: "Dynamic Layering"
+You will write one init_telemetry function that checks which command was run.
+
+If my-cli start-server: It initializes the full Prometheus + Jaeger pipeline (so you can monitor memory leaks and model latency over days).
+
+If my-cli ask "query": It initializes tracing-chrome (so you can debug that specific query via a local file).
+Yes, this is critical for a RAG server. If your model loads into RAM (or VRAM) and you don't track it, you will eventually hit an OOM (Out of Memory) crash, and you won't know why.
+
+In OpenTelemetry, the correct tool for this is an Asynchronous Gauge.
+
+Counter: Things that go up only (e.g., "Requests Served").
+
+Gauge: Things that go up and down (e.g., "RAM Usage").
+
+Asynchronous: Means "measure this only when Prometheus asks for it" (Scrape), rather than calculating it every millisecond.
 ---
 
 ## Phase 1: Multi-Workspace Support

@@ -1,6 +1,6 @@
 use crate::bm25::BM25Index;
+use crate::core::CodeRagError;
 use crate::embedding::Embedder;
-use crate::error::AppError;
 use crate::search::{CodeSearcher, SearchResult};
 use crate::storage::Storage;
 use anyhow::Result;
@@ -146,7 +146,7 @@ async fn search_handler(
         }
         Err(e) => {
             error!("Search failed: {:?}", e);
-            Err(AppError::from(e))
+            Err(CodeRagError::Search(e.to_string()))
         }
     }
 }
