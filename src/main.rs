@@ -31,6 +31,10 @@ enum Commands {
         /// Force re-indexing (removes existing DB)
         #[arg(short, long)]
         force: bool,
+
+        /// Workspace name (default: "default")
+        #[arg(short, long, default_value = "default")]
+        workspace: String,
     },
     /// Search the indexed codebase
     Search {
@@ -60,6 +64,10 @@ enum Commands {
         /// Disable reranking (faster)
         #[arg(long)]
         no_rerank: bool,
+
+        /// Workspace name (default: "default")
+        #[arg(short, long, default_value = "default")]
+        workspace: String,
     },
     /// Grep search (regex)
     Grep {
@@ -85,6 +93,10 @@ enum Commands {
         /// Path to watch
         #[arg(short, long)]
         path: Option<String>,
+
+        /// Workspace name (default: "default")
+        #[arg(short, long, default_value = "default")]
+        workspace: String,
     },
 }
 
@@ -116,8 +128,9 @@ async fn main() -> anyhow::Result<()> {
             path,
             update,
             force,
+            workspace,
         } => {
-            index::index_codebase(path, None, update, force, &config).await?;
+            index::index_codebase(path, None, update, force, &workspace, &config).await?;
         }
         Commands::Search {
             query,
@@ -127,6 +140,7 @@ async fn main() -> anyhow::Result<()> {
             ext,
             dir,
             no_rerank,
+            workspace,
         } => {
             let options = search::SearchOptions {
                 limit,
@@ -136,6 +150,7 @@ async fn main() -> anyhow::Result<()> {
                 ext,
                 dir,
                 no_rerank,
+                workspace: Some(workspace),
             };
             search::search_codebase(query, options, &config).await?;
         }
@@ -145,8 +160,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve { port, host } => {
             serve::serve_api(port, host, None, &config).await?;
         }
-        Commands::Watch { path } => {
-            watch::watch_codebase(path, None, &config).await?;
+        Commands::Watch { path, workspace } => {
+            watch::watch_codebase(path, None, workspace, &config).await?;
         }
     }
 

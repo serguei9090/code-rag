@@ -167,6 +167,7 @@ async fn search_handler(
             payload.ext.clone(),
             payload.dir.clone(),
             payload.no_rerank,
+            None, // workspace (default/global for now)
         )
         .await
     {

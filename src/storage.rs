@@ -1,8 +1,8 @@
 use anyhow::Result;
 use arrow_array::builder::{ListBuilder, StringBuilder};
 use arrow_array::{
-    FixedSizeListArray, Float32Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator,
-    StringArray,
+    Array, FixedSizeListArray, Float32Array, Int32Array, Int64Array, RecordBatch,
+    RecordBatchIterator, StringArray,
 };
 use arrow_schema::{DataType, Field, Schema};
 use futures_util::stream::TryStreamExt;
@@ -30,6 +30,7 @@ impl Storage {
     pub async fn init(&self, dim: usize) -> Result<()> {
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),
+            Field::new("workspace", DataType::Utf8, false),
             Field::new("filename", DataType::Utf8, false),
             Field::new("code", DataType::Utf8, false),
             Field::new("line_start", DataType::Int32, false),
@@ -68,6 +69,7 @@ impl Storage {
     #[allow(clippy::too_many_arguments)]
     pub async fn add_chunks(
         &self,
+        workspace: &str,
         ids: Vec<String>,
         filenames: Vec<String>,
         code: Vec<String>,
@@ -88,6 +90,7 @@ impl Storage {
 
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),
+            Field::new("workspace", DataType::Utf8, false),
             Field::new("filename", DataType::Utf8, false),
             Field::new("code", DataType::Utf8, false),
             Field::new("line_start", DataType::Int32, false),
@@ -109,6 +112,7 @@ impl Storage {
         ]));
 
         let id_array = StringArray::from(ids);
+        let workspace_array = StringArray::from(vec![workspace; id_array.len()]);
         let filename_array = StringArray::from(filenames);
         let code_array = StringArray::from(code);
         let line_starts_array = Int32Array::from(line_starts);
@@ -135,6 +139,7 @@ impl Storage {
             schema.clone(),
             vec![
                 Arc::new(id_array),
+                Arc::new(workspace_array),
                 Arc::new(filename_array),
                 Arc::new(code_array),
                 Arc::new(line_starts_array),
@@ -157,12 +162,22 @@ impl Storage {
         query_vector: Vec<f32>,
         limit: usize,
         filter: Option<String>,
+        workspace: Option<&str>,
     ) -> Result<Vec<RecordBatch>> {
         let table = self.conn.open_table(&self.table_name).execute().await?;
         let mut query = table.query().nearest_to(query_vector)?;
 
+        let mut conditions: Vec<String> = Vec::new();
         if let Some(f) = filter {
-            query = query.only_if(f);
+            conditions.push(format!("({})", f));
+        }
+        if let Some(ws) = workspace {
+            let safe_ws = ws.replace("'", "''");
+            conditions.push(format!("workspace = '{}'", safe_ws));
+        }
+
+        if !conditions.is_empty() {
+            query = query.only_if(conditions.join(" AND "));
         }
 
         let results = query
@@ -219,7 +234,7 @@ impl Storage {
         Ok(metadata)
     }
 
-    pub async fn delete_file_chunks(&self, filename: &str) -> Result<()> {
+    pub async fn delete_file_chunks(&self, filename: &str, workspace: &str) -> Result<()> {
         if self
             .conn
             .open_table(&self.table_name)
@@ -230,7 +245,10 @@ impl Storage {
             let table = self.conn.open_table(&self.table_name).execute().await?;
             let safe_filename = filename.replace("'", "''");
             table
-                .delete(&format!("filename = '{}'", safe_filename))
+                .delete(&format!(
+                    "filename = '{}' AND workspace = '{}'",
+                    safe_filename, workspace
+                ))
                 .await?;
         }
         Ok(())

@@ -11,6 +11,7 @@ use crate::watcher::start_watcher;
 pub async fn watch_codebase(
     path: Option<String>,
     db_path: Option<String>,
+    workspace: String,
     config: &AppConfig,
 ) -> Result<(), CodeRagError> {
     let actual_path = path.unwrap_or_else(|| config.default_index_path.clone());
@@ -48,9 +49,16 @@ pub async fn watch_codebase(
     let chunker = CodeChunker::new(config.chunk_size, config.chunk_overlap);
 
     // 2. Start Watcher
-    start_watcher(&actual_path, storage, embedder, bm25_index, chunker)
-        .await
-        .map_err(|e| CodeRagError::Io(std::io::Error::other(e.to_string())))?;
+    start_watcher(
+        &actual_path,
+        storage,
+        embedder,
+        bm25_index,
+        chunker,
+        workspace,
+    )
+    .await
+    .map_err(|e| CodeRagError::Generic(e.to_string()))?;
 
     Ok(())
 }

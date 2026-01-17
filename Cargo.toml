@@ -98,6 +98,8 @@ tower = { version = "0.5.3", features = ["util"] }
 reqwest = { version = "0.12", features = ["json"] }
 proptest = "1.4"
 criterion = "0.5"
+assert_cmd = "2.0"
+predicates = "3.1"
 
 [[bench]]
 name = "indexing"

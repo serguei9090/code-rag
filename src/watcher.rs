@@ -14,6 +14,7 @@ pub async fn start_watcher(
     mut embedder: Embedder,
     mut bm25: BM25Index,
     chunker: CodeChunker,
+    workspace: String,
 ) -> anyhow::Result<()> {
     info!("Starting watcher on: {}", path);
 
@@ -37,7 +38,7 @@ pub async fn start_watcher(
     // Since we need to call async methods on storage/indexer, we can't easily be in a blocking loop unless we block_on.
     // Let's use a standard loop checking the channel.
 
-    let mut indexer = CodeIndexer::new(&storage, &mut embedder, &mut bm25, &chunker);
+    let mut indexer = CodeIndexer::new(&storage, &mut embedder, &mut bm25, &chunker, workspace);
 
     for result in rx {
         match result {

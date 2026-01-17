@@ -30,7 +30,7 @@ This document outlines the planned feature progression for `code-rag`, organized
     -   Search latency (P95 and P99).
     -   Embedding generation speed (CPU).
 
-### Phase 0.5: Telemetry (Observability)
+### Phase 0.5: Telemetry (Observability) [done]
 **Goal:** Implement "Dynamic Layering" telemetry that adapts to the runtime mode (CLI vs. Server).
 
 #### 1. Dependencies

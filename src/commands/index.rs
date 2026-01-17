@@ -18,6 +18,7 @@ pub async fn index_codebase(
     db_path: Option<String>,
     update: bool,
     force: bool,
+    workspace: &str,
     config: &AppConfig,
 ) -> Result<(), CodeRagError> {
     let actual_path = path.unwrap_or_else(|| config.default_index_path.clone());
@@ -163,7 +164,7 @@ pub async fn index_codebase(
                     if *stored_mtime == mtime {
                         continue; // Unchanged
                     }
-                    if let Err(e) = storage.delete_file_chunks(&fname_str).await {
+                    if let Err(e) = storage.delete_file_chunks(&fname_str, workspace).await {
                         warn!("Error deleting old chunks for {}: {}", fname_str, e);
                     }
                     if let Err(e) = bm25_index.delete_file(&fname_str) {
@@ -185,6 +186,7 @@ pub async fn index_codebase(
                 &storage,
                 &bm25_index,
                 &pb_index,
+                workspace,
             )
             .await?;
         }
@@ -197,6 +199,7 @@ pub async fn index_codebase(
             &storage,
             &bm25_index,
             &pb_index,
+            workspace,
         )
         .await?;
     }
@@ -217,6 +220,7 @@ async fn process_batch(
     storage: &Storage,
     bm25_index: &BM25Index,
     pb: &ProgressBar,
+    workspace: &str,
 ) -> Result<(), CodeRagError> {
     pb.set_message("Embedding batch...");
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
@@ -236,7 +240,7 @@ async fn process_batch(
 
             if let Err(e) = storage
                 .add_chunks(
-                    ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+                    workspace, ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
                 )
                 .await
             {

@@ -18,6 +18,7 @@ pub struct SearchOptions {
     pub ext: Option<String>,
     pub dir: Option<String>,
     pub no_rerank: bool,
+    pub workspace: Option<String>,
 }
 
 pub async fn search_codebase(
@@ -33,6 +34,7 @@ pub async fn search_codebase(
         ext,
         dir,
         no_rerank,
+        workspace,
     } = options;
 
     let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
@@ -80,7 +82,7 @@ pub async fn search_codebase(
     }
 
     let search_results = searcher
-        .semantic_search(&query, actual_limit, ext, dir, no_rerank)
+        .semantic_search(&query, actual_limit, ext, dir, no_rerank, workspace)
         .await
         .map_err(|e| CodeRagError::Search(e.to_string()))?;
 

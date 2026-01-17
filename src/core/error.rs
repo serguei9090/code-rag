@@ -25,6 +25,9 @@ pub enum CodeRagError {
 
     #[error("Tantivy error: {0}")]
     Tantivy(String),
+
+    #[error("Generic error: {0}")]
+    Generic(String),
 }
 
 // Helper to convert other errors to CodeRagError
@@ -63,6 +66,7 @@ impl axum::response::IntoResponse for CodeRagError {
                 (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
             }
             CodeRagError::Tantivy(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.clone()),
+            CodeRagError::Generic(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.clone()),
         };
 
         let body = serde_json::json!({

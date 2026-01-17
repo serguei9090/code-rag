@@ -53,7 +53,7 @@ async fn test_search_endpoint() {
     let (ids, filenames, codes, starts, ends, mtimes, calls) = prepare_chunks(&chunks);
     storage
         .add_chunks(
-            ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+            "default", ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
         )
         .await
         .expect("Add failed");
@@ -117,7 +117,7 @@ async fn test_concurrent_searches() {
     let (ids, filenames, codes, starts, ends, mtimes, calls) = prepare_chunks(&chunks);
     storage
         .add_chunks(
-            ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+            "default", ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
         )
         .await
         .expect("Add failed");

@@ -56,6 +56,7 @@ impl CodeSearcher {
         ext: Option<String>,
         dir: Option<String>,
         no_rerank: bool,
+        workspace: Option<String>,
     ) -> Result<Vec<SearchResult>> {
         let storage = self.storage.as_ref().context("Storage not initialized")?;
         let embedder = self.embedder.as_mut().context("Embedder not initialized")?;
@@ -93,7 +94,12 @@ impl CodeSearcher {
                 std::cmp::max(50, limit * 5)
             };
             let vector_results = storage
-                .search(vector.clone(), fetch_limit, filter_str.clone())
+                .search(
+                    vector.clone(),
+                    fetch_limit,
+                    filter_str.clone(),
+                    workspace.as_deref(),
+                )
                 .await
                 .map_err(|e| anyhow!(e.to_string()))?;
 

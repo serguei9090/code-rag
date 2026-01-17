@@ -70,6 +70,7 @@ async fn test_local_model_loading() {
 
     storage
         .add_chunks(
+            "default",
             ids,
             filenames,
             codes,
@@ -87,7 +88,7 @@ async fn test_local_model_loading() {
 
     // 5. Perform a search
     let results = searcher
-        .semantic_search("hello", 1, None, None, true)
+        .semantic_search("hello", 1, None, None, true, None)
         .await
         .expect("Search failed");
 

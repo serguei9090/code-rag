@@ -11,6 +11,7 @@ pub struct CodeIndexer<'a> {
     embedder: &'a mut Embedder,
     bm25: &'a mut BM25Index,
     chunker: &'a CodeChunker,
+    workspace: String,
 }
 
 impl<'a> CodeIndexer<'a> {
@@ -19,12 +20,14 @@ impl<'a> CodeIndexer<'a> {
         embedder: &'a mut Embedder,
         bm25: &'a mut BM25Index,
         chunker: &'a CodeChunker,
+        workspace: String,
     ) -> Self {
         Self {
             storage,
             embedder,
             bm25,
             chunker,
+            workspace,
         }
     }
 
@@ -44,7 +47,11 @@ impl<'a> CodeIndexer<'a> {
         }
 
         // Clean up old entries first
-        if let Err(e) = self.storage.delete_file_chunks(&fname_str).await {
+        if let Err(e) = self
+            .storage
+            .delete_file_chunks(&fname_str, &self.workspace)
+            .await
+        {
             warn!("Error deleting old chunks for {}: {}", fname_str, e);
         }
         if let Err(e) = self.bm25.delete_file(&fname_str) {
@@ -87,7 +94,15 @@ impl<'a> CodeIndexer<'a> {
         if let Err(e) = self
             .storage
             .add_chunks(
-                ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+                &self.workspace,
+                ids,
+                filenames,
+                codes,
+                starts,
+                ends,
+                mtimes,
+                calls,
+                embeddings,
             )
             .await
         {
@@ -106,7 +121,9 @@ impl<'a> CodeIndexer<'a> {
     pub async fn remove_file(&mut self, path: &Path) -> anyhow::Result<()> {
         let fname_str = path.to_string_lossy().to_string();
 
-        self.storage.delete_file_chunks(&fname_str).await?;
+        self.storage
+            .delete_file_chunks(&fname_str, &self.workspace)
+            .await?;
         self.bm25.delete_file(&fname_str)?;
 
         info!("Removed: {}", fname_str);
