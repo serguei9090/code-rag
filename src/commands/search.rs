@@ -54,6 +54,7 @@ pub async fn search_codebase(
             config.reranker_model.clone(),
             config.embedding_model_path.clone(),
             config.reranker_model_path.clone(),
+            config.device.clone(),
         )?
     } else {
         Embedder::new(
@@ -61,6 +62,7 @@ pub async fn search_codebase(
             config.reranker_model.clone(),
             config.embedding_model_path.clone(),
             config.reranker_model_path.clone(),
+            config.device.clone(),
         )?
     };
 
@@ -76,7 +78,7 @@ pub async fn search_codebase(
         bm25_index,
         config.vector_weight,
         config.bm25_weight,
-        config.rrf_k,
+        config.rrf_k as f64,
     );
 
     if !json {
@@ -138,7 +140,7 @@ pub fn grep_codebase(pattern: String, json: bool, config: &AppConfig) -> Result<
         None,
         config.vector_weight,
         config.bm25_weight,
-        config.rrf_k,
+        config.rrf_k as f64,
     );
 
     if !json {

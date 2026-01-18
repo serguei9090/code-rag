@@ -23,6 +23,7 @@ pub async fn serve_api(
         config.reranker_model.clone(),
         config.embedding_model_path.clone(),
         config.reranker_model_path.clone(),
+        config.device.clone(),
     )
     .await
     .map_err(|e| CodeRagError::Server(e.to_string()))?;

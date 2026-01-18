@@ -12,6 +12,8 @@ pub struct AppConfig {
     pub exclusions: Vec<String>,
     pub log_level: String,
     pub log_format: String,
+    pub log_to_file: bool,
+    pub log_dir: String,
     pub embedding_model: String,
     pub reranker_model: String,
     pub embedding_model_path: Option<String>,
@@ -20,12 +22,11 @@ pub struct AppConfig {
     pub chunk_overlap: usize,
     pub vector_weight: f32,
     pub bm25_weight: f32,
-    pub rrf_k: f64,
-    pub merge_policy: String,
-    pub log_to_file: bool,
-    pub log_dir: String,
+    pub rrf_k: f32,
+    pub merge_policy: String, // "log", "sum", "replace"
     pub telemetry_enabled: bool,
     pub telemetry_endpoint: String,
+    pub device: String, // "auto", "cpu", "cuda", "metal"
 }
 
 impl AppConfig {
@@ -55,7 +56,8 @@ impl AppConfig {
             .set_default("rrf_k", 60.0)?
             .set_default("merge_policy", "log")?
             .set_default("telemetry_enabled", false)?
-            .set_default("telemetry_endpoint", "http://localhost:4317")?;
+            .set_default("telemetry_endpoint", "http://localhost:4317")?
+            .set_default("device", "auto")?;
 
         if include_files {
             // 1. File: ~/.config/code-rag/config_rag.toml (User Config)

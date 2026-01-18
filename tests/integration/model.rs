@@ -46,6 +46,7 @@ async fn test_local_model_loading() {
         "bge-reranker-base".to_string(),
         Some(model_path_str),
         None,
+        "cpu".to_string(),
     )
     .expect("Failed to initialize embedder with local path");
 

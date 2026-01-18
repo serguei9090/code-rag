@@ -49,6 +49,7 @@ pub async fn index_codebase(
         config.reranker_model.clone(),
         config.embedding_model_path.clone(),
         config.reranker_model_path.clone(),
+        config.device.clone(),
     )?;
 
     pb_model.set_message("Warming up ONNX Runtime...");

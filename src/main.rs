@@ -35,6 +35,10 @@ enum Commands {
         /// Workspace name (default: "default")
         #[arg(short, long, default_value = "default")]
         workspace: String,
+
+        /// Device to use (auto, cpu, cuda, metal)
+        #[arg(long)]
+        device: Option<String>,
     },
     /// Search the indexed codebase
     Search {
@@ -72,6 +76,10 @@ enum Commands {
         /// Optimize context to fit within N tokens (e.g. 8000)
         #[arg(long)]
         max_tokens: Option<usize>,
+
+        /// Device to use (auto, cpu, cuda, metal)
+        #[arg(long)]
+        device: Option<String>,
     },
     /// Grep search (regex)
     Grep {
@@ -133,7 +141,12 @@ async fn main() -> anyhow::Result<()> {
             update,
             force,
             workspace,
+            device,
         } => {
+            let mut config = config.clone();
+            if let Some(d) = device {
+                config.device = d;
+            }
             index::index_codebase(path, None, update, force, &workspace, &config).await?;
         }
         Commands::Search {
@@ -146,7 +159,12 @@ async fn main() -> anyhow::Result<()> {
             no_rerank,
             workspace,
             max_tokens,
+            device,
         } => {
+            let mut config = config.clone();
+            if let Some(d) = device {
+                config.device = d;
+            }
             let options = search::SearchOptions {
                 limit,
                 db_path: None,

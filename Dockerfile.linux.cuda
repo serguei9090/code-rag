@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1.6
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
+
+ARG BIN_NAME=code-rag
+ENV CARGO_TERM_COLOR=always
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Rust build dependencies and tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    git \
+    cmake \
+    clang \
+    lld \
+    protobuf-compiler \
+    libprotobuf-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /src
+COPY . .
+
+# Build for Linux with CUDA support
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/src/target \
+    set -eux; \
+    cargo --version; rustc --version; nvcc --version; \
+    cargo build --release --features cuda --bin ${BIN_NAME}; \
+    ls -la target/release; \
+    mkdir -p /out; \
+    cp -v target/release/${BIN_NAME} /out/${BIN_NAME}-cuda
+
+FROM scratch AS export
+COPY --from=builder /out/ /

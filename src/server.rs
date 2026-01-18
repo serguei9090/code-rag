@@ -59,6 +59,7 @@ pub async fn start_server(
     reranker_model: String,
     embedding_model_path: Option<String>,
     reranker_model_path: Option<String>,
+    device: String,
 ) -> Result<()> {
     println!("Initializing server components...");
 
@@ -75,6 +76,7 @@ pub async fn start_server(
         reranker_model,
         embedding_model_path,
         reranker_model_path,
+        device,
     )?;
     embedder.init_reranker()?; // Pre-load re-ranker
 

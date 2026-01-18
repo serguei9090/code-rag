@@ -18,11 +18,17 @@ pre-release-replacements = [
     { file = "src/main.rs", search = "version = \"[a-z0-9\\.-]+\"", replace = "version = \"{{version}}\"" },
 ]
 
+[features]
+default = []
+cuda = ["fastembed/cuda", "ort/cuda"]
+metal = ["fastembed/metal"]
+
 [dependencies]
 arrow-array = "56.2.0"
 arrow-schema = "56.2.0"
 clap = { version = "4.5.54", features = ["derive"] }
 fastembed = "5.8.0"
+ort = { version = "2.0.0-rc.11", default-features = false }
 futures-util = "0.3.31"
 grep = "0.4.1"
 grep-matcher = "0.1.8"

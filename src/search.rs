@@ -72,9 +72,10 @@ impl CodeSearcher {
 
         let vectors = embedder
             .embed(vec![query.to_string()], None)
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .map_err(|e: fastembed::Error| anyhow!(e.to_string()))?;
 
         if let Some(vector) = vectors.first() {
+            let vector: Vec<f32> = vector.clone();
             let mut filters = Vec::new();
             if let Some(ext_val) = &ext {
                 let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
@@ -104,7 +105,7 @@ impl CodeSearcher {
             };
             let vector_results = storage
                 .search(
-                    vector.clone(),
+                    vector,
                     fetch_limit,
                     filter_str.clone(),
                     workspace.as_deref(),
@@ -282,11 +283,11 @@ impl CodeSearcher {
                 }
             }
 
-            if !no_rerank {
+            if !no_rerank && !candidates.is_empty() {
                 // Re-rank
                 let texts: Vec<String> = candidates.iter().map(|c| c.code.clone()).collect();
 
-                match embedder.rerank(query, texts) {
+                match embedder.rerank(query, texts.clone(), texts.len()) {
                     Ok(rerank_results) => {
                         // Update scores
                         for (original_idx, new_score) in rerank_results {

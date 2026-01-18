@@ -25,10 +25,11 @@ pub async fn watch_codebase(
         config.reranker_model.clone(),
         config.embedding_model_path.clone(),
         config.reranker_model_path.clone(),
+        config.device.clone(),
     )?;
     embedder
         .init_reranker()
-        .map_err(|e| CodeRagError::Embedding(e.to_string()))?;
+        .map_err(|e: fastembed::Error| CodeRagError::Embedding(e.to_string()))?;
 
     let storage = Storage::new(&actual_db)
         .await

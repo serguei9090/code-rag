@@ -34,6 +34,7 @@ pub async fn setup_test_env(test_name: &str) -> (Storage, Embedder, CodeChunker,
         "bge-reranker-base".to_string(),
         None,
         None,
+        "cpu".to_string(),
     )
     .expect("Failed to create embedder");
     storage
