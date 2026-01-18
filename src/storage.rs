@@ -13,6 +13,9 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 // use lancedb::index::IndexType;
 
+/// Vector storage backend using LanceDB.
+///
+/// Provides persistent storage for code embeddings with workspace isolation.
 pub struct Storage {
     conn: Connection,
     table_name: String,

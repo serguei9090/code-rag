@@ -12,6 +12,9 @@ use ort::execution_providers::CoreMLExecutionProvider;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Text embedding and result reranker.
+///
+/// Manages embedding model and optional reranker for semantic search.
 pub struct Embedder {
     model: std::sync::Mutex<TextEmbedding>,
     reranker: std::sync::Mutex<Option<TextRerank>>,

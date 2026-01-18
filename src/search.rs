@@ -12,6 +12,9 @@ use serde::Serialize;
 use std::error::Error;
 use std::sync::Arc;
 
+/// A single search result from code search.
+///
+/// Contains the matched code chunk with metadata and relevance score.
 #[derive(Serialize, Clone, Debug)]
 pub struct SearchResult {
     pub rank: usize,
@@ -30,6 +33,9 @@ impl SearchResult {
     }
 }
 
+/// Hybrid code search engine combining BM25 and vector search.
+///
+/// Uses RRF (Reciprocal Rank Fusion) to combine keyword and semantic results.
 pub struct CodeSearcher {
     storage: Option<Storage>,
     embedder: Option<Embedder>,
