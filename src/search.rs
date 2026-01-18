@@ -38,9 +38,9 @@ impl SearchResult {
 ///
 /// Uses RRF (Reciprocal Rank Fusion) to combine keyword and semantic results.
 pub struct CodeSearcher {
-    storage: Option<Storage>,
-    embedder: Option<Embedder>,
-    bm25: Option<BM25Index>,
+    storage: Option<Arc<Storage>>,
+    embedder: Option<Arc<Embedder>>,
+    bm25: Option<Arc<BM25Index>>,
     expander: Option<Arc<QueryExpander>>,
     vector_weight: f32,
     bm25_weight: f32,
@@ -58,9 +58,9 @@ impl CodeSearcher {
         rrf_k: f64,
     ) -> Self {
         Self {
-            storage,
-            embedder,
-            bm25,
+            storage: storage.map(Arc::new),
+            embedder: embedder.map(Arc::new),
+            bm25: bm25.map(Arc::new),
             expander,
             vector_weight,
             bm25_weight,
@@ -106,16 +106,21 @@ impl CodeSearcher {
             std::collections::HashMap::new();
         // Also map ID to SearchResult to reconstruct later.
         let mut all_vector_results: std::collections::HashMap<String, SearchResult> =
-            std::collections::HashMap::new();
+            std::collections::HashMap::with_capacity(std::cmp::max(50, limit * 2));
 
         // Batched Embedding Generation
-        let all_query_vectors = embedder
-            .embed(search_queries.clone(), None)
-            .map_err(|e: fastembed::Error| anyhow!(e.to_string()))?;
+        let embedder_handle = embedder.clone();
+        let query_batch = search_queries.clone();
+        let all_query_vectors = tokio::task::spawn_blocking(move || {
+            embedder_handle
+                .embed(query_batch, None)
+                .map_err(|e| anyhow!(e.to_string()))
+        })
+        .await??;
 
         for vector in all_query_vectors {
             // Construct Filters
-            let mut filters = Vec::new();
+            let mut filters = Vec::with_capacity(2);
             if let Some(ext_val) = &ext {
                 let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
                     stripped
@@ -324,8 +329,16 @@ impl CodeSearcher {
         if !no_rerank && !candidates.is_empty() {
             // Re-rank
             let texts: Vec<String> = candidates.iter().map(|c| c.code.clone()).collect();
+            let embedder_handle = embedder.clone();
+            let query_str = query.to_string();
+            let rerank_texts = texts.clone();
+            let rerank_count = texts.len();
 
-            match embedder.rerank(query, texts.clone(), texts.len()) {
+            match tokio::task::spawn_blocking(move || {
+                embedder_handle.rerank(&query_str, rerank_texts, rerank_count)
+            })
+            .await?
+            {
                 Ok(rerank_results) => {
                     // Update scores
                     for (original_idx, new_score) in rerank_results {

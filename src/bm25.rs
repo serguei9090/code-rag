@@ -32,6 +32,12 @@ pub struct BM25Index {
     reader: IndexReader,
     writer: Option<Arc<Mutex<IndexWriter>>>,
     schema: Schema,
+    id_field: Field,
+    filename_field: Field,
+    code_field: Field,
+    line_start_field: Field,
+    line_end_field: Field,
+    workspace_field: Field,
 }
 
 /// A single search result from the BM25 index.
@@ -120,11 +126,24 @@ impl BM25Index {
             .reload_policy(ReloadPolicy::Manual)
             .try_into()?;
 
+        let id_field = schema.get_field("id")?;
+        let filename_field = schema.get_field("filename")?;
+        let code_field = schema.get_field("code")?;
+        let line_start_field = schema.get_field("line_start")?;
+        let line_end_field = schema.get_field("line_end")?;
+        let workspace_field = schema.get_field("workspace")?;
+
         Ok(Self {
             index,
             reader,
             writer,
             schema,
+            id_field,
+            filename_field,
+            code_field,
+            line_start_field,
+            line_end_field,
+            workspace_field,
         })
     }
 
@@ -140,30 +159,12 @@ impl BM25Index {
             .lock()
             .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
 
-        let id_field = self
-            .schema
-            .get_field("id")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'id': {}", e))?;
-        let filename_field = self
-            .schema
-            .get_field("filename")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'filename': {}", e))?;
-        let code_field = self
-            .schema
-            .get_field("code")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'code': {}", e))?;
-        let line_start_field = self
-            .schema
-            .get_field("line_start")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'line_start': {}", e))?;
-        let line_end_field = self
-            .schema
-            .get_field("line_end")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'line_end': {}", e))?;
-        let workspace_field = self
-            .schema
-            .get_field("workspace")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'workspace': {}", e))?;
+        let id_field = self.id_field;
+        let filename_field = self.filename_field;
+        let code_field = self.code_field;
+        let line_start_field = self.line_start_field;
+        let line_end_field = self.line_end_field;
+        let workspace_field = self.workspace_field;
 
         for chunk in chunks {
             let chunk_id = format!("{}-{}-{}", chunk.filename, chunk.line_start, chunk.line_end);
@@ -222,35 +223,17 @@ impl BM25Index {
         workspace: Option<&str>,
     ) -> Result<Vec<BM25Result>> {
         let searcher = self.reader.searcher();
-        let id_field = self
-            .schema
-            .get_field("id")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'id': {}", e))?;
-        let filename_field = self
-            .schema
-            .get_field("filename")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'filename': {}", e))?;
-        let code_field = self
-            .schema
-            .get_field("code")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'code': {}", e))?;
-        let line_start_field = self
-            .schema
-            .get_field("line_start")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'line_start': {}", e))?;
-        let line_end_field = self
-            .schema
-            .get_field("line_end")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'line_end': {}", e))?;
+        let id_field = self.id_field;
+        let filename_field = self.filename_field;
+        let code_field = self.code_field;
+        let line_start_field = self.line_start_field;
+        let line_end_field = self.line_end_field;
+        let workspace_field = self.workspace_field;
 
         let query_parser = QueryParser::for_index(&self.index, vec![code_field, filename_field]);
         let mut query = query_parser.parse_query(query_str)?;
 
         if let Some(ws) = workspace {
-            let workspace_field = self
-                .schema
-                .get_field("workspace")
-                .map_err(|e| anyhow::anyhow!("Schema error for 'workspace': {}", e))?;
             let term = Term::from_field_text(workspace_field, ws);
             let term_query = tantivy::query::TermQuery::new(term, IndexRecordOption::Basic);
             query = Box::new(tantivy::query::BooleanQuery::new(vec![
