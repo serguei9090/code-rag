@@ -27,12 +27,7 @@ pub struct SearchResult {
     pub calls: Vec<String>,
 }
 
-impl SearchResult {
-    pub fn merge(_chunks: Vec<SearchResult>) -> Self {
-        // Implementation detail if needed, but we use ContextOptimizer
-        unimplemented!()
-    }
-}
+impl SearchResult {}
 
 /// Hybrid code search engine combining BM25 and vector search.
 ///
@@ -312,7 +307,7 @@ impl CodeSearcher {
                         candidate.score = vec_score + bm25_score;
                     }
                 }
-                Err(e) => eprintln!("BM25 search failed: {}", e),
+                Err(e) => tracing::error!("BM25 search failed: {}", e),
             }
         } else {
             // No BM25, just set score from vectors
@@ -354,7 +349,7 @@ impl CodeSearcher {
                     });
                 }
                 Err(e) => {
-                    eprintln!("Reranking failed/skipped: {}. Using vector scores.", e);
+                    tracing::warn!("Reranking failed/skipped: {}. Using vector scores.", e);
                 }
             }
         }
@@ -421,7 +416,7 @@ impl CodeSearcher {
                 }
                 Err(err) => {
                     // Log error but continue
-                    eprintln!("Error walking: {}", err);
+                    tracing::error!("Error walking: {}", err);
                 }
             }
         }

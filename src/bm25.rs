@@ -251,42 +251,27 @@ impl BM25Index {
 
             let id = retrieved_doc
                 .get_first(id_field)
-                .and_then(|v| match v {
-                    OwnedValue::Str(s) => Some(s.as_str()),
-                    _ => None,
-                })
-                .unwrap_or_default()
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("Missing or invalid 'id' field in document"))?
                 .to_string();
             let filename = retrieved_doc
                 .get_first(filename_field)
-                .and_then(|v| match v {
-                    OwnedValue::Str(s) => Some(s.as_str()),
-                    _ => None,
-                })
-                .unwrap_or_default()
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("Missing or invalid 'filename' field in document"))?
                 .to_string();
             let code = retrieved_doc
                 .get_first(code_field)
-                .and_then(|v| match v {
-                    OwnedValue::Str(s) => Some(s.as_str()),
-                    _ => None,
-                })
-                .unwrap_or_default()
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("Missing or invalid 'code' field in document"))?
                 .to_string();
             let line_start = retrieved_doc
                 .get_first(line_start_field)
-                .and_then(|v| match v {
-                    OwnedValue::U64(n) => Some(*n),
-                    _ => None,
-                })
-                .unwrap_or_default();
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow!("Missing or invalid 'line_start' field in document"))?;
             let line_end = retrieved_doc
                 .get_first(line_end_field)
-                .and_then(|v| match v {
-                    OwnedValue::U64(n) => Some(*n),
-                    _ => None,
-                })
-                .unwrap_or_default();
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow!("Missing or invalid 'line_end' field in document"))?;
 
             results.push(BM25Result {
                 id,
