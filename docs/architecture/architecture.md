@@ -39,7 +39,7 @@ graph TB
 **Process**:
 1. Detect language by file extension
 2. Load appropriate Tree-sitter grammar
-3. Parse file into AST
+3. Streaming parse of file into AST (low memory footprint)
 4. Traverse AST to find semantic nodes:
    - Functions, methods
    - Classes, structs, interfaces

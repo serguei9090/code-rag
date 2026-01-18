@@ -46,7 +46,8 @@ async fn test_search_endpoint() {
     // Index a file
     let path = Path::new(TEST_ASSETS_PATH).join("test.rs");
     let code = fs::read_to_string(&path).expect("Failed to read test.rs");
-    let chunks = chunker.chunk_file("test.rs", &code, 0);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker.chunk_file("test.rs", &mut reader, 0).unwrap();
 
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
     let embeddings = embedder.embed(texts, None).expect("Embed failed");
@@ -111,7 +112,8 @@ async fn test_concurrent_searches() {
     // Index a file to search against
     let path = Path::new(TEST_ASSETS_PATH).join("test.rs");
     let code = fs::read_to_string(&path).expect("Failed to read test.rs");
-    let chunks = chunker.chunk_file("test.rs", &code, 0);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker.chunk_file("test.rs", &mut reader, 0).unwrap();
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
     let embeddings = embedder.embed(texts, None).expect("Embed failed");
     let (ids, filenames, codes, starts, ends, mtimes, calls) = prepare_chunks(&chunks);

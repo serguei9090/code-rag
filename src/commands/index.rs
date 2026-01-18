@@ -186,9 +186,12 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
                 }
             }
 
-            if let Ok(code) = fs::read_to_string(file_path) {
-                let new_chunks = chunker.chunk_file(&fname_str, &code, mtime);
-                chunks_buffer.extend(new_chunks);
+            if let Ok(file) = fs::File::open(file_path) {
+                let mut reader = std::io::BufReader::new(file);
+                match chunker.chunk_file(&fname_str, &mut reader, mtime) {
+                    Ok(new_chunks) => chunks_buffer.extend(new_chunks),
+                    Err(e) => warn!("Error chunking file {}: {}", fname_str, e),
+                }
             }
         }
 

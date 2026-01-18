@@ -61,7 +61,8 @@ async fn test_local_model_loading() {
     fs::write(&test_file, code).unwrap();
 
     let chunker = CodeChunker::default();
-    let chunks = chunker.chunk_file("test.rs", code, 0);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker.chunk_file("test.rs", &mut reader, 0).unwrap();
     assert!(!chunks.is_empty());
 
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();

@@ -25,7 +25,8 @@ async fn test_search_with_expansion() {
 
     // File 1
     let code1 = "fn authenticate_user() { println!(\"checking credentials\"); }";
-    let chunks1 = chunker.chunk_file("auth.rs", code1, 0);
+    let mut reader = std::io::Cursor::new(code1.as_bytes());
+    let chunks1 = chunker.chunk_file("auth.rs", &mut reader, 0).unwrap();
     let (ids1, filenames1, codes1, starts1, ends1, mtimes1, calls1) = prepare_chunks(&chunks1);
     let embeddings1 = embedder
         .embed(vec![code1.to_string()], None)
@@ -47,7 +48,8 @@ async fn test_search_with_expansion() {
 
     // File 2
     let code2 = "fn user_login() { println!(\"signing in\"); }";
-    let chunks2 = chunker.chunk_file("login.rs", code2, 0);
+    let mut reader = std::io::Cursor::new(code2.as_bytes());
+    let chunks2 = chunker.chunk_file("login.rs", &mut reader, 0).unwrap();
     let (ids2, filenames2, codes2, starts2, ends2, mtimes2, calls2) = prepare_chunks(&chunks2);
     let embeddings2 = embedder
         .embed(vec![code2.to_string()], None)

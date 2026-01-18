@@ -4,7 +4,7 @@
 `code-rag index [PATH] [OPTIONS]`
 
 ## Overview
-Scans a directory recursively, parses source files using Tree-sitter, extracts semantic chunks (functions, classes, modules), generates embeddings, and stores them in **LanceDB** (Vector) and **Tantivy** (BM25).
+Scans a directory recursively, parses source files using Tree-sitter (streaming), extracts semantic chunks (functions, classes, modules), generates embeddings, and stores them in **LanceDB** (Vector) and **Tantivy** (BM25).
 
 ## Arguments
 - `[PATH]`: Optional path to index. Defaults to `default_index_path` from config.

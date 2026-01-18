@@ -44,7 +44,10 @@ async fn test_index_test_assets() {
                 .expect("Time error")
                 .as_secs() as i64;
 
-            let chunks = chunker.chunk_file(path.to_str().unwrap(), &code, mtime);
+            let mut reader = std::io::Cursor::new(code.as_bytes());
+            let chunks = chunker
+                .chunk_file(path.to_str().unwrap(), &mut reader, mtime)
+                .unwrap();
             total_chunks += chunks.len();
 
             if !chunks.is_empty() {
@@ -90,7 +93,10 @@ async fn test_search_rust_function() {
     let code = fs::read_to_string(&rust_path).expect("Failed to read Rust file");
     let mtime = 0;
 
-    let chunks = chunker.chunk_file(rust_path.to_str().unwrap(), &code, mtime);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker
+        .chunk_file(rust_path.to_str().unwrap(), &mut reader, mtime)
+        .unwrap();
     assert!(!chunks.is_empty(), "No chunks found in test.rs");
 
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
@@ -147,7 +153,10 @@ async fn test_search_python_class() {
     let code = fs::read_to_string(&py_path).expect("Failed to read Python file");
     let mtime = 0;
 
-    let chunks = chunker.chunk_file(py_path.to_str().unwrap(), &code, mtime);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker
+        .chunk_file(py_path.to_str().unwrap(), &mut reader, mtime)
+        .unwrap();
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
     let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) =
@@ -189,7 +198,10 @@ async fn test_search_bash_script() {
     let code = fs::read_to_string(&bash_path).expect("Failed to read Bash file");
     let mtime = 0;
 
-    let chunks = chunker.chunk_file(bash_path.to_str().unwrap(), &code, mtime);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker
+        .chunk_file(bash_path.to_str().unwrap(), &mut reader, mtime)
+        .unwrap();
     assert!(!chunks.is_empty(), "No chunks found in test.sh");
 
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
@@ -237,7 +249,10 @@ async fn test_search_powershell_function() {
     let code = fs::read_to_string(&ps_path).expect("Failed to read PowerShell file");
     let mtime = 0;
 
-    let chunks = chunker.chunk_file(ps_path.to_str().unwrap(), &code, mtime);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker
+        .chunk_file(ps_path.to_str().unwrap(), &mut reader, mtime)
+        .unwrap();
     assert!(!chunks.is_empty(), "No chunks found in test.ps1");
 
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
@@ -284,7 +299,10 @@ async fn test_search_json_config() {
     let code = fs::read_to_string(&json_path).expect("Failed to read JSON file");
     let mtime = 0;
 
-    let chunks = chunker.chunk_file(json_path.to_str().unwrap(), &code, mtime);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker
+        .chunk_file(json_path.to_str().unwrap(), &mut reader, mtime)
+        .unwrap();
     assert!(!chunks.is_empty(), "No chunks found in test.json");
 
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
@@ -339,7 +357,10 @@ async fn test_multi_language_search() {
     for file in files {
         let path = Path::new(TEST_ASSETS_PATH).join(file);
         let code = fs::read_to_string(&path).expect("Failed to read file");
-        let chunks = chunker.chunk_file(path.to_str().unwrap(), &code, 0);
+        let mut reader = std::io::Cursor::new(code.as_bytes());
+        let chunks = chunker
+            .chunk_file(path.to_str().unwrap(), &mut reader, 0)
+            .unwrap();
         total_chunks += chunks.len();
 
         if !chunks.is_empty() {
@@ -449,7 +470,8 @@ fn helper() {
 }
 "#;
 
-    let chunks = chunker.chunk_file("test.rs", rust_code, 0);
+    let mut reader = std::io::Cursor::new(rust_code.as_bytes());
+    let chunks = chunker.chunk_file("test.rs", &mut reader, 0).unwrap();
     assert!(
         chunks.len() >= 2,
         "Expected at least 2 chunks (main + helper), got {}",
@@ -479,7 +501,8 @@ class Calculator:
         return a + b
 "#;
 
-    let chunks = chunker.chunk_file("test.py", python_code, 0);
+    let mut reader = std::io::Cursor::new(python_code.as_bytes());
+    let chunks = chunker.chunk_file("test.py", &mut reader, 0).unwrap();
     assert!(!chunks.is_empty(), "Python file should produce chunks");
     assert!(
         chunks
@@ -500,7 +523,10 @@ async fn test_lancedb_filename_index() {
     let code = fs::read_to_string(&rust_path).expect("Failed to read Rust file");
     let mtime = 0;
 
-    let chunks = chunker.chunk_file(rust_path.to_str().unwrap(), &code, mtime);
+    let mut reader = std::io::Cursor::new(code.as_bytes());
+    let chunks = chunker
+        .chunk_file(rust_path.to_str().unwrap(), &mut reader, mtime)
+        .unwrap();
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
     let embeddings = embedder.embed(texts, None).expect("Failed to embed");
     let (ids, filenames, codes, line_starts, line_ends, last_modified, calls) =

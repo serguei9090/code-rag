@@ -58,15 +58,23 @@ impl<'a> CodeIndexer<'a> {
             warn!("Error deleting old BM25 docs for {}: {}", fname_str, e);
         }
 
-        let code = match fs::read_to_string(path) {
-            Ok(c) => c,
+        let file = match fs::File::open(path) {
+            Ok(f) => f,
             Err(e) => {
                 warn!("Failed to read file {}: {}", fname_str, e);
                 return Ok(());
             }
         };
+        let mut reader = std::io::BufReader::new(file);
 
-        let chunks = self.chunker.chunk_file(&fname_str, &code, mtime);
+        let chunks = match self.chunker.chunk_file(&fname_str, &mut reader, mtime) {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("Failed to chunk file {}: {}", fname_str, e);
+                return Ok(());
+            }
+        };
+
         if chunks.is_empty() {
             return Ok(());
         }

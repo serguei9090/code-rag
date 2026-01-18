@@ -329,6 +329,7 @@ graph LR
 - Local-first indexing and search
 - Multi-language support
 - Semantic chunking with Tree-sitter
+- Streaming file processing (Low memory usage)
 
 ### ✅ Phase 2: Programmatic Access (Complete)
 - JSON output mode for CI/CD integration

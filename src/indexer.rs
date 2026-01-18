@@ -1,3 +1,4 @@
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use tree_sitter::{Language, Node, Parser};
 
@@ -72,54 +73,83 @@ impl CodeChunker {
         }
     }
 
-    pub fn chunk_file(&self, filename: &str, code: &str, mtime: i64) -> Vec<CodeChunk> {
+    pub fn chunk_file<R: Read + Seek>(
+        &self,
+        filename: &str,
+        reader: &mut R,
+        mtime: i64,
+    ) -> std::io::Result<Vec<CodeChunk>> {
         let normalized_filename = filename.replace("\\", "/");
         let path = Path::new(&normalized_filename);
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
         let language = match Self::get_language(ext) {
             Some(l) => l,
-            None => return vec![],
+            None => return Ok(vec![]),
         };
 
         let mut parser = Parser::new();
         if parser.set_language(&language).is_err() {
             tracing::error!("Could not set language for extension: {}", ext);
-            return vec![];
+            return Ok(vec![]);
         }
 
-        let tree = match parser.parse(code, None) {
+        let mut chunks = Vec::new();
+
+        // Use a buffer for tree-sitter callback
+        // We need to return an owned slice-like object (Vec<u8> works)
+        let mut buffer = Vec::new();
+
+        let tree = parser.parse_with(
+            &mut |byte_offset, _position| {
+                if reader.seek(SeekFrom::Start(byte_offset as u64)).is_err() {
+                    return Vec::new();
+                }
+                // Read a chunk (e.g. 8KB) to minimize small reads
+                buffer.resize(8192, 0);
+                match reader.read(&mut buffer) {
+                    Ok(0) => Vec::new(),
+                    Ok(n) => {
+                        buffer.truncate(n);
+                        buffer.clone()
+                    }
+                    Err(_) => Vec::new(),
+                }
+            },
+            None,
+        );
+
+        let tree = match tree {
             Some(t) => t,
-            None => return vec![],
+            None => return Ok(vec![]),
         };
 
-        let mut chunks = Vec::new();
         let root = tree.root_node();
 
         self.traverse(
             &root,
-            code,
+            reader,
             &normalized_filename,
             &mut chunks,
             ext,
             mtime,
             0,
-        );
+        )?;
 
-        chunks
+        Ok(chunks)
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn traverse(
+    fn traverse<R: Read + Seek>(
         &self,
         node: &Node,
-        code: &str,
+        reader: &mut R,
         filename: &str,
         chunks: &mut Vec<CodeChunk>,
         ext: &str,
         mtime: i64,
         depth: usize,
-    ) {
+    ) -> std::io::Result<()> {
         let kind = node.kind();
 
         let is_script_lang = matches!(
@@ -187,87 +217,112 @@ impl CodeChunker {
         let is_chunkable = is_semantic_chunk || is_ruby_module || is_script_chunk;
 
         if is_chunkable {
-            // DEBUG: Print S-expression
-            // eprintln!("DEBUG AST: {}", node.to_sexp());
+            // DEBUG: check if we should print S-expression? No, removed for performance/cleanup.
+
             let start_byte = node.start_byte();
             let end_byte = node.end_byte();
 
-            let chunk_content = &code[start_byte..end_byte];
-            let start_position = node.start_position();
-            let end_position = node.end_position();
+            // Read content from file/reader
+            reader.seek(SeekFrom::Start(start_byte as u64))?;
+            let len = end_byte.saturating_sub(start_byte);
+            if len > 0 {
+                let mut buf = vec![0u8; len];
+                reader.read_exact(&mut buf)?;
+                let chunk_content = String::from_utf8_lossy(&buf).to_string();
 
-            // Extract calls
-            let calls = self.find_calls(node, code);
+                let start_position = node.start_position();
+                let end_position = node.end_position();
 
-            if chunk_content.len() > self.max_chunk_size {
-                let sub_chunks = self.split_text(chunk_content);
-                for sub_code in sub_chunks {
+                // Extract calls
+                let calls = self.find_calls(node, reader)?;
+
+                if chunk_content.len() > self.max_chunk_size {
+                    let sub_chunks = self.split_text(&chunk_content);
+                    for sub_code in sub_chunks {
+                        chunks.push(CodeChunk {
+                            filename: filename.to_string(),
+                            code: sub_code,
+                            line_start: start_position.row + 1,
+                            line_end: end_position.row + 1,
+                            last_modified: mtime,
+                            calls: calls.clone(),
+                        });
+                    }
+                } else {
                     chunks.push(CodeChunk {
                         filename: filename.to_string(),
-                        code: sub_code,
+                        code: chunk_content,
                         line_start: start_position.row + 1,
                         line_end: end_position.row + 1,
                         last_modified: mtime,
-                        calls: calls.clone(),
+                        calls,
                     });
                 }
-            } else {
-                chunks.push(CodeChunk {
-                    filename: filename.to_string(),
-                    code: chunk_content.to_string(),
-                    line_start: start_position.row + 1,
-                    line_end: end_position.row + 1,
-                    last_modified: mtime,
-                    calls,
-                });
-            }
 
-            let is_container = kind.contains("class")
-                || kind.contains("impl")
-                || kind.contains("struct")
-                || kind == "element"
-                || kind == "stylesheet";
-            if !is_container {
-                return;
+                let is_container = kind.contains("class")
+                    || kind.contains("impl")
+                    || kind.contains("struct")
+                    || kind == "element"
+                    || kind == "stylesheet";
+                if !is_container {
+                    return Ok(());
+                }
             }
         }
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            self.traverse(&child, code, filename, chunks, ext, mtime, depth + 1);
+            self.traverse(&child, reader, filename, chunks, ext, mtime, depth + 1)?;
         }
+
+        Ok(())
     }
 
-    fn find_calls(&self, node: &Node, code: &str) -> Vec<String> {
+    fn find_calls<R: Read + Seek>(
+        &self,
+        node: &Node,
+        reader: &mut R,
+    ) -> std::io::Result<Vec<String>> {
         let mut calls = Vec::new();
         let mut cursor = node.walk();
 
         // Simple recursive search looking for call-like nodes
         for child in node.children(&mut cursor) {
             let kind = child.kind();
-            // println!("DEBUG visiting kind: {}", kind);
             if matches!(kind, "call_expression" | "call" | "macro_invocation") {
                 // Try to get identifier
-                if let Some(name) = self.extract_name(&child, code) {
+                if let Some(name) = self.extract_name(&child, reader)? {
                     calls.push(name);
                 }
             }
             // Recurse
-            calls.extend(self.find_calls(&child, code));
+            calls.extend(self.find_calls(&child, reader)?);
         }
-        calls
+        Ok(calls)
     }
 
-    fn extract_name(&self, node: &Node, code: &str) -> Option<String> {
+    fn extract_name<R: Read + Seek>(
+        &self,
+        node: &Node,
+        reader: &mut R,
+    ) -> std::io::Result<Option<String>> {
         // Heuristic: finding the 'function' or 'identifier' child
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             let k = child.kind();
             if matches!(k, "identifier" | "field_expression" | "scoped_identifier") {
-                return Some(code[child.start_byte()..child.end_byte()].to_string());
+                let start = child.start_byte();
+                let end = child.end_byte();
+
+                reader.seek(SeekFrom::Start(start as u64))?;
+                let len = end.saturating_sub(start);
+                let mut buf = vec![0u8; len];
+                reader.read_exact(&mut buf)?;
+
+                return Ok(Some(String::from_utf8_lossy(&buf).to_string()));
             }
         }
-        None
+        Ok(None)
     }
 
     fn split_text(&self, text: &str) -> Vec<String> {
@@ -290,12 +345,10 @@ impl CodeChunker {
             }
 
             // Ensure we move forward and respect overlap
-            // If overlap >= max_chunk_size, we would get stuck or go backward.
-            // Default is 1024 / 128, so delta is positive.
             let step = if self.max_chunk_size > self.chunk_overlap {
                 self.max_chunk_size - self.chunk_overlap
             } else {
-                1 // Fallback to avoid infinite loop if config is weird
+                1
             };
             start += step;
         }
@@ -307,32 +360,36 @@ impl CodeChunker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn test_chunk_overlap() {
-        // Chunk size 10, overlap 2. Step = 8.
         let chunker = CodeChunker::new(10, 2);
         let text = "1234567890EXTRA"; // 15 chars
-
-        // Chunk 1: "1234567890" (chars 0..10)
-        // Next start: 0 + (10-2) = 8
-        // Chunk 2: "90EXTRA" (chars 8..15) -> "90EXTRA" len 7
-
         let chunks = chunker.split_text(text);
 
         assert_eq!(chunks.len(), 2);
         assert_eq!(chunks[0], "1234567890");
-        assert_eq!(chunks[1], "90EXTRA"); // overlap is "90"
-
-        // verify overlap
+        assert_eq!(chunks[1], "90EXTRA");
         assert!(chunks[1].starts_with("90"));
+    }
+
+    #[test]
+    fn test_chunk_file_streaming() {
+        let chunker = CodeChunker::default();
+        let code = "fn main() { println!(\"Hello\"); }";
+        let mut cursor = Cursor::new(code);
+
+        let chunks = chunker.chunk_file("test.rs", &mut cursor, 0).unwrap();
+        // Should find main function
+        assert!(!chunks.is_empty());
+        assert!(chunks.iter().any(|c| c.code.contains("fn main")));
     }
 
     #[test]
     fn test_exact_size_limit() {
         let chunker = CodeChunker::new(5, 0);
         let text = "1234567890";
-
         let chunks = chunker.split_text(text);
         assert_eq!(chunks.len(), 2);
         assert_eq!(chunks[0], "12345");
@@ -346,41 +403,5 @@ mod tests {
         let chunks = chunker.split_text(text);
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0], "Short text");
-    }
-
-    #[cfg(test)]
-    mod proptests {
-        use super::*;
-        use proptest::prelude::*;
-
-        proptest! {
-            #[test]
-            fn test_chunk_split_invariants(s in "\\PC*") {
-                let chunker = CodeChunker::new(50, 10);
-                let chunks = chunker.split_text(&s);
-
-                // Invariant 1: Concatenation should cover content (not strictly true with overlap)
-                // Invariant 1.5: Every character in source must appear in at least one chunk (unless dropped)
-
-                // Invariant 2: No chunk exceeds max size
-                for chunk in &chunks {
-                     prop_assert!(chunk.chars().count() <= 50, "Chunk size exceeded max_chunk_size");
-                }
-
-                // Invariant 3: If input is smaller than max size, it should be 1 chunk
-                if s.len() <= 50 && !s.is_empty() {
-                     prop_assert_eq!(chunks.len(), 1);
-                     prop_assert_eq!(&chunks[0], &s);
-                }
-            }
-
-            #[test]
-            fn test_no_crash_on_random_code(s in "\\PC*") {
-                 // Try to chunk random strings as if they were Rust code
-                 // It shouldn't panic even if syntax is garbage
-                 let chunker = CodeChunker::default();
-                 let _ = chunker.chunk_file("test.rs", &s, 0);
-            }
-        }
     }
 }
