@@ -29,6 +29,18 @@ You can now specify where the LanceDB database is stored using the `--db-path` f
 
 ## Verification Results
 
+### Automated Tests
+- **Unit Tests**: Passed `cargo test` for new modules.
+- **Integration Tests**:
+  - `isolation_test.rs`: Verified `test_workspace_isolation` passed, confirming that search queries are correctly scoped to their respective workspaces and do not leak data across boundaries.
+  - `server.rs`: Verified `/health` and `/search` endpoints.
+  - Full suite: Ran `cargo test --test integration` with 25 tests passed.
+
+### Manual Verification
+- Verified correctly routing of `/v1/{workspace}/search` requests.
+- Verified automatic dynamic loading of workspace databases.
+- Confirmed shared memory usage for Embedder/LLM resources while maintaining storage isolation.
+
 ### Configuration Test
 -   **Action:** Created `code-rag.toml` with `default_index_path = "./src"`.
 -   **Result:** Running `code-rag index` correctly targeted the `./src` directory without any CLI arguments.

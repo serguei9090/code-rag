@@ -89,9 +89,9 @@ pub async fn search_codebase(
     };
 
     let searcher = CodeSearcher::new(
-        Some(storage),
-        Some(embedder),
-        bm25_index,
+        Some(Arc::new(storage)),
+        Some(Arc::new(embedder)),
+        bm25_index.map(Arc::new),
         expander,
         config.vector_weight,
         config.bm25_weight,
@@ -217,9 +217,9 @@ pub async fn create_searcher(
     };
 
     Ok(CodeSearcher::new(
-        Some(storage),
-        Some(embedder),
-        bm25_index,
+        Some(std::sync::Arc::new(storage)),
+        Some(std::sync::Arc::new(embedder)),
+        bm25_index.map(std::sync::Arc::new),
         expander,
         config.vector_weight,
         config.bm25_weight,

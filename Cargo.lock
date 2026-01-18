@@ -1221,6 +1221,7 @@ dependencies = [
  "colored",
  "config",
  "criterion",
+ "dashmap",
  "dirs 5.0.1",
  "fastembed",
  "futures-util",

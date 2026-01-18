@@ -113,7 +113,15 @@ async fn test_invalid_regex() {
     // Ideally we should import it.
     use code_rag::search::CodeSearcher;
 
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    let searcher = CodeSearcher::new(
+        Some(std::sync::Arc::new(storage)),
+        Some(std::sync::Arc::new(embedder)),
+        None,
+        None,
+        1.0,
+        1.0,
+        60.0,
+    );
 
     // Test invalid regex pattern (e.g. unclosed parenthesis)
     let result = searcher.grep_search("fn(", ".");

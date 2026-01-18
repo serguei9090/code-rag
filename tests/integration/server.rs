@@ -3,8 +3,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use code_rag::search::CodeSearcher;
-use code_rag::server::{create_router, AppState};
+use code_rag::server::workspace_manager::WorkspaceManager;
+use code_rag::server::{create_router, AppState, ServerStartConfig};
 use common::{cleanup_test_db, prepare_chunks, setup_test_env, TEST_ASSETS_PATH};
 use std::fs;
 use std::path::Path;
@@ -12,12 +12,36 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower::ServiceExt;
 
+fn create_test_config(db_path: &str) -> ServerStartConfig {
+    ServerStartConfig {
+        host: "127.0.0.1".to_string(),
+        port: 0,
+        db_path: db_path.to_string(),
+        embedding_model: "dummy".to_string(),
+        reranker_model: "dummy".to_string(),
+        embedding_model_path: None,
+        reranker_model_path: None,
+        device: "cpu".to_string(),
+        llm_enabled: false,
+        llm_host: "".to_string(),
+        llm_model: "".to_string(),
+    }
+}
+
 #[tokio::test]
 async fn test_health_check() {
     let (storage, embedder, _, db_path) = setup_test_env("health_check").await;
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    // We don't need to manually create searcher anymore, WorkspaceManager constructs it.
+    // However, we do need to pass the shared embedder.
+
+    let config = create_test_config(&db_path);
+    let manager = WorkspaceManager::new(config, Arc::new(embedder), None);
+    // Explicitly insert a dummy searcher OR ensure `default` loads from the empty DB?
+    // StartServer tries to load "default".
+    // For health check, we don't strictly need a searcher loaded.
+
     let state = AppState {
-        searcher: Arc::new(Mutex::new(searcher)),
+        workspace_manager: Arc::new(manager),
     };
 
     let app = create_router(state);
@@ -59,10 +83,18 @@ async fn test_search_endpoint() {
         .await
         .expect("Add failed");
 
-    // Initialize Server
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    // Initialize Server via WorkspaceManager
+    let config = create_test_config(&db_path);
+    // We reuse the embedder. Note: we used it above, so we might need to clone if mutable?
+    // Use the variable `embedder`. `embedder.embed` took &self.
+    let manager = WorkspaceManager::new(config, Arc::new(embedder), None);
+
+    // Ensure "default" workspace works
+    // Since manually added chunks to "default" in storage, and config.db_path points to storage root,
+    // accessing "default" via WorkspaceManager (which maps to db_path) should see the data.
+
     let state = AppState {
-        searcher: Arc::new(Mutex::new(searcher)),
+        workspace_manager: Arc::new(manager),
     };
     let app = create_router(state);
 
@@ -125,10 +157,11 @@ async fn test_concurrent_searches() {
         .expect("Add failed");
 
     // Initialize Server
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
-    // Use Arc<Mutex> as intended
+    let config = create_test_config(&db_path);
+    let manager = WorkspaceManager::new(config, Arc::new(embedder), None);
+
     let state = AppState {
-        searcher: Arc::new(Mutex::new(searcher)),
+        workspace_manager: Arc::new(manager),
     };
     let app = create_router(state);
 
@@ -136,8 +169,7 @@ async fn test_concurrent_searches() {
     let num_requests = 20;
 
     for i in 0..num_requests {
-        // Router is Clone, so we can pass a clone to each task if needed,
-        // but `oneshot` consumes it. Since Router is cheap to clone (Arc machinery), this simulates new connections.
+        // Router is Clone
         let app_clone = app.clone();
 
         let payload = serde_json::json!({

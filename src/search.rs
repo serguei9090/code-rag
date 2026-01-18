@@ -44,18 +44,18 @@ pub struct CodeSearcher {
 
 impl CodeSearcher {
     pub fn new(
-        storage: Option<Storage>,
-        embedder: Option<Embedder>,
-        bm25: Option<BM25Index>,
+        storage: Option<Arc<Storage>>,
+        embedder: Option<Arc<Embedder>>,
+        bm25: Option<Arc<BM25Index>>,
         expander: Option<Arc<QueryExpander>>,
         vector_weight: f32,
         bm25_weight: f32,
         rrf_k: f64,
     ) -> Self {
         Self {
-            storage: storage.map(Arc::new),
-            embedder: embedder.map(Arc::new),
-            bm25: bm25.map(Arc::new),
+            storage,
+            embedder,
+            bm25,
             expander,
             vector_weight,
             bm25_weight,

@@ -4,10 +4,12 @@ use crate::embedding::Embedder;
 use crate::llm::client::OllamaClient;
 use crate::llm::expander::QueryExpander;
 use crate::search::{CodeSearcher, SearchResult};
+pub mod workspace_manager;
+use crate::server::workspace_manager::WorkspaceManager;
 use crate::storage::Storage;
 use anyhow::Result;
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -22,12 +24,10 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-// Shared state holding the searcher
-// We need Mutex because CodeSearcher::semantic_search takes &mut self
-// (embedder inside it might need mutable access for internal buffers/onnx state)
+// Shared state holding the workspace manager
 #[derive(Clone)]
 pub struct AppState {
-    pub searcher: Arc<Mutex<CodeSearcher>>,
+    pub workspace_manager: Arc<WorkspaceManager>,
 }
 
 // Request payload
@@ -73,29 +73,22 @@ pub struct ServerStartConfig {
 pub async fn start_server(config: ServerStartConfig) -> Result<()> {
     info!("Initializing server components...");
 
-    // 1. Init Storage
-    let storage = Storage::new(&config.db_path).await?;
-    // Ensure table exists (optional, but good safety)
-    if storage.get_indexed_metadata().await.is_err() {
-        info!("Warning: Storage might not be initialized. Please run 'index' first.");
-    }
+    // Extract connection info before moving config
+    let host = config.host.clone();
+    let port = config.port;
 
-    // 2. Init Embedder (with re-ranker)
+    // 1. Init Embedder (with re-ranker) - Shared across workspaces
     let embedder = Embedder::new(
         config.embedding_model.clone(),
         config.reranker_model.clone(),
-        config.embedding_model_path,
-        config.reranker_model_path,
+        config.embedding_model_path.clone(),
+        config.reranker_model_path.clone(),
         config.device.clone(),
     )?;
     embedder.init_reranker()?; // Pre-load re-ranker
+    let embedder = Arc::new(embedder);
 
-    // 3. Create Searcher
-    let bm25_index = BM25Index::new(&config.db_path, true, "log").ok();
-    if bm25_index.is_none() {
-        info!("Warning: BM25 index could not be opened. Falling back to pure vector search.");
-    }
-
+    // 2. Init LLM Client (Optional) - Shared
     let expander = if config.llm_enabled {
         let client = OllamaClient::new(&config.llm_host, &config.llm_model);
         Some(Arc::new(QueryExpander::new(
@@ -105,113 +98,112 @@ pub async fn start_server(config: ServerStartConfig) -> Result<()> {
         None
     };
 
-    let searcher = CodeSearcher::new(
-        Some(storage),
-        Some(embedder),
-        bm25_index,
-        expander,
-        1.0,
-        1.0,
-        60.0,
-    );
+    // 3. Init WorkspaceManager
+    let manager = WorkspaceManager::new(config, embedder, expander);
+
+    // Pre-load default workspace if exists
+    if let Err(e) = manager.get_searcher("default").await {
+        info!("Note: Default workspace could not be pre-loaded: {}", e);
+    } else {
+        info!("Default workspace pre-loaded successfully.");
+    }
+
     let state = AppState {
-        searcher: Arc::new(Mutex::new(searcher)),
+        workspace_manager: Arc::new(manager),
     };
 
     // 4. Build Router
-    let app = create_router(state);
+    let router = create_router(state);
 
-    // 5. Run
-    let addr: SocketAddr = format!("{}:{}", config.host, config.port).parse()?;
-    info!("Server listening on http://{}", addr);
+    // 5. Bind & Serve
+    let addr = SocketAddr::new(host.parse()?, port);
+    info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, router).await?;
 
     Ok(())
 }
 
+/// Create router with routes and middleware
 pub fn create_router(state: AppState) -> Router {
     Router::new()
-        .route("/health", get(health_handler))
-        .route("/metrics", get(metrics_handler))
-        .route("/search", post(search_handler))
-        .layer(TraceLayer::new_for_http())
+        .route("/health", get(health_check))
+        .route("/search", post(search_handler_default))
+        .route("/v1/{workspace}/search", post(search_handler_workspace))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &axum::http::Request<_>| {
+                    tracing::info_span!("http_request", method = ?request.method(), uri = ?request.uri())
+                })
+        )
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
 
-async fn health_handler() -> impl IntoResponse {
-    (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
+/// Health check handler
+async fn health_check() -> impl IntoResponse {
+    StatusCode::OK
 }
 
-async fn metrics_handler() -> impl IntoResponse {
-    let encoder = TextEncoder::new();
-    let metric_families = prometheus::gather();
-    let mut buffer = vec![];
-
-    if let Err(e) = encoder.encode(&metric_families, &mut buffer) {
-        error!("Failed to encode metrics: {}", e);
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [(axum::http::header::CONTENT_TYPE, "text/plain")],
-            "Internal Server Error".into(),
-        );
-    }
-
-    // Convert buffer to String to own the data
-    let response_body =
-        String::from_utf8(buffer).unwrap_or_else(|_| "Error encoding metrics".to_string());
-
-    (
-        StatusCode::OK,
-        [(
-            axum::http::header::CONTENT_TYPE,
-            "text/plain; version=0.0.4",
-        )],
-        response_body,
-    )
-}
-
-async fn search_handler(
+/// Handler for default workspace (POST /search)
+async fn search_handler_default(
     State(state): State<AppState>,
     Json(payload): Json<SearchRequest>,
 ) -> impl IntoResponse {
-    // Lock the searcher
-    // We use tokio::sync::Mutex because we hold the lock across an .await point (semantic_search)
-    let searcher = state.searcher.lock().await;
+    process_search(state, "default".to_string(), payload).await
+}
 
-    info!(
-        query = %payload.query,
-        limit = payload.limit,
-        ext = ?payload.ext,
-        dir = ?payload.dir,
+/// Handler for specific workspace (POST /v1/:workspace/search)
+async fn search_handler_workspace(
+    State(state): State<AppState>,
+    Path(workspace): Path<String>,
+    Json(payload): Json<SearchRequest>,
+) -> impl IntoResponse {
+    process_search(state, workspace, payload).await
+}
 
-        no_rerank = payload.no_rerank,
-        expand = payload.expand,
-        "Handling search request"
-    );
+/// Core search logic shared by handlers
+async fn process_search(
+    state: AppState,
+    workspace: String,
+    payload: SearchRequest,
+) -> impl IntoResponse {
+    // 1. Get Searcher for Workspace
+    let searcher_arc = match state.workspace_manager.get_searcher(&workspace).await {
+        Ok(s) => s,
+        Err(e) => {
+            // Distinguish between errors if possible, but for now generic 404/400
+            // If the workspace doesn't exist on disk, get_searcher fails.
+            let error_msg = format!("Failed to access workspace '{}': {}", workspace, e);
+            return (StatusCode::NOT_FOUND, error_msg).into_response();
+        }
+    };
 
-    match searcher
+    // 2. Lock Searcher
+    let mut searcher = searcher_arc.lock().await;
+
+    // 3. Execute Search
+    let results = match searcher
         .semantic_search(
             &payload.query,
             payload.limit,
-            payload.ext.clone(),
-            payload.dir.clone(),
+            payload.ext,
+            payload.dir,
             payload.no_rerank,
-            None, // workspace (default/global for none)
+            None,
             payload.max_tokens,
             payload.expand,
         )
         .await
     {
-        Ok(results) => {
-            info!("Search successful, {} results found.", results.len());
-            Ok((StatusCode::OK, Json(SearchResponse { results })).into_response())
-        }
+        Ok(r) => r,
         Err(e) => {
-            error!("Search failed: {:?}", e);
-            Err(CodeRagError::Search(e.to_string()))
+            error!("Search error in workspace '{}': {}", workspace, e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
         }
-    }
+    };
+
+    // 4. Return Results
+    (StatusCode::OK, Json(SearchResponse { results })).into_response()
 }

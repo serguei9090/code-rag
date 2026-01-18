@@ -86,7 +86,15 @@ async fn test_local_model_loading() {
         .expect("Failed to add chunks");
 
     // 4. Create Searcher
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    let searcher = CodeSearcher::new(
+        Some(std::sync::Arc::new(storage)),
+        Some(std::sync::Arc::new(embedder)),
+        None,
+        None,
+        1.0,
+        1.0,
+        60.0,
+    );
 
     // 5. Perform a search
     let results = searcher

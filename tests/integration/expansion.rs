@@ -78,8 +78,8 @@ async fn test_search_with_expansion() {
 
     // 4. Create Searcher with Expander
     let mut searcher = CodeSearcher::new(
-        Some(storage),
-        Some(embedder),
+        Some(Arc::new(storage)),
+        Some(Arc::new(embedder)),
         None,
         Some(Arc::new(expander)),
         1.0,
@@ -141,8 +141,8 @@ async fn test_search_without_expansion() {
     let expander = QueryExpander::new(Arc::new(mock_client));
 
     let mut searcher = CodeSearcher::new(
-        Some(storage),
-        Some(embedder),
+        Some(Arc::new(storage)),
+        Some(Arc::new(embedder)),
         None,
         Some(Arc::new(expander)),
         1.0,
