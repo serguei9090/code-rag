@@ -63,7 +63,7 @@ impl CodeSearcher {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn semantic_search(
-        &mut self,
+        &self,
         query: &str,
         limit: usize,
         ext: Option<String>,
@@ -74,7 +74,7 @@ impl CodeSearcher {
         enable_expansion: bool,
     ) -> Result<Vec<SearchResult>> {
         let storage = self.storage.as_ref().context("Storage not initialized")?;
-        let embedder = self.embedder.as_mut().context("Embedder not initialized")?;
+        let embedder = self.embedder.as_ref().context("Embedder not initialized")?;
 
         // 1. Expand Query if enabled
         let mut search_queries = vec![query.to_string()];
@@ -98,7 +98,6 @@ impl CodeSearcher {
         let mut vector_rrf_scores: std::collections::HashMap<String, f64> =
             std::collections::HashMap::new();
         // Also map ID to SearchResult to reconstruct later.
-        // We'll keep the SearchResult from the best ranking occurrence or just any occurrence.
         let mut all_vector_results: std::collections::HashMap<String, SearchResult> =
             std::collections::HashMap::new();
 
@@ -111,7 +110,7 @@ impl CodeSearcher {
             if let Some(vector) = vectors.first() {
                 let vector: Vec<f32> = vector.clone();
 
-                // Construct Filters (Same as before)
+                // Construct Filters
                 let mut filters = Vec::new();
                 if let Some(ext_val) = &ext {
                     let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
@@ -142,10 +141,8 @@ impl CodeSearcher {
                     .await
                     .map_err(|e| anyhow!(e.to_string()))?;
 
-                // Process batch (similar logic to previous code but now accumulation)
+                // Process batch
                 for batch in results {
-                    // ... (Extraction logic mostly same, simplified for brevity here, assuming helper or inline)
-                    // Copying inline extraction logic from previous version for consistency
                     let ids: &StringArray = batch
                         .column_by_name("id")
                         .ok_or_else(|| anyhow!("id missing"))?
@@ -215,26 +212,19 @@ impl CodeSearcher {
                     }
                 }
             }
-        }
+        } // End of vector search loop
 
         // Convert Map back to List
         let mut candidates: Vec<SearchResult> = all_vector_results.into_values().collect();
-        let _seen_ids: std::collections::HashSet<String> = candidates
-            .iter()
-            .map(|c| format!("{}-{}-{}", c.filename, c.line_start, c.line_end))
-            .collect();
 
-        // RRF scores are currently just sum of Vector RRFs.
-        // We will combine this with BM25 RRF next.
-
-        // --- 2. Process BM25 Results --- (unchanged mostly, but using vector_rrf_scores)
+        // --- 2. Process BM25 Results ---
         if let Some(bm25) = &self.bm25 {
             let fetch_limit = if no_rerank {
                 limit
             } else {
                 std::cmp::max(50, limit * 5)
             };
-            match bm25.search(query, fetch_limit) {
+            match bm25.search(query, fetch_limit, workspace.as_deref()) {
                 Ok(bm25_results) => {
                     let bm25_ranks: std::collections::HashMap<String, usize> = bm25_results
                         .iter()
@@ -253,7 +243,7 @@ impl CodeSearcher {
                             continue;
                         }
 
-                        // Manual Filter (Fix for pollution)
+                        // Manual Filter
                         if let Some(ext_val) = &ext {
                             let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
                                 stripped
@@ -366,26 +356,13 @@ impl CodeSearcher {
                     code: chunk.code,
                     line_start: chunk.start_line,
                     line_end: chunk.end_line,
-                    calls: Vec::new(), // Lost calls info in simplified merge, could improve later
+                    calls: Vec::new(),
                 });
             }
             Ok(mapped_results)
         } else {
             Ok(final_results)
         }
-
-        // "    } (end of for q in search_queries)" <-- NEED THIS
-
-        // Okay, I will add the closing brace at the end of Chunk 4.
-
-        // And wait, lines 339-341 "else { Err(..No embedding..) }" referred to the single query embedding.
-        // Now we rely on loop results. If loop produced nothing?
-        // "if all_vector_results.is_empty() { return Err(...) }" maybe?
-
-        // To do this strictly safely, I should replace the WHOLE function body.
-        // It's lines 60-342. That is large but safest.
-
-        // I will use one large chunk for the function body.
     }
 
     pub fn grep_search(

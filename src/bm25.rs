@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
-use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument};
+use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument, Term};
 
 pub struct BM25Index {
     index: Index,
@@ -40,6 +40,7 @@ impl BM25Index {
         schema_builder.add_text_field("code", TEXT | STORED);
         schema_builder.add_u64_field("line_start", STORED);
         schema_builder.add_u64_field("line_end", STORED);
+        schema_builder.add_text_field("workspace", STRING | STORED); // Workspace isolation
 
         let schema = schema_builder.build();
 
@@ -94,7 +95,7 @@ impl BM25Index {
         })
     }
 
-    pub fn add_chunks(&self, chunks: &[CodeChunk]) -> Result<()> {
+    pub fn add_chunks(&self, chunks: &[CodeChunk], workspace: &str) -> Result<()> {
         let writer_arc = self
             .writer
             .as_ref()
@@ -103,11 +104,30 @@ impl BM25Index {
             .lock()
             .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
 
-        let id_field = self.schema.get_field("id").expect("Schema invalid");
-        let filename_field = self.schema.get_field("filename").expect("Schema invalid");
-        let code_field = self.schema.get_field("code").expect("Schema invalid");
-        let line_start_field = self.schema.get_field("line_start").expect("Schema invalid");
-        let line_end_field = self.schema.get_field("line_end").expect("Schema invalid");
+        let id_field = self
+            .schema
+            .get_field("id")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'id': {}", e))?;
+        let filename_field = self
+            .schema
+            .get_field("filename")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'filename': {}", e))?;
+        let code_field = self
+            .schema
+            .get_field("code")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'code': {}", e))?;
+        let line_start_field = self
+            .schema
+            .get_field("line_start")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'line_start': {}", e))?;
+        let line_end_field = self
+            .schema
+            .get_field("line_end")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'line_end': {}", e))?;
+        let workspace_field = self
+            .schema
+            .get_field("workspace")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'workspace': {}", e))?;
 
         for chunk in chunks {
             let chunk_id = format!("{}-{}-{}", chunk.filename, chunk.line_start, chunk.line_end);
@@ -123,6 +143,7 @@ impl BM25Index {
             doc.add_text(code_field, &chunk.code);
             doc.add_u64(line_start_field, chunk.line_start as u64);
             doc.add_u64(line_end_field, chunk.line_end as u64);
+            doc.add_text(workspace_field, workspace);
 
             writer.add_document(doc)?;
         }
@@ -146,16 +167,49 @@ impl BM25Index {
         Ok(())
     }
 
-    pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<BM25Result>> {
+    pub fn search(
+        &self,
+        query_str: &str,
+        limit: usize,
+        workspace: Option<&str>,
+    ) -> Result<Vec<BM25Result>> {
         let searcher = self.reader.searcher();
-        let code_field = self.schema.get_field("code").expect("Schema invalid");
-        let filename_field = self.schema.get_field("filename").expect("Schema invalid"); // searching filenames too?
-        let id_field = self.schema.get_field("id").expect("Schema invalid");
-        let line_start_field = self.schema.get_field("line_start").expect("Schema invalid");
-        let line_end_field = self.schema.get_field("line_end").expect("Schema invalid");
+        let id_field = self
+            .schema
+            .get_field("id")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'id': {}", e))?;
+        let filename_field = self
+            .schema
+            .get_field("filename")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'filename': {}", e))?;
+        let code_field = self
+            .schema
+            .get_field("code")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'code': {}", e))?;
+        let line_start_field = self
+            .schema
+            .get_field("line_start")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'line_start': {}", e))?;
+        let line_end_field = self
+            .schema
+            .get_field("line_end")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'line_end': {}", e))?;
 
         let query_parser = QueryParser::for_index(&self.index, vec![code_field, filename_field]);
-        let query = query_parser.parse_query(query_str)?;
+        let mut query = query_parser.parse_query(query_str)?;
+
+        if let Some(ws) = workspace {
+            let workspace_field = self
+                .schema
+                .get_field("workspace")
+                .map_err(|e| anyhow::anyhow!("Schema error for 'workspace': {}", e))?;
+            let term = Term::from_field_text(workspace_field, ws);
+            let term_query = tantivy::query::TermQuery::new(term, IndexRecordOption::Basic);
+            query = Box::new(tantivy::query::BooleanQuery::new(vec![
+                (tantivy::query::Occur::Must, query),
+                (tantivy::query::Occur::Must, Box::new(term_query)),
+            ]));
+        }
 
         let top_docs = searcher.search(&query, &TopDocs::with_limit(limit))?;
 
@@ -260,10 +314,14 @@ mod tests {
             },
         ];
 
-        index.add_chunks(&chunks).expect("Failed to add chunks");
+        index
+            .add_chunks(&chunks, "default")
+            .expect("Failed to add chunks");
         index.reader.reload().expect("Failed to reload");
 
-        let results = index.search("test_func", 10).expect("Search failed");
+        let results = index
+            .search("test_func", 10, Some("default"))
+            .expect("Search failed");
 
         // With Manual policy, we must reload.
         assert!(!results.is_empty(), "Should find results after indexing");
@@ -283,16 +341,22 @@ mod tests {
             last_modified: 0,
             calls: vec![],
         }];
-        index.add_chunks(&chunks).expect("Failed to add chunks");
+        index
+            .add_chunks(&chunks, "default")
+            .expect("Failed to add chunks");
         index.reader.reload().expect("Failed to reload");
 
-        let results = index.search("delete_me", 10).expect("Search failed");
+        let results = index
+            .search("delete_me", 10, Some("default"))
+            .expect("Search failed");
         assert_eq!(results.len(), 1);
 
         index.delete_file("delete_me.rs").expect("Failed to delete");
         index.reader.reload().expect("Failed to reload");
 
-        let results_after = index.search("delete_me", 10).expect("Search failed");
+        let results_after = index
+            .search("delete_me", 10, Some("default"))
+            .expect("Search failed");
         assert!(
             results_after.is_empty(),
             "Should have deleted file contents"

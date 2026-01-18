@@ -20,7 +20,7 @@ pub async fn watch_codebase(
     info!("Initializing watcher for path: {}", actual_path);
 
     // 1. Initialize Components
-    let mut embedder = Embedder::new(
+    let embedder = Embedder::new(
         config.embedding_model.clone(),
         config.reranker_model.clone(),
         config.embedding_model_path.clone(),

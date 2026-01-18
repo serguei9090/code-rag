@@ -13,8 +13,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct Embedder {
-    model: TextEmbedding,
-    reranker: Option<TextRerank>,
+    model: std::sync::Mutex<TextEmbedding>,
+    reranker: std::sync::Mutex<Option<TextRerank>>,
     reranker_model_name: String,
     reranker_model_path: Option<String>,
     dim: usize,
@@ -181,20 +181,20 @@ impl Embedder {
         };
 
         Ok(Self {
-            model,
-            reranker,
+            model: std::sync::Mutex::new(model),
+            reranker: std::sync::Mutex::new(reranker),
             reranker_model_name: reranker_model,
             reranker_model_path,
             dim,
         })
     }
 
-    pub fn embed(
-        &mut self,
-        texts: Vec<String>,
-        batch_size: Option<usize>,
-    ) -> Result<Vec<Vec<f32>>> {
-        let embeddings = self.model.embed(texts, batch_size)?;
+    pub fn embed(&self, texts: Vec<String>, batch_size: Option<usize>) -> Result<Vec<Vec<f32>>> {
+        let embeddings = self
+            .model
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Embedder lock poisoned: {}", e))?
+            .embed(texts, batch_size)?;
         Ok(embeddings)
     }
 
@@ -202,8 +202,12 @@ impl Embedder {
         self.dim
     }
 
-    pub fn init_reranker(&mut self) -> Result<()> {
-        if self.reranker.is_none() {
+    pub fn init_reranker(&self) -> Result<()> {
+        let mut reranker_guard = self
+            .reranker
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Reranker lock poisoned: {}", e))?;
+        if reranker_guard.is_none() {
             let model_enum = match self.reranker_model_name.to_lowercase().as_str() {
                 "bge-reranker-base" => RerankerModel::BGERerankerBase,
                 // "bge-reranker-v2-m3" => RerankerModel::BGERerankerV2M3, // Not verified
@@ -222,18 +226,23 @@ impl Embedder {
                 rerank_init_options.cache_dir = PathBuf::from(path);
             }
 
-            self.reranker = Some(TextRerank::try_new(rerank_init_options)?);
+            *reranker_guard = Some(TextRerank::try_new(rerank_init_options)?);
         }
         Ok(())
     }
 
     pub fn rerank(
-        &mut self,
+        &self,
         query: &str,
         documents: Vec<String>,
         top_k: usize,
     ) -> Result<Vec<(usize, f32)>> {
-        if let Some(reranker) = &mut self.reranker {
+        let mut reranker_guard = self
+            .reranker
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Reranker lock poisoned: {}", e))?;
+
+        if let Some(reranker) = reranker_guard.as_mut() {
             if query.trim().is_empty() {
                 return Ok(vec![]);
             }
@@ -252,6 +261,6 @@ impl Embedder {
             // we technically can't rerank.
             // However, the caller should handle this or we return error.
             anyhow::bail!("Reranker not initialized")
-        }
+        } // guard dropped here
     }
 }

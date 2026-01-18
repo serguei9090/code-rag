@@ -109,7 +109,7 @@ impl<'a> CodeIndexer<'a> {
             error!("Error storing chunks for {}: {}", fname_str, e);
         }
 
-        if let Err(e) = self.bm25.add_chunks(&chunks) {
+        if let Err(e) = self.bm25.add_chunks(&chunks, &self.workspace) {
             error!("Error adding to BM25 for {}: {}", fname_str, e);
         }
 

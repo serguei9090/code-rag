@@ -11,7 +11,7 @@ use common::{cleanup_test_db, prepare_chunks, setup_test_env, TEST_ASSETS_PATH};
 
 #[tokio::test]
 async fn test_index_test_assets() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("index_assets").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("index_assets").await;
 
     // Index all test assets
     let mut total_chunks = 0;
@@ -83,7 +83,7 @@ async fn test_index_test_assets() {
 
 #[tokio::test]
 async fn test_search_rust_function() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("rust_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("rust_search").await;
 
     // Index Rust test file
     let rust_path = Path::new(TEST_ASSETS_PATH).join("test.rs");
@@ -140,7 +140,7 @@ async fn test_search_rust_function() {
 
 #[tokio::test]
 async fn test_search_python_class() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("py_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("py_search").await;
 
     // Index Python test file
     let py_path = Path::new(TEST_ASSETS_PATH).join("test.py");
@@ -182,7 +182,7 @@ async fn test_search_python_class() {
 
 #[tokio::test]
 async fn test_search_bash_script() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("bash_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("bash_search").await;
 
     // Index Bash test file
     let bash_path = Path::new(TEST_ASSETS_PATH).join("test.sh");

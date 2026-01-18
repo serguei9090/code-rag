@@ -88,7 +88,7 @@ pub async fn search_codebase(
         None
     };
 
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(storage),
         Some(embedder),
         bm25_index,

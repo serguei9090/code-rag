@@ -81,7 +81,9 @@ impl Storage {
     ) -> Result<()> {
         let table = self.conn.open_table(&self.table_name).execute().await?;
         let table_schema = table.schema().await?;
-        let vector_field = table_schema.field_with_name("vector").unwrap();
+        let vector_field = table_schema.field_with_name("vector").map_err(|_| {
+            anyhow::anyhow!("Validation error: 'vector' field missing in table schema")
+        })?;
         let dim_val = if let DataType::FixedSizeList(_, d) = vector_field.data_type() {
             *d
         } else {

@@ -81,7 +81,7 @@ pub async fn start_server(config: ServerStartConfig) -> Result<()> {
     }
 
     // 2. Init Embedder (with re-ranker)
-    let mut embedder = Embedder::new(
+    let embedder = Embedder::new(
         config.embedding_model.clone(),
         config.reranker_model.clone(),
         config.embedding_model_path,
@@ -179,7 +179,7 @@ async fn search_handler(
 ) -> impl IntoResponse {
     // Lock the searcher
     // We use tokio::sync::Mutex because we hold the lock across an .await point (semantic_search)
-    let mut searcher = state.searcher.lock().await;
+    let searcher = state.searcher.lock().await;
 
     info!(
         query = %payload.query,

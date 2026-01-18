@@ -41,7 +41,7 @@ async fn test_health_check() {
 #[tokio::test]
 async fn test_search_endpoint() {
     // Setup environment
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("server_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("server_search").await;
 
     // Index a file
     let path = Path::new(TEST_ASSETS_PATH).join("test.rs");

@@ -262,7 +262,7 @@ async fn process_batch(
             {
                 error!("Error storing chunks: {}", e);
             }
-            if let Err(e) = bm25_index.add_chunks(chunks) {
+            if let Err(e) = bm25_index.add_chunks(chunks, workspace) {
                 error!("Error adding to BM25: {}", e);
             }
         }
