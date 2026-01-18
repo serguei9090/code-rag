@@ -113,9 +113,18 @@ async fn test_search_rust_function() {
         .expect("Failed to add chunks");
 
     // Search for Rust function
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("rust function example", 5, None, None, false, None, None)
+        .semantic_search(
+            "rust function example",
+            5,
+            None,
+            None,
+            false,
+            None,
+            None,
+            false,
+        )
         .await
         .expect("Search failed");
 
@@ -159,9 +168,9 @@ async fn test_search_python_class() {
         .expect("Failed to add chunks");
 
     // Search for Python content
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("python function", 5, None, None, false, None, None)
+        .semantic_search("python function", 5, None, None, false, None, None, false)
         .await
         .expect("Search failed");
 
@@ -203,9 +212,9 @@ async fn test_search_bash_script() {
         .expect("Failed to add chunks");
 
     // Search for Bash function
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("backup logs", 5, None, None, false, None, None)
+        .semantic_search("backup logs", 5, None, None, false, None, None, false)
         .await
         .expect("Search failed");
 
@@ -251,9 +260,9 @@ async fn test_search_powershell_function() {
         .expect("Failed to add chunks");
 
     // Search for PowerShell function
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("system status", 5, None, None, false, None, None)
+        .semantic_search("system status", 5, None, None, false, None, None, false)
         .await
         .expect("Search failed");
 
@@ -298,9 +307,18 @@ async fn test_search_json_config() {
         .expect("Failed to add chunks");
 
     // Search for JSON content
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("configuration database", 5, None, None, false, None, None)
+        .semantic_search(
+            "configuration database",
+            5,
+            None,
+            None,
+            false,
+            None,
+            None,
+            false,
+        )
         .await
         .expect("Search failed");
 
@@ -347,9 +365,18 @@ async fn test_multi_language_search() {
     }
 
     // Search across all languages
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let results = searcher
-        .semantic_search("function definition", 10, None, None, false, None, None)
+        .semantic_search(
+            "function definition",
+            10,
+            None,
+            None,
+            false,
+            None,
+            None,
+            false,
+        )
         .await
         .expect("Search failed");
 
@@ -500,7 +527,7 @@ async fn test_lancedb_filename_index() {
         .expect("Failed to create filename index");
 
     // Verify index improves filtered search performance
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
 
     // Search with extension filter (should use index)
     let results = searcher
@@ -512,6 +539,7 @@ async fn test_lancedb_filename_index() {
             false,
             None,
             None,
+            false,
         )
         .await
         .expect("Filtered search failed");

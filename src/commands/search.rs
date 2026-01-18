@@ -6,9 +6,12 @@ use crate::bm25::BM25Index;
 use crate::config::AppConfig;
 use crate::core::CodeRagError;
 use crate::embedding::Embedder;
+use crate::llm::client::OllamaClient;
+use crate::llm::expander::QueryExpander;
 use crate::reporting::generate_html_report;
 use crate::search::CodeSearcher;
 use crate::storage::Storage;
+use std::sync::Arc;
 
 pub struct SearchOptions {
     pub limit: Option<usize>,
@@ -19,7 +22,9 @@ pub struct SearchOptions {
     pub dir: Option<String>,
     pub no_rerank: bool,
     pub workspace: Option<String>,
+
     pub max_tokens: Option<usize>,
+    pub expand: bool,
 }
 
 pub async fn search_codebase(
@@ -36,7 +41,9 @@ pub async fn search_codebase(
         dir,
         no_rerank,
         workspace,
+
         max_tokens,
+        expand,
     } = options;
 
     let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
@@ -70,12 +77,22 @@ pub async fn search_codebase(
     let bm25_index = BM25Index::new(&actual_db, true, "log").ok();
     if bm25_index.is_none() {
         warn!("BM25 index could not be opened. Falling back to pure vector search.");
+        warn!("BM25 index could not be opened. Falling back to pure vector search.");
     }
+
+    // Initialize Query Expander (Optional)
+    let expander = if config.llm_enabled {
+        let client = OllamaClient::new(&config.llm_host, &config.llm_model);
+        Some(Arc::new(QueryExpander::new(Arc::new(client))))
+    } else {
+        None
+    };
 
     let mut searcher = CodeSearcher::new(
         Some(storage),
         Some(embedder),
         bm25_index,
+        expander,
         config.vector_weight,
         config.bm25_weight,
         config.rrf_k as f64,
@@ -94,6 +111,7 @@ pub async fn search_codebase(
             no_rerank,
             workspace,
             max_tokens,
+            expand,
         )
         .await
         .map_err(|e| CodeRagError::Search(e.to_string()))?;
@@ -135,6 +153,7 @@ pub async fn search_codebase(
 
 pub fn grep_codebase(pattern: String, json: bool, config: &AppConfig) -> Result<(), CodeRagError> {
     let searcher = CodeSearcher::new(
+        None,
         None,
         None,
         None,

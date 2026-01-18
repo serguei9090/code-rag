@@ -13,16 +13,26 @@ use crate::embedding::Embedder;
 use crate::indexer::CodeChunker;
 use crate::storage::Storage;
 
-pub async fn index_codebase(
-    path: Option<String>,
-    db_path: Option<String>,
-    update: bool,
-    force: bool,
-    workspace: &str,
-    config: &AppConfig,
-) -> Result<(), CodeRagError> {
-    let actual_path = path.unwrap_or_else(|| config.default_index_path.clone());
-    let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
+pub struct IndexOptions {
+    pub path: Option<String>,
+    pub db_path: Option<String>,
+    pub update: bool,
+    pub force: bool,
+    pub workspace: String,
+    pub batch_size: Option<usize>,
+    pub threads: Option<usize>,
+}
+
+pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result<(), CodeRagError> {
+    let actual_path = options
+        .path
+        .unwrap_or_else(|| config.default_index_path.clone());
+    let actual_db = options.db_path.unwrap_or_else(|| config.db_path.clone());
+
+    let force = options.force;
+    let update = options.update;
+    let workspace = options.workspace;
+    let batch_size = options.batch_size;
 
     if force {
         info!("Force flag set. Removing database at: {}", actual_db);
@@ -136,6 +146,8 @@ pub async fn index_codebase(
     };
 
     let mut chunks_buffer = Vec::new();
+    let batch_size_val = batch_size.unwrap_or(256);
+    tracing::info!("Using batch size: {}", batch_size_val);
 
     for entry in entries {
         let file_path = entry.path();
@@ -165,7 +177,7 @@ pub async fn index_codebase(
                     if *stored_mtime == mtime {
                         continue; // Unchanged
                     }
-                    if let Err(e) = storage.delete_file_chunks(&fname_str, workspace).await {
+                    if let Err(e) = storage.delete_file_chunks(&fname_str, &workspace).await {
                         warn!("Error deleting old chunks for {}: {}", fname_str, e);
                     }
                     if let Err(e) = bm25_index.delete_file(&fname_str) {
@@ -180,14 +192,15 @@ pub async fn index_codebase(
             }
         }
 
-        if chunks_buffer.len() >= 256 {
+        if chunks_buffer.len() >= batch_size_val {
             process_batch(
                 &mut chunks_buffer,
                 &mut embedder,
                 &storage,
                 &bm25_index,
                 &pb_index,
-                workspace,
+                &workspace,
+                batch_size_val,
             )
             .await?;
         }
@@ -200,7 +213,8 @@ pub async fn index_codebase(
             &storage,
             &bm25_index,
             &pb_index,
-            workspace,
+            &workspace,
+            batch_size_val,
         )
         .await?;
     }
@@ -222,11 +236,12 @@ async fn process_batch(
     bm25_index: &BM25Index,
     pb: &ProgressBar,
     workspace: &str,
+    batch_size: usize,
 ) -> Result<(), CodeRagError> {
     pb.set_message("Embedding batch...");
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
 
-    match embedder.embed(texts, Some(256)) {
+    match embedder.embed(texts, Some(batch_size)) {
         Ok(embeddings) => {
             let ids: Vec<String> = chunks
                 .iter()

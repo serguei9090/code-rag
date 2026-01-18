@@ -25,6 +25,7 @@ metal = ["fastembed/metal"]
 
 [dependencies]
 arrow-array = "56.2.0"
+async-trait = "0.1"
 arrow-schema = "56.2.0"
 clap = { version = "4.5.54", features = ["derive"] }
 fastembed = "5.8.0"
@@ -96,6 +97,8 @@ opentelemetry-otlp = { version = "0.15", features = [
 tracing-opentelemetry = "0.23"
 opentelemetry-prometheus = "0.15"
 prometheus = "0.13"
+ollama-rs = "0.2"
+url = "2.5.8"
 
 [dev-dependencies]
 http-body-util = "0.1.3"

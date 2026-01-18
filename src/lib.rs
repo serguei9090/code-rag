@@ -5,6 +5,7 @@ pub mod context;
 pub mod core;
 pub mod embedding;
 pub mod indexer;
+pub mod llm;
 pub mod ops;
 pub mod reporting;
 pub mod search;

@@ -5,6 +5,9 @@ use code_rag::commands::{index, search, serve, watch};
 use code_rag::config::AppConfig;
 use code_rag::telemetry::{init_telemetry, AppMode};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -39,6 +42,18 @@ enum Commands {
         /// Device to use (auto, cpu, cuda, metal)
         #[arg(long)]
         device: Option<String>,
+
+        /// Processing batch size (default: 256)
+        #[arg(long)]
+        batch_size: Option<usize>,
+
+        /// Max number of threads
+        #[arg(long)]
+        threads: Option<usize>,
+
+        /// Process priority (low, normal, high)
+        #[arg(long)]
+        priority: Option<String>,
     },
     /// Search the indexed codebase
     Search {
@@ -80,6 +95,10 @@ enum Commands {
         /// Device to use (auto, cpu, cuda, metal)
         #[arg(long)]
         device: Option<String>,
+
+        /// Expand query using local LLM
+        #[arg(long)]
+        expand: bool,
     },
     /// Grep search (regex)
     Grep {
@@ -142,12 +161,48 @@ async fn main() -> anyhow::Result<()> {
             force,
             workspace,
             device,
+            batch_size,
+            threads,
+            priority,
         } => {
             let mut config = config.clone();
             if let Some(d) = device {
                 config.device = d;
             }
-            index::index_codebase(path, None, update, force, &workspace, &config).await?;
+            if let Some(p) = priority {
+                config.priority = p;
+            }
+            if let Some(t) = threads {
+                tracing::warn!(
+                    "Thread limit {} requested but not yet implemented - using default thread pool",
+                    t
+                );
+                config.threads = Some(t);
+            }
+            if let Some(bs) = batch_size {
+                config.batch_size = bs;
+            }
+
+            // Apply process priority
+            // NOTE: `apply_process_priority` is not defined in the provided context.
+            // Assuming it's a function that needs to be implemented or imported.
+            // For now, it will cause a compilation error if not present.
+            // Apply process priority
+            apply_process_priority(&config.priority);
+
+            index::index_codebase(
+                index::IndexOptions {
+                    path,
+                    db_path: None,
+                    update,
+                    force,
+                    workspace,
+                    batch_size: Some(config.batch_size),
+                    threads: config.threads,
+                },
+                &config,
+            )
+            .await?;
         }
         Commands::Search {
             query,
@@ -160,6 +215,7 @@ async fn main() -> anyhow::Result<()> {
             workspace,
             max_tokens,
             device,
+            expand,
         } => {
             let mut config = config.clone();
             if let Some(d) = device {
@@ -174,7 +230,9 @@ async fn main() -> anyhow::Result<()> {
                 dir,
                 no_rerank,
                 workspace: Some(workspace),
+
                 max_tokens,
+                expand,
             };
             search::search_codebase(query, options, &config).await?;
         }
@@ -191,3 +249,85 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+fn apply_process_priority(priority: &str) {
+    let p_lower = priority.to_lowercase();
+    match p_lower.as_str() {
+        "normal" => {
+            // Default, do nothing usually
+        }
+        "low" => {
+            tracing::info!("Setting process priority to LOW");
+            set_priority_low();
+        }
+        "high" => {
+            tracing::info!("Setting process priority to HIGH");
+            set_priority_high();
+        }
+        _ => {
+            tracing::warn!(
+                "Unknown priority '{}'. Use 'low', 'normal', or 'high'.",
+                priority
+            );
+        }
+    }
+}
+
+#[cfg(windows)]
+fn set_priority_low() {
+    // It's hard to change OWN priority without bindings.
+    // Hack: We can't easily change it without `winapi` or `windows-sys` crate.
+    // However, we can warn user:
+    // tracing::warn!("Priority setting on Windows requires 'winapi' dependency. Skipping.");
+
+    // Better: Use a simple Powershell command to set own priority?
+    // powershell -Command "$process = Get-Process -Id $PID; $process.PriorityClass = 'BelowNormal'"
+    let pid = std::process::id();
+    let _ = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "$process = Get-Process -Id {}; $process.PriorityClass = 'BelowNormal'",
+                pid
+            ),
+        ])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .output();
+}
+
+#[cfg(windows)]
+fn set_priority_high() {
+    let pid = std::process::id();
+    let _ = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "$process = Get-Process -Id {}; $process.PriorityClass = 'AboveNormal'",
+                pid
+            ),
+        ])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .output();
+}
+
+#[cfg(unix)]
+fn set_priority_low() {
+    // raw syscall or 'nice' command?
+    // calling `nice` externally on self is tricky.
+    // unsafe { libc::nice(10) };
+    // Since we don't want to add libc dep just for this if we can avoid it...
+    // But we probably don't have libc dep.
+    tracing::warn!("Priority setting on Unix not fully implemented without libc.");
+}
+
+#[cfg(unix)]
+fn set_priority_high() {
+    tracing::warn!("Priority setting on Unix not fully implemented without libc.");
+}
+
+#[cfg(not(any(windows, unix)))]
+fn set_priority_low() {}
+#[cfg(not(any(windows, unix)))]
+fn set_priority_high() {}

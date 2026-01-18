@@ -85,14 +85,18 @@ impl Embedder {
                 }
             }
             "cpu" => vec![CPUExecutionProvider::default().build()],
-            "auto" | _ => {
-                let mut p = Vec::new();
-                #[cfg(feature = "cuda")]
-                p.push(CUDAExecutionProvider::default().build());
-                #[cfg(feature = "metal")]
-                p.push(CoreMLExecutionProvider::default().build());
-                p.push(CPUExecutionProvider::default().build());
-                p
+            // Default to auto (try all available providers)
+            _ => {
+                #[allow(clippy::vec_init_then_push)]
+                {
+                    let mut p = Vec::new();
+                    #[cfg(feature = "cuda")]
+                    p.push(CUDAExecutionProvider::default().build());
+                    #[cfg(feature = "metal")]
+                    p.push(CoreMLExecutionProvider::default().build());
+                    p.push(CPUExecutionProvider::default().build());
+                    p
+                }
             }
         };
         tracing::info!("Requested Execution Providers: {:?}", providers);
@@ -230,6 +234,16 @@ impl Embedder {
         top_k: usize,
     ) -> Result<Vec<(usize, f32)>> {
         if let Some(reranker) = &mut self.reranker {
+            if query.trim().is_empty() {
+                return Ok(vec![]);
+            }
+            if documents.is_empty() {
+                return Ok(vec![]);
+            }
+            if top_k == 0 {
+                return Ok(vec![]);
+            }
+
             let doc_refs: Vec<&str> = documents.iter().map(|s| s.as_str()).collect();
             let results = reranker.rerank(query, doc_refs, true, Some(top_k))?;
             Ok(results.into_iter().map(|r| (r.index, r.score)).collect())

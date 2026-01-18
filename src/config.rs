@@ -27,6 +27,12 @@ pub struct AppConfig {
     pub telemetry_enabled: bool,
     pub telemetry_endpoint: String,
     pub device: String, // "auto", "cpu", "cuda", "metal"
+    pub batch_size: usize,
+    pub threads: Option<usize>,
+    pub priority: String, // "low", "normal", "high"
+    pub llm_enabled: bool,
+    pub llm_model: String,
+    pub llm_host: String,
 }
 
 impl AppConfig {
@@ -57,7 +63,12 @@ impl AppConfig {
             .set_default("merge_policy", "log")?
             .set_default("telemetry_enabled", false)?
             .set_default("telemetry_endpoint", "http://localhost:4317")?
-            .set_default("device", "auto")?;
+            .set_default("device", "auto")?
+            .set_default("batch_size", 256)?
+            .set_default("priority", "normal")?
+            .set_default("llm_enabled", false)?
+            .set_default("llm_model", "mistral")?
+            .set_default("llm_host", "http://localhost:11434")?;
 
         if include_files {
             // 1. File: ~/.config/code-rag/config_rag.toml (User Config)

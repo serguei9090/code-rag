@@ -15,7 +15,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn test_health_check() {
     let (storage, embedder, _, db_path) = setup_test_env("health_check").await;
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let state = AppState {
         searcher: Arc::new(Mutex::new(searcher)),
     };
@@ -59,7 +59,7 @@ async fn test_search_endpoint() {
         .expect("Add failed");
 
     // Initialize Server
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     let state = AppState {
         searcher: Arc::new(Mutex::new(searcher)),
     };
@@ -123,7 +123,7 @@ async fn test_concurrent_searches() {
         .expect("Add failed");
 
     // Initialize Server
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
     // Use Arc<Mutex> as intended
     let state = AppState {
         searcher: Arc::new(Mutex::new(searcher)),

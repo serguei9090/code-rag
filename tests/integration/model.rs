@@ -85,11 +85,11 @@ async fn test_local_model_loading() {
         .expect("Failed to add chunks");
 
     // 4. Create Searcher
-    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, 1.0, 1.0, 60.0);
+    let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
 
     // 5. Perform a search
     let results = searcher
-        .semantic_search("hello", 1, None, None, true, None, None)
+        .semantic_search("hello", 1, None, None, true, None, None, false)
         .await
         .expect("Search failed");
 

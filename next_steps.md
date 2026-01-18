@@ -97,18 +97,35 @@ LLMs have a limited context window (e.g., 8k, 32k tokens). Searching often retur
 
 ---
 
-## Phase 3: GPU Acceleration (CUDA/Metal)
+## Phase 3.5: Resource Management & Stability [partial]
+* **Complexity:** Medium
+* **Goal:** Ensure the application respects system resources (CPU/RAM) to prevent freezing the host machine during heavy indexing.
+
+### Implementation Plan
+- [x] **Concurrency Control:**
+    -   Implement a global semaphore or `rayon` thread pool configuration to limit active indexing threads (e.g., `num_cpus - 1`).
+    -   [x] Add `--threads` CLI argument.
+- [x] **Memory Management:**
+    -   [x] Implement batch processing for embedding generation (e.g., process 10 files at a time instead of 1000).
+    -   Stream file reading instead of loading full content into RAM where possible.
+- [ ] **Throttling:**
+    -   Add process priority adjustments (Lower priority on Windows/Linux) for background tasks.
+    -   Implement "Nice" mode for `index` command.
+
+---
+
+## Phase 4: GPU Acceleration & Build Infrastructure [done]
 * **Complexity:** High (Build Engineering)
 * **Goal:** Speed up embedding generation for massive codebases (>1M LOC).
 
 ### Implementation Plan
-- [ ] **Feature Flags:** Add `cuda` and `metal` features.
-- [ ] **Build Pipeline:** Dockerfiles/Scripts for GPU builds.
-- [ ] **Runtime Detection:** Auto-select fastest provider.
+- [x] **Feature Flags:** Add `cuda` and `metal` features.
+- [x] **Build Pipeline:** Dockerfiles/Scripts for GPU builds.
+- [x] **Runtime Detection:** Auto-select fastest provider.
 
 ---
 
-## Phase 4: Query Expansion (Local LLM)
+## Phase 5: Query Expansion (Local LLM)
 * **Complexity:** High (AI Integration)
 * **Goal:** Solve "vocabulary mismatch" (User says "auth", Code says "identity").
 
@@ -119,14 +136,5 @@ LLMs have a limited context window (e.g., 8k, 32k tokens). Searching often retur
 
 ---
 
-## Phase 5: LSP Integration (Language Server Protocol)
-* **Complexity:** Very High
-* **Goal:** Embed `code-rag` directly into IDEs as a semantic engine.
-
-### Implementation Plan
-- [ ] **JSON-RPC:** Adopt `tower-lsp`.
-- [ ] **Capabilities:** `textDocument/definition`, `textDocument/codeAction`.
-
----
 
 

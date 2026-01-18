@@ -1,6 +1,8 @@
 use crate::bm25::BM25Index;
 use crate::core::CodeRagError;
 use crate::embedding::Embedder;
+use crate::llm::client::OllamaClient;
+use crate::llm::expander::QueryExpander;
 use crate::search::{CodeSearcher, SearchResult};
 use crate::storage::Storage;
 use anyhow::Result;
@@ -38,7 +40,10 @@ pub struct SearchRequest {
     pub dir: Option<String>,
     #[serde(default)]
     pub no_rerank: bool,
+
     pub max_tokens: Option<usize>,
+    #[serde(default)]
+    pub expand: bool,
 }
 
 fn default_limit() -> usize {
@@ -51,42 +56,64 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
 }
 
-pub async fn start_server(
-    host: String,
-    port: u16,
-    db_path: String,
-    embedding_model: String,
-    reranker_model: String,
-    embedding_model_path: Option<String>,
-    reranker_model_path: Option<String>,
-    device: String,
-) -> Result<()> {
-    println!("Initializing server components...");
+pub struct ServerStartConfig {
+    pub host: String,
+    pub port: u16,
+    pub db_path: String,
+    pub embedding_model: String,
+    pub reranker_model: String,
+    pub embedding_model_path: Option<String>,
+    pub reranker_model_path: Option<String>,
+    pub device: String,
+    pub llm_enabled: bool,
+    pub llm_host: String,
+    pub llm_model: String,
+}
+
+pub async fn start_server(config: ServerStartConfig) -> Result<()> {
+    info!("Initializing server components...");
 
     // 1. Init Storage
-    let storage = Storage::new(&db_path).await?;
+    let storage = Storage::new(&config.db_path).await?;
     // Ensure table exists (optional, but good safety)
     if storage.get_indexed_metadata().await.is_err() {
-        println!("Warning: Storage might not be initialized. Please run 'index' first.");
+        info!("Warning: Storage might not be initialized. Please run 'index' first.");
     }
 
     // 2. Init Embedder (with re-ranker)
     let mut embedder = Embedder::new(
-        embedding_model,
-        reranker_model,
-        embedding_model_path,
-        reranker_model_path,
-        device,
+        config.embedding_model.clone(),
+        config.reranker_model.clone(),
+        config.embedding_model_path,
+        config.reranker_model_path,
+        config.device.clone(),
     )?;
     embedder.init_reranker()?; // Pre-load re-ranker
 
     // 3. Create Searcher
-    // 3. Create Searcher
-    let bm25_index = BM25Index::new(&db_path, true, "log").ok();
+    let bm25_index = BM25Index::new(&config.db_path, true, "log").ok();
     if bm25_index.is_none() {
-        println!("Warning: BM25 index could not be opened. Falling back to pure vector search.");
+        info!("Warning: BM25 index could not be opened. Falling back to pure vector search.");
     }
-    let searcher = CodeSearcher::new(Some(storage), Some(embedder), bm25_index, 1.0, 1.0, 60.0);
+
+    let expander = if config.llm_enabled {
+        let client = OllamaClient::new(&config.llm_host, &config.llm_model);
+        Some(Arc::new(QueryExpander::new(
+            Arc::new(client) as Arc<dyn crate::llm::client::LlmClient + Send + Sync>
+        )))
+    } else {
+        None
+    };
+
+    let searcher = CodeSearcher::new(
+        Some(storage),
+        Some(embedder),
+        bm25_index,
+        expander,
+        1.0,
+        1.0,
+        60.0,
+    );
     let state = AppState {
         searcher: Arc::new(Mutex::new(searcher)),
     };
@@ -95,8 +122,8 @@ pub async fn start_server(
     let app = create_router(state);
 
     // 5. Run
-    let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
-    println!("Server running on http://{}", addr);
+    let addr: SocketAddr = format!("{}:{}", config.host, config.port).parse()?;
+    info!("Server listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -159,7 +186,9 @@ async fn search_handler(
         limit = payload.limit,
         ext = ?payload.ext,
         dir = ?payload.dir,
+
         no_rerank = payload.no_rerank,
+        expand = payload.expand,
         "Handling search request"
     );
 
@@ -172,6 +201,7 @@ async fn search_handler(
             payload.no_rerank,
             None, // workspace (default/global for none)
             payload.max_tokens,
+            payload.expand,
         )
         .await
     {

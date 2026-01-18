@@ -15,16 +15,19 @@ pub async fn serve_api(
     let actual_host = host.unwrap_or_else(|| config.server_host.clone());
 
     info!("Starting server at {}:{}", actual_host, actual_port);
-    start_server(
-        actual_host,
-        actual_port,
-        actual_db,
-        config.embedding_model.clone(),
-        config.reranker_model.clone(),
-        config.embedding_model_path.clone(),
-        config.reranker_model_path.clone(),
-        config.device.clone(),
-    )
+    start_server(crate::server::ServerStartConfig {
+        host: actual_host,
+        port: actual_port,
+        db_path: actual_db,
+        embedding_model: config.embedding_model.clone(),
+        reranker_model: config.reranker_model.clone(),
+        embedding_model_path: config.embedding_model_path.clone(),
+        reranker_model_path: config.reranker_model_path.clone(),
+        device: config.device.clone(),
+        llm_enabled: config.llm_enabled,
+        llm_host: config.llm_host.clone(),
+        llm_model: config.llm_model.clone(),
+    })
     .await
     .map_err(|e| CodeRagError::Server(e.to_string()))?;
 

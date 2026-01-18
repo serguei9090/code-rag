@@ -43,4 +43,7 @@ Use when iterating quickly.
 Commands:
 ```sh
 cargo fmt
-cargo clippy --all-targets --all-features -- -D warnings
+echo  (standard check).
+cargo clippy --all-targets -- -D warnings 
+echo If you have CUDA, run
+cargo clippy --all-targets --features cuda -- -D warnings

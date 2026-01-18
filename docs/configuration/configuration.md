@@ -25,6 +25,12 @@ db_path = './.lancedb'
 # Default path to index when no argument is provided
 default_index_path = '.'
 
+# Resource Management
+# Reduce batch size if experiencing OOM issues
+batch_size = 100
+# Run indexing with lower system priority
+priority = 'normal'
+
 # Optional: List of additional file extensions to index
 # (Currently not implemented, reserved for future use)
 # extensions = ['rs', 'py', 'js', 'ts']
@@ -147,7 +153,28 @@ code-rag index ./repo --force
 code-rag search "security vulnerabilities" --html
 ```
 
+
+## Resource Management
+
+You can control resource usage (CPU/RAM/Priority) using the following settings.
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `batch_size` | usize | Number of files to process in a single batch during embedding. Lower values reduce peak RAM usage. | `256` |
+| `threads` | usize | **Experimental:** Maximum number of threads to use for parallel processing. Currently usage emits a warning. | `null` (Auto) |
+| `priority` | string | Process priority class. Options: `low`, `normal`, `high`. Useful for running background indexing without impacting system responsiveness. | `normal` |
+
+Example:
+```toml
+# Reduce RAM usage
+batch_size = 50
+
+# Run in background with low priority
+priority = "low"
+```
+
 ## Troubleshooting
+
 
 ### "TOML parse error"
 - Check for unescaped backslashes in paths

@@ -239,6 +239,26 @@ code-rag search "where is the database initialized?"
 code-rag search "how embeddings are generated" --limit 5
 ```
 
+## ⚖️ Resource Management
+
+Control how `code-rag` uses system resources during indexing.
+
+### CLI Arguments
+```bash
+# Low priority to avoid slowing down your PC
+code-rag index . --priority low
+
+# Smaller batches to save RAM
+code-rag index . --batch-size 50
+```
+
+### Configuration
+You can also set these in `config_rag.toml`:
+```toml
+priority = 'low'
+batch_size = 100
+```
+
 ## ⚙️ Build
 
 ### Windows
