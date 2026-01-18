@@ -329,7 +329,8 @@ graph LR
 - Local-first indexing and search
 - Multi-language support
 - Semantic chunking with Tree-sitter
-- Streaming file processing (Low memory usage)
+- **Model Context Protocol (MCP)**: Native support for MCP, allowing integration with AI assistants like Claude Desktop.
+- **Streaming Indexing**: Low-memory footprint file processing.
 
 ### ✅ Phase 2: Programmatic Access (Complete)
 - JSON output mode for CI/CD integration

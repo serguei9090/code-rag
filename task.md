@@ -9,14 +9,14 @@
     - [x] Create proper tests for the implemented features.
 - [x] Update `README.md` and documentation (architecture, features).
 
-## Phase 2: Native Model Context Protocol (MCP) Support
-- [ ] Add `serde_json-rpc` and `tokio-util` dependencies
-- [ ] Create `src/commands/mcp.rs`
-- [ ] Implement JSON-RPC handlers (`initialize`, `resources/list`, `tools/list`, `tools/call`)
-- [ ] Update `src/main.rs` to include `mcp` subcommand
-- [ ] Verify with MCP Inspector
-- [ ] Update Documentation
-- [ ] Update README.md
+## **Phase 2: Native Model Context Protocol (MCP) Support** [x]
+- [x] Add `serde_json-rpc` (or manual JSON-RPC implementation) and `tokio-util` dependencies.
+- [x] Create `src/commands/mcp.rs` implementing the MCP server loop over stdio.
+- [x] Implement MCP handlers: `initialize`, `resources/list`, `tools/list`, `tools/call` (wrapping `search` command).
+- [x] Update `src/main.rs` to expose `code-rag mcp` subcommand.
+- [x] Verify with an MCP Inspector (via automated integration test).
+- [x] Update Documentation
+- [x] Update README.md
 
 ## Phase 3: Multi-Workspace Isolation (Server)
 - [ ] Implement `WorkspaceManager` in `src/server.rs`

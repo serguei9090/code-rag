@@ -182,3 +182,47 @@ pub fn grep_codebase(pattern: String, json: bool, config: &AppConfig) -> Result<
 
     Ok(())
 }
+
+/// Helper to create a CodeSearcher instance for API/MCP usage.
+/// This skips the CLI spinners/logging but performs the same initialization.
+pub async fn create_searcher(
+    db_path: Option<String>,
+    config: &AppConfig,
+) -> Result<CodeSearcher, CodeRagError> {
+    let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
+
+    let storage = Storage::new(&actual_db)
+        .await
+        .map_err(|e| CodeRagError::Database(e.to_string()))?;
+
+    // Use quiet mode for Embedder to avoid polluting stdout/logs too much
+    let embedder = Embedder::new_with_quiet(
+        true,
+        config.embedding_model.clone(),
+        config.reranker_model.clone(),
+        config.embedding_model_path.clone(),
+        config.reranker_model_path.clone(),
+        config.device.clone(),
+    )?;
+
+    let bm25_index = BM25Index::new(&actual_db, true, "log").ok();
+
+    let expander = if config.llm_enabled {
+        let client = crate::llm::client::OllamaClient::new(&config.llm_host, &config.llm_model);
+        Some(std::sync::Arc::new(
+            crate::llm::expander::QueryExpander::new(std::sync::Arc::new(client)),
+        ))
+    } else {
+        None
+    };
+
+    Ok(CodeSearcher::new(
+        Some(storage),
+        Some(embedder),
+        bm25_index,
+        expander,
+        config.vector_weight,
+        config.bm25_weight,
+        config.rrf_k as f64,
+    ))
+}

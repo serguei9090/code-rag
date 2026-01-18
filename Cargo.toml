@@ -99,6 +99,7 @@ opentelemetry-prometheus = "0.15"
 prometheus = "0.13"
 ollama-rs = "0.2"
 url = "2.5.8"
+tokio-util = { version = "0.7.18", features = ["codec", "io"] }
 
 [dev-dependencies]
 http-body-util = "0.1.3"

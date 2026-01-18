@@ -129,6 +129,8 @@ enum Commands {
         #[arg(short, long, default_value = "default")]
         workspace: String,
     },
+    /// Start the Model Context Protocol (MCP) server
+    Mcp,
 }
 
 #[tokio::main]
@@ -244,6 +246,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Watch { path, workspace } => {
             watch::watch_codebase(path, None, workspace, &config).await?;
+        }
+        Commands::Mcp => {
+            code_rag::commands::mcp::run(&config).await?;
         }
     }
 

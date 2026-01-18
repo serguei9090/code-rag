@@ -1,0 +1,143 @@
+warning: unused import: `warn`
+ --> src\commands\mcp.rs:8:28
+  |
+8 | use tracing::{error, info, warn};
+  |                            ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `code-rag` (lib) generated 1 warning (run `cargo fix --lib -p code-rag` to apply 1 suggestion)
+    Checking code-rag v0.1.0 (I:\01-Master_Code\Test-Labs\code-rag)
+warning: use of deprecated associated function `assert_cmd::Command::cargo_bin`: incompatible with a custom cargo build-dir, see instead `cargo::cargo_bin_cmd!`
+ --> tests\integration\mcp_test.rs:8:28
+  |
+8 |     let mut cmd = Command::cargo_bin("code-rag").unwrap();
+  |                            ^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+error[E0599]: no method named `stdin` found for mutable reference `&mut assert_cmd::Command` in the current scope
+  --> tests\integration\mcp_test.rs:11:10
+   |
+ 9 |       let mut child = cmd
+   |  _____________________-
+10 | |         .arg("mcp")
+11 | |         .stdin(Stdio::piped())
+   | |         -^^^^^ private field, not a method
+   | |_________|
+   |
+   |
+help: there is a method `pipe_stdin` with a similar name
+   |
+11 |         .pipe_stdin(Stdio::piped())
+   |          +++++
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:122:9
+    |
+122 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:180:9
+    |
+180 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:227:9
+    |
+227 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:245:19
+    |
+245 |     let (storage, mut embedder, chunker, db_path) = setup_test_env("ps_search").await;
+    |                   ----^^^^^^^^
+    |                   |
+    |                   help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:278:9
+    |
+278 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:295:19
+    |
+295 |     let (storage, mut embedder, chunker, db_path) = setup_test_env("json_search").await;
+    |                   ----^^^^^^^^
+    |                   |
+    |                   help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:328:9
+    |
+328 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:351:19
+    |
+351 |     let (storage, mut embedder, chunker, db_path) = setup_test_env("multi_lang_search").await;
+    |                   ----^^^^^^^^
+    |                   |
+    |                   help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:389:9
+    |
+389 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:519:19
+    |
+519 |     let (storage, mut embedder, chunker, db_path) = setup_test_env("index_verification").await;
+    |                   ----^^^^^^^^
+    |                   |
+    |                   help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:556:9
+    |
+556 |     let mut searcher = CodeSearcher::new(Some(storage), Some(embedder), None, None, 1.0, 1.0, 60.0);
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> tests\integration\model.rs:44:9
+   |
+44 |     let mut embedder = Embedder::new(
+   |         ----^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\server.rs:110:19
+    |
+110 |     let (storage, mut embedder, chunker, db_path) = setup_test_env("server_stress").await;
+    |                   ----^^^^^^^^
+    |                   |
+    |                   help: remove this `mut`
+
+For more information about this error, try `rustc --explain E0599`.
+warning: `code-rag` (test "integration") generated 14 warnings
+error: could not compile `code-rag` (test "integration") due to 1 previous error; 14 warnings emitted
