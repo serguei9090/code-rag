@@ -93,7 +93,7 @@ impl ContextOptimizer {
 
         // 3. Knapsack / Budgeting
         // Sort by max_score (prioritize keeping the most relevant bits)
-        all_merged.sort_by(|a, b| b.max_score.partial_cmp(&a.max_score).unwrap());
+        all_merged.sort_by(|a, b| b.max_score.total_cmp(&a.max_score));
 
         let mut final_selection = Vec::new();
         let mut current_tokens = 0;

@@ -457,7 +457,7 @@ mod tests {
             },
         ];
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| b.score.total_cmp(&a.score));
 
         assert_eq!(results[0].filename, "B"); // 0.9
         assert_eq!(results[1].filename, "C"); // 0.5

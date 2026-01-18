@@ -222,10 +222,14 @@ impl Storage {
                 })?
                 .as_any()
                 .downcast_ref()
-                .unwrap();
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Failed to downcast filename column to StringArray")
+                })?;
 
             if let Some(col) = batch.column_by_name("last_modified") {
-                let mtimes: &Int64Array = col.as_any().downcast_ref().unwrap();
+                let mtimes: &Int64Array = col.as_any().downcast_ref().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to downcast last_modified column to Int64Array")
+                })?;
                 for i in 0..batch.num_rows() {
                     let fname = filenames.value(i).to_string();
                     let mtime = mtimes.value(i);

@@ -76,7 +76,11 @@ pub mod mocks {
     #[async_trait]
     impl LlmClient for MockLlmClient {
         async fn generate(&self, _prompt: &str) -> Result<String> {
-            Ok(self.response.lock().unwrap().clone())
+            Ok(self
+                .response
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Mutex lock poisoned: {}", e))?
+                .clone())
         }
     }
 }

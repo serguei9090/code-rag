@@ -160,7 +160,10 @@ impl BM25Index {
         let mut writer = writer_arc
             .lock()
             .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
-        let filename_field = self.schema.get_field("filename").expect("Schema invalid");
+        let filename_field = self
+            .schema
+            .get_field("filename")
+            .map_err(|e| anyhow::anyhow!("Schema error for 'filename': {}", e))?;
         // Since 'filename' is STRING (not analyzed), we can delete by exact match term
         writer.delete_term(Term::from_field_text(filename_field, filename));
         writer.commit()?;
