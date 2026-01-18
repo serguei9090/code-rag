@@ -1,6 +1,6 @@
 use crate::indexer::CodeChunk;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use std::fs;
 use std::path::Path;
@@ -110,7 +110,7 @@ impl BM25Index {
                     Some(Arc::new(Mutex::new(w)))
                 }
                 Err(e) => {
-                    return Err(anyhow::anyhow!(e));
+                    return Err(anyhow!(e));
                 }
             }
         };
@@ -189,18 +189,19 @@ impl BM25Index {
     }
 
     /// Deletes all indexed chunks from a specific file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the index is read-only or if the commit fails.
     pub fn delete_file(&self, filename: &str) -> Result<()> {
-        let writer_arc = self
-            .writer
-            .as_ref()
-            .ok_or(anyhow::anyhow!("Index is read-only"))?;
+        let writer_arc = self.writer.as_ref().ok_or(anyhow!("Index is read-only"))?;
         let mut writer = writer_arc
             .lock()
-            .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
         let filename_field = self
             .schema
             .get_field("filename")
-            .map_err(|e| anyhow::anyhow!("Schema error for 'filename': {}", e))?;
+            .map_err(|e| anyhow!("Schema error for 'filename': {}", e))?;
         // Since 'filename' is STRING (not analyzed), we can delete by exact match term
         writer.delete_term(Term::from_field_text(filename_field, filename));
         writer.commit()?;

@@ -27,8 +27,9 @@ impl OllamaClient {
         // Let's stick to default initialization if host is standard,
         // or parse the config `llm_host`.
 
-        let url = url::Url::parse(host)
-            .unwrap_or_else(|_| url::Url::parse("http://localhost:11434").unwrap());
+        let url = url::Url::parse(host).unwrap_or_else(|_| {
+            url::Url::parse("http://localhost:11434").expect("Hardcoded default URL must be valid")
+        });
         let host_str = url.host_str().unwrap_or("localhost").to_string();
         let port = url.port().unwrap_or(11434);
 

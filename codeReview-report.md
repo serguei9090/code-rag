@@ -18,22 +18,26 @@ The codebase demonstrates solid architecture with proper separation of concerns 
 
 **Areas for Improvement**:
 - Critical: Multiple `.unwrap()` calls in library code
-- Error handling needs improvement in several modules
-- Missing or incomplete documentation on public APIs
-- Some performance optimization opportunities
+- High: Context optimization metadata loss
+- Medium: Non-batched embedding operations during search
+- Medium: Redundant deletions and commit overhead in BM25
+- Medium: Quiet mode side-effects on reranker initialization
+- Low: Storage schema re-creation and redundant table opening
+- Low: Missing or incomplete documentation on public APIs
 
 ---
 
 ## Prioritized Recommendations
 
 1. **[CRITICAL]** Replace all `.unwrap()` calls in library code with proper error handling
-2. **[HIGH]** Fix `.expect()` usage in `bm25.rs` library code (line 163)
-3. **[HIGH]** Remove `.unwrap()` calls in `storage.rs` (lines 225, 228)
-4. **[HIGH]** Fix Mutex lock `.unwrap()` in `llm/client.rs`
-5. **[MEDIUM]** Improve `partial_cmp().unwrap()` safety in sorting operations
-6. **[MEDIUM]** Add documentation to public structs and methods
-7. **[LOW]** Consider pre-allocating vectors where size is known
-8. **[LOW]** Review error message clarity and context
+2. **[HIGH]** Fix metadata loss in `ContextOptimizer` (ensure `MergedChunk` preserves tags/calls)
+3. **[HIGH]** Implement batched embeddings in `semantic_search` to avoid O(N) model calls
+4. **[HIGH]** Fix functional side-effect of `quiet` mode on reranker initialization
+5. **[MEDIUM]** Optimize BM25 indexing (reduce redundant deletions and commit frequency)
+6. **[MEDIUM]** Refactor `Storage` to avoid redundant schema re-creation and table openings
+7. **[MEDIUM]** Add documentation to public structs and methods
+8. **[LOW]** Consider pre-allocating vectors where size is known
+9. **[LOW]** Review error message clarity and context
 
 ---
 
@@ -328,42 +332,88 @@ Commented code can accumulate technical debt. If the feature isn't needed, remov
 
 ---
 
+---
+
+### **[LOGIC - HIGH]** - Metadata Loss in Context Optimization
+
+**Issue**:
+`context.rs` defines `MergedChunk` which only preserves `filename`, `line_start`, `line_end`, `code`, and `scores`. It omits `tags`, `calls`, and `last_modified` metadata found in the original `SearchResult`.
+
+**Impact**:
+Upstream consumers (like an LLM or UI) lose critical context about what the code does (tags/calls) and how fresh it is.
+
+**Suggested Improvement**:
+Update `MergedChunk` to include these fields and ensure `ContextOptimizer::optimize` correctly propagates them from the `SearchResult` objects.
+
+---
+
+### **[PERFORMANCE - HIGH]** - Non-Batched Embedding in Search
+
+**Issue**:
+In `search.rs::semantic_search`, when query expansion is enabled, individual queries are embedded one-by-one in a loop.
+
+**Impact**:
+Significant latency overhead, especially on GPUs where batching is much more efficient. Each embedding call involves overhead that is amortized over a batch.
+
+**Suggested Improvement**:
+Collect all expanded queries (plus the original) and call `embedder.embed(all_queries, None)` in a single batch operation.
+
+---
+
+### **[LOGIC - HIGH]** - Quiet Mode Disables Reranker
+
+**Issue**:
+`embedding.rs` line 156 checks `if !quiet` before initializing the reranker.
+
+**Impact**:
+If a user runs `code-rag` with `--quiet`, the reranker is never initialized, and semantic search fails to provide re-ranked results. `quiet` should only affect logging/visual output.
+
+**Suggested Improvement**:
+Decouple reranker initialization from the `quiet` flag.
+
+---
+
+### **[PERFORMANCE - MEDIUM]** - Redundant BM25 Operations
+
+**Issue**:
+`BM25Index::add_chunks` calls `delete_term` for every chunk and `commit` after every batch.
+
+**Impact**:
+If the indexer already calls `delete_file`, the per-chunk deletion is redundant. Frequent commits can be slow on disk I/O.
+
+**Suggested Improvement**:
+Batch deletions or rely on file-level deletions. Optimize commit frequency if possible.
+
+---
+
+### **[PERFORMANCE - LOW]** - Storage Redundancy
+
+**Issue**:
+`Storage::add_chunks` re-creates the Arrow `Schema` and opens the table twice.
+
+**Impact**:
+Small performance overhead during indexing.
+
+**Suggested Improvement**:
+Cache the schema or make it a constant. Open the table once at the start of the method.
+
+---
+
 ## Summary Statistics
 
-- **Total `.unwrap()` calls in src/**: 27
-  - Library code (must fix): 7
-  - Test code (acceptable): 20
-  
-- **Total `.expect()` calls in src/**: 3
-  - Library code (should fix): 1
-  - Test code (acceptable): 2
-
-- **Unsafe blocks**: 1 (commented out in `main.rs`)
-
-- **Public items missing documentation**: ~15-20 estimated
+- **Safety Issues**: ~10 (unwraps/expects in libs)
+- **Logic Issues**: 3 (metadata loss, functional quiet mode, reranker EPs)
+- **Performance Issues**: 4 (batched embedding, redundancy in BM25/Storage)
 
 ---
 
 ## Recommendations for Next Steps
 
-1. **Immediate**: Fix all `.unwrap()` and `.expect()` calls in library code (non-test files)
-2. **Short-term**: Add documentation to all public APIs in core modules
-3. **Medium-term**: Run `cargo clippy --all-targets --all-features` and address warnings
-4. **Long-term**: Consider establishing a CI check for `#![deny(clippy::unwrap_used)]` in library code
+1. **Phase 1: Safety Fixes**: Address all `.unwrap()` and `.expect()` calls.
+2. **Phase 2: Logic Fixes**: Address metadata loss and reranker initialization logic.
+3. **Phase 3: Performance**: Implement batching and reduce redundant DB operations.
+4. **Phase 4: Documentation**: Add missing `///` comments.
 
 ---
 
-## Positive Observations
-
-- ✅ Excellent use of `Result<T>` for error propagation in most places
-- ✅ Recent workspace isolation implementation is clean and well-structured
-- ✅ Good separation of async/sync code
-- ✅ Comprehensive property-based testing shows quality mindset
-- ✅ Consistent use of `anyhow` for error handling
-- ✅ Proper Mutex usage overall (one unwrap exception noted)
-
----
-
-**Overall Grade**: B+ (would be A- after addressing critical safety issues)
-
-The codebase is well-architected and demonstrates strong Rust fundamentals. Addressing the critical `.unwrap()` issues will significantly improve robustness and bring the code in line with Rust best practices for production-ready libraries.
+**Overall Grade**: B (Adjusted due to newly identified logic/performance gaps)

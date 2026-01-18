@@ -11,6 +11,8 @@ pub struct MergedChunk {
     pub scores: Vec<f32>,
     pub avg_score: f32,
     pub max_score: f32,
+    pub last_modified: i64,
+    pub calls: Vec<String>,
 }
 
 pub struct ContextOptimizer {
@@ -68,6 +70,14 @@ impl ContextOptimizer {
                             curr.code.push_str(&res.code);
                             curr.scores.push(res.score);
                             curr.max_score = curr.max_score.max(res.score);
+                            curr.last_modified = curr.last_modified.max(res.last_modified);
+
+                            // Merge and deduplicate calls
+                            for call in res.calls {
+                                if !curr.calls.contains(&call) {
+                                    curr.calls.push(call);
+                                }
+                            }
 
                             // Recompute average
                             let sum: f32 = curr.scores.iter().sum();
@@ -133,6 +143,8 @@ impl ContextOptimizer {
             scores: vec![res.score],
             avg_score: res.score,
             max_score: res.score,
+            last_modified: res.last_modified,
+            calls: res.calls.clone(),
         }
     }
 }
@@ -150,7 +162,8 @@ mod tests {
             code: "fn a() {}".into(),
             line_start: 10,
             line_end: 12,
-            calls: vec![],
+            last_modified: 100,
+            calls: vec!["call1".into()],
         };
         let r2 = SearchResult {
             rank: 2,
@@ -159,7 +172,8 @@ mod tests {
             code: "fn b() {}".into(),
             line_start: 14,
             line_end: 16,
-            calls: vec![],
+            last_modified: 101,
+            calls: vec!["call2".into()],
         };
 
         let optimizer = ContextOptimizer::new(1000);
@@ -169,6 +183,9 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].start_line, 10);
         assert_eq!(merged[0].end_line, 16);
+        assert_eq!(merged[0].last_modified, 101);
+        assert!(merged[0].calls.contains(&"call1".to_string()));
+        assert!(merged[0].calls.contains(&"call2".to_string()));
     }
 
     #[test]
@@ -180,6 +197,7 @@ mod tests {
             code: "long code ".repeat(100),
             line_start: 1,
             line_end: 10,
+            last_modified: 100,
             calls: vec![],
         };
 

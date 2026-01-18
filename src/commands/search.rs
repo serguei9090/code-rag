@@ -119,7 +119,8 @@ pub async fn search_codebase(
     if json {
         println!("{}", serde_json::to_string_pretty(&search_results)?);
     } else if html {
-        let report = generate_html_report(&query, &search_results);
+        let report = generate_html_report(&query, &search_results)
+            .map_err(|e| CodeRagError::Search(e.to_string()))?;
         let report_path = "results.html";
         fs::write(report_path, report).map_err(CodeRagError::Io)?;
         println!(

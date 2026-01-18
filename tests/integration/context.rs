@@ -11,6 +11,7 @@ fn test_context_optimizer_merging() {
             code: "line1\nline2\n".to_string(),
             line_start: 10,
             line_end: 11,
+            last_modified: 0,
             calls: vec![],
         },
         // Lines 12-13
@@ -21,6 +22,7 @@ fn test_context_optimizer_merging() {
             code: "line3\nline4\n".to_string(),
             line_start: 12, // Adjacent to 11
             line_end: 13,
+            last_modified: 0,
             calls: vec![],
         },
         // Another file
@@ -31,6 +33,7 @@ fn test_context_optimizer_merging() {
             code: "other code\n".to_string(),
             line_start: 100,
             line_end: 101,
+            last_modified: 0,
             calls: vec![],
         },
     ];
@@ -66,6 +69,7 @@ fn test_context_optimizer_budgeting() {
             code: "some tokens here".to_string(),
             line_start: 1,
             line_end: 2,
+            last_modified: 0,
             calls: vec![],
         });
     }

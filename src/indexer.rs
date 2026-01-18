@@ -1,17 +1,32 @@
 use std::path::Path;
 use tree_sitter::{Language, Node, Parser};
 
+/// A single logical unit of code extracted from a source file.
+///
+/// Contains the code content along with metadata for search and context optimization.
 pub struct CodeChunk {
+    /// Source file path (normalized)
     pub filename: String,
+    /// The actual code snippet
     pub code: String,
+    /// Start line number (1-indexed)
     pub line_start: usize,
+    /// End line number (1-indexed)
     pub line_end: usize,
+    /// Last modified timestamp of the source file
     pub last_modified: i64,
+    /// List of function/method calls identified within this chunk
     pub calls: Vec<String>,
 }
 
+/// Handles the semantic chunking of source code files using Tree-sitter.
+///
+/// Supports various programming languages and applies language-specific
+/// heuristics to extract functional units (functions, classes, etc.).
 pub struct CodeChunker {
+    /// Target size for chunks in bytes (soft limit, will respect semantic boundaries)
     pub max_chunk_size: usize,
+    /// Number of bytes to overlap between adjacent chunks when splitting large blocks
     pub chunk_overlap: usize,
 }
 
@@ -69,7 +84,7 @@ impl CodeChunker {
 
         let mut parser = Parser::new();
         if parser.set_language(&language).is_err() {
-            eprintln!("ERROR: Could not set language for extension: {}", ext);
+            tracing::error!("Could not set language for extension: {}", ext);
             return vec![];
         }
 

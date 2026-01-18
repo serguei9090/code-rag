@@ -153,35 +153,25 @@ impl Embedder {
             }
         };
 
-        let rerank_init_options = if !quiet {
-            let model_enum = match reranker_model.to_lowercase().as_str() {
-                "bge-reranker-base" => RerankerModel::BGERerankerBase,
-                // "bge-reranker-v2-m3" => RerankerModel::BGERerankerV2M3, // Not verified in list
-                _ => {
-                    tracing::warn!(
-                        "Unknown reranker model '{}', defaulting to BGERerankerBase",
-                        reranker_model
-                    );
-                    RerankerModel::BGERerankerBase
-                }
-            };
-
-            let mut rerank_init_options = RerankInitOptions::default();
-            rerank_init_options.model_name = model_enum;
-            if let Some(ref path) = reranker_model_path {
-                rerank_init_options.cache_dir = PathBuf::from(path);
+        let model_enum = match reranker_model.to_lowercase().as_str() {
+            "bge-reranker-base" => RerankerModel::BGERerankerBase,
+            _ => {
+                tracing::warn!(
+                    "Unknown reranker model '{}', defaulting to BGERerankerBase",
+                    reranker_model
+                );
+                RerankerModel::BGERerankerBase
             }
-
-            Some(rerank_init_options)
-        } else {
-            None
         };
 
-        let reranker = if let Some(options) = rerank_init_options {
-            Some(TextRerank::try_new(options)?)
-        } else {
-            None
-        };
+        let mut rerank_init_options = RerankInitOptions::default();
+        rerank_init_options.model_name = model_enum;
+        rerank_init_options.show_download_progress = !quiet;
+        if let Some(ref path) = reranker_model_path {
+            rerank_init_options.cache_dir = PathBuf::from(path);
+        }
+
+        let reranker = Some(TextRerank::try_new(rerank_init_options)?);
 
         Ok(Self {
             model: std::sync::Mutex::new(model),

@@ -1,7 +1,8 @@
 use crate::search::SearchResult;
+use anyhow::{Context, Result};
 use minijinja::{context, Environment};
 
-pub fn generate_html_report(query: &str, results: &[SearchResult]) -> String {
+pub fn generate_html_report(query: &str, results: &[SearchResult]) -> Result<String> {
     let mut env = Environment::new();
 
     const TEMPLATE: &str = r#"
@@ -50,13 +51,16 @@ pub fn generate_html_report(query: &str, results: &[SearchResult]) -> String {
 </html>
     "#;
 
-    env.add_template("report", TEMPLATE).unwrap();
-    let template = env.get_template("report").unwrap();
+    env.add_template("report", TEMPLATE)
+        .context("Failed to add template to environment")?;
+    let template = env
+        .get_template("report")
+        .context("Failed to retrieve template from environment")?;
 
     template
         .render(context! {
             query => query,
             results => results,
         })
-        .unwrap_or_else(|e| format!("Error generating report: {}", e))
+        .context("Failed to render HTML report")
 }

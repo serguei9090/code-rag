@@ -3,7 +3,7 @@ use crate::embedding::Embedder;
 use crate::llm::QueryExpander;
 use crate::storage::Storage;
 use anyhow::{anyhow, Context, Result};
-use arrow_array::{Array, Int32Array, ListArray, StringArray};
+use arrow_array::{Array, Int32Array, Int64Array, ListArray, StringArray};
 use grep_regex::RegexMatcher;
 use grep_searcher::sinks::UTF8;
 use grep_searcher::Searcher;
@@ -23,6 +23,7 @@ pub struct SearchResult {
     pub code: String,
     pub line_start: i32,
     pub line_end: i32,
+    pub last_modified: i64,
     pub calls: Vec<String>,
 }
 
@@ -107,115 +108,118 @@ impl CodeSearcher {
         let mut all_vector_results: std::collections::HashMap<String, SearchResult> =
             std::collections::HashMap::new();
 
-        // Potential optimization: Parallelize this loop
-        for q in &search_queries {
-            let vectors = embedder
-                .embed(vec![q.to_string()], None)
-                .map_err(|e: fastembed::Error| anyhow!(e.to_string()))?;
+        // Batched Embedding Generation
+        let all_query_vectors = embedder
+            .embed(search_queries.clone(), None)
+            .map_err(|e: fastembed::Error| anyhow!(e.to_string()))?;
 
-            if let Some(vector) = vectors.first() {
-                let vector: Vec<f32> = vector.clone();
-
-                // Construct Filters
-                let mut filters = Vec::new();
-                if let Some(ext_val) = &ext {
-                    let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
-                        stripped
-                    } else {
-                        ext_val
-                    };
-                    filters.push(format!("filename LIKE '%.{}'", clean_ext));
-                }
-                if let Some(dir_val) = &dir {
-                    let clean_dir = dir_val.replace("\\", "/");
-                    filters.push(format!("filename LIKE '%{}%'", clean_dir));
-                }
-                let filter_str = if filters.is_empty() {
-                    None
+        for vector in all_query_vectors {
+            // Construct Filters
+            let mut filters = Vec::new();
+            if let Some(ext_val) = &ext {
+                let clean_ext = if let Some(stripped) = ext_val.strip_prefix('.') {
+                    stripped
                 } else {
-                    Some(filters.join(" AND "))
+                    ext_val
                 };
+                filters.push(format!("filename LIKE '%.{}'", clean_ext));
+            }
+            if let Some(dir_val) = &dir {
+                let clean_dir = dir_val.replace("\\", "/");
+                filters.push(format!("filename LIKE '%{}%'", clean_dir));
+            }
+            let filter_str = if filters.is_empty() {
+                None
+            } else {
+                Some(filters.join(" AND "))
+            };
 
-                let fetch_limit = if no_rerank {
-                    limit
-                } else {
-                    std::cmp::max(50, limit * 5)
-                };
+            let fetch_limit = if no_rerank {
+                limit
+            } else {
+                std::cmp::max(50, limit * 5)
+            };
 
-                let results = storage
-                    .search(vector, fetch_limit, filter_str, workspace.as_deref())
-                    .await
-                    .map_err(|e| anyhow!(e.to_string()))?;
+            let results = storage
+                .search(vector, fetch_limit, filter_str, workspace.as_deref())
+                .await
+                .map_err(|e| anyhow!(e.to_string()))?;
 
-                // Process batch
-                for batch in results {
-                    let ids: &StringArray = batch
-                        .column_by_name("id")
-                        .ok_or_else(|| anyhow!("id missing"))?
-                        .as_any()
-                        .downcast_ref()
-                        .ok_or_else(|| anyhow!("id wrong type"))?;
-                    let filenames: &StringArray = batch
-                        .column_by_name("filename")
-                        .ok_or_else(|| anyhow!("filename missing"))?
-                        .as_any()
-                        .downcast_ref()
-                        .ok_or_else(|| anyhow!("filename wrong type"))?;
-                    let codes: &StringArray = batch
-                        .column_by_name("code")
-                        .ok_or_else(|| anyhow!("code missing"))?
-                        .as_any()
-                        .downcast_ref()
-                        .ok_or_else(|| anyhow!("code wrong type"))?;
-                    let line_starts: &Int32Array = batch
-                        .column_by_name("line_start")
-                        .ok_or_else(|| anyhow!("line_start missing"))?
-                        .as_any()
-                        .downcast_ref()
-                        .ok_or_else(|| anyhow!("line_start wrong type"))?;
-                    let line_ends: &Int32Array = batch
-                        .column_by_name("line_end")
-                        .ok_or_else(|| anyhow!("line_end missing"))?
-                        .as_any()
-                        .downcast_ref()
-                        .ok_or_else(|| anyhow!("line_end wrong type"))?;
-                    let calls_col: Option<&ListArray> = batch
-                        .column_by_name("calls")
-                        .and_then(|c| c.as_any().downcast_ref());
+            // Process batch
+            for batch in results {
+                let ids: &StringArray = batch
+                    .column_by_name("id")
+                    .ok_or_else(|| anyhow!("id missing"))?
+                    .as_any()
+                    .downcast_ref()
+                    .ok_or_else(|| anyhow!("id wrong type"))?;
+                let filenames: &StringArray = batch
+                    .column_by_name("filename")
+                    .ok_or_else(|| anyhow!("filename missing"))?
+                    .as_any()
+                    .downcast_ref()
+                    .ok_or_else(|| anyhow!("filename wrong type"))?;
+                let codes: &StringArray = batch
+                    .column_by_name("code")
+                    .ok_or_else(|| anyhow!("code missing"))?
+                    .as_any()
+                    .downcast_ref()
+                    .ok_or_else(|| anyhow!("code wrong type"))?;
+                let line_starts: &Int32Array = batch
+                    .column_by_name("line_start")
+                    .ok_or_else(|| anyhow!("line_start missing"))?
+                    .as_any()
+                    .downcast_ref()
+                    .ok_or_else(|| anyhow!("line_start wrong type"))?;
+                let line_ends: &Int32Array = batch
+                    .column_by_name("line_end")
+                    .ok_or_else(|| anyhow!("line_end missing"))?
+                    .as_any()
+                    .downcast_ref()
+                    .ok_or_else(|| anyhow!("line_end wrong type"))?;
+                let last_modifieds: &Int64Array = batch
+                    .column_by_name("last_modified")
+                    .ok_or_else(|| anyhow!("last_modified missing"))?
+                    .as_any()
+                    .downcast_ref()
+                    .ok_or_else(|| anyhow!("last_modified wrong type"))?;
+                let calls_col: Option<&ListArray> = batch
+                    .column_by_name("calls")
+                    .and_then(|c| c.as_any().downcast_ref());
 
-                    for i in 0..batch.num_rows() {
-                        let id = ids.value(i).to_string();
-                        let rank = i + 1; // Rank in this specific query result list
+                for i in 0..batch.num_rows() {
+                    let id = ids.value(i).to_string();
+                    let rank = i + 1; // Rank in this specific query result list
 
-                        // Accumulate RRF score
-                        *vector_rrf_scores.entry(id.clone()).or_insert(0.0) +=
-                            Self::compute_rrf_component(rank, self.rrf_k);
+                    // Accumulate RRF score
+                    *vector_rrf_scores.entry(id.clone()).or_insert(0.0) +=
+                        Self::compute_rrf_component(rank, self.rrf_k);
 
-                        // Store Result Data if not present
-                        all_vector_results.entry(id.clone()).or_insert_with(|| {
-                            let mut calls_vec = Vec::new();
-                            if let Some(calls_arr) = calls_col {
-                                if !calls_arr.is_null(i) {
-                                    if let Some(str_arr) =
-                                        calls_arr.value(i).as_any().downcast_ref::<StringArray>()
-                                    {
-                                        for s in str_arr.iter().flatten() {
-                                            calls_vec.push(s.to_string());
-                                        }
+                    // Store Result Data if not present
+                    all_vector_results.entry(id.clone()).or_insert_with(|| {
+                        let mut calls_vec = Vec::new();
+                        if let Some(calls_arr) = calls_col {
+                            if !calls_arr.is_null(i) {
+                                if let Some(str_arr) =
+                                    calls_arr.value(i).as_any().downcast_ref::<StringArray>()
+                                {
+                                    for s in str_arr.iter().flatten() {
+                                        calls_vec.push(s.to_string());
                                     }
                                 }
                             }
-                            SearchResult {
-                                rank: 0,
-                                score: 0.0,
-                                filename: filenames.value(i).to_string(),
-                                code: codes.value(i).to_string(),
-                                line_start: line_starts.value(i),
-                                line_end: line_ends.value(i),
-                                calls: calls_vec,
-                            }
-                        });
-                    }
+                        }
+                        SearchResult {
+                            rank: 0,
+                            score: 0.0,
+                            filename: filenames.value(i).to_string(),
+                            code: codes.value(i).to_string(),
+                            line_start: line_starts.value(i),
+                            line_end: line_ends.value(i),
+                            last_modified: last_modifieds.value(i),
+                            calls: calls_vec,
+                        }
+                    });
                 }
             }
         } // End of vector search loop
@@ -276,6 +280,7 @@ impl CodeSearcher {
                             code: res.code.clone(),
                             line_start: res.line_start as i32,
                             line_end: res.line_end as i32,
+                            last_modified: 0, // BM25 doesn't track this currently, might need update
                             calls: Vec::new(),
                         });
                         existing_ids.insert(res.id.clone());
@@ -362,7 +367,8 @@ impl CodeSearcher {
                     code: chunk.code,
                     line_start: chunk.start_line,
                     line_end: chunk.end_line,
-                    calls: Vec::new(),
+                    last_modified: chunk.last_modified,
+                    calls: chunk.calls,
                 });
             }
             Ok(mapped_results)
@@ -441,6 +447,7 @@ mod tests {
                 code: "".into(),
                 line_start: 0,
                 line_end: 0,
+                last_modified: 0,
                 calls: Vec::new(),
             },
             SearchResult {
@@ -450,6 +457,7 @@ mod tests {
                 code: "".into(),
                 line_start: 0,
                 line_end: 0,
+                last_modified: 0,
                 calls: Vec::new(),
             },
             SearchResult {
@@ -459,6 +467,7 @@ mod tests {
                 code: "".into(),
                 line_start: 0,
                 line_end: 0,
+                last_modified: 0,
                 calls: Vec::new(),
             },
         ];

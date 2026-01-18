@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow_array::builder::{ListBuilder, StringBuilder};
 use arrow_array::{
     Array, FixedSizeListArray, Float32Array, Int32Array, Int64Array, RecordBatch,
@@ -10,8 +10,9 @@ use lancedb::connect;
 use lancedb::connection::Connection;
 use lancedb::index::scalar::BTreeIndexBuilder;
 use lancedb::query::{ExecutableQuery, QueryBase};
+use lancedb::table::Table;
 use std::sync::Arc;
-// use lancedb::index::IndexType;
+use tokio::sync::OnceCell;
 
 /// Vector storage backend using LanceDB.
 ///
@@ -19,6 +20,7 @@ use std::sync::Arc;
 pub struct Storage {
     conn: Connection,
     table_name: String,
+    table: OnceCell<Table>,
 }
 
 impl Storage {
@@ -27,7 +29,21 @@ impl Storage {
         Ok(Self {
             conn,
             table_name: "code_chunks".to_string(),
+            table: OnceCell::new(),
         })
+    }
+
+    async fn get_table(&self) -> Result<Table> {
+        self.table
+            .get_or_try_init(|| async {
+                self.conn
+                    .open_table(&self.table_name)
+                    .execute()
+                    .await
+                    .map_err(|e| anyhow!("Failed to open table '{}': {}", self.table_name, e))
+            })
+            .await
+            .cloned()
     }
 
     pub async fn init(&self, dim: usize) -> Result<()> {
@@ -66,6 +82,9 @@ impl Storage {
                 .execute()
                 .await?;
         }
+
+        // Force initialization of the cached table handle
+        let _ = self.get_table().await?;
         Ok(())
     }
 
@@ -82,39 +101,19 @@ impl Storage {
         calls: Vec<Vec<String>>,
         vectors: Vec<Vec<f32>>,
     ) -> Result<()> {
-        let table = self.conn.open_table(&self.table_name).execute().await?;
+        let table = self.get_table().await?;
         let table_schema = table.schema().await?;
-        let vector_field = table_schema.field_with_name("vector").map_err(|_| {
-            anyhow::anyhow!("Validation error: 'vector' field missing in table schema")
-        })?;
+        let vector_field = table_schema
+            .field_with_name("vector")
+            .map_err(|_| anyhow!("Validation error: 'vector' field missing in table schema"))?;
         let dim_val = if let DataType::FixedSizeList(_, d) = vector_field.data_type() {
             *d
         } else {
             768
         };
 
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("id", DataType::Utf8, false),
-            Field::new("workspace", DataType::Utf8, false),
-            Field::new("filename", DataType::Utf8, false),
-            Field::new("code", DataType::Utf8, false),
-            Field::new("line_start", DataType::Int32, false),
-            Field::new("line_end", DataType::Int32, false),
-            Field::new("last_modified", DataType::Int64, false),
-            Field::new(
-                "calls",
-                DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))),
-                true,
-            ),
-            Field::new(
-                "vector",
-                DataType::FixedSizeList(
-                    Arc::new(Field::new("item", DataType::Float32, true)),
-                    dim_val,
-                ),
-                false,
-            ),
-        ]));
+        // Reuse table_schema for insertion batch if possible, or construct matching one
+        let schema = table_schema;
 
         let id_array = StringArray::from(ids);
         let workspace_array = StringArray::from(vec![workspace; id_array.len()]);
@@ -155,7 +154,6 @@ impl Storage {
             ],
         )?;
 
-        let table = self.conn.open_table(&self.table_name).execute().await?;
         let reader = Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema));
         table.add(reader).execute().await?;
 
@@ -169,7 +167,7 @@ impl Storage {
         filter: Option<String>,
         workspace: Option<&str>,
     ) -> Result<Vec<RecordBatch>> {
-        let table = self.conn.open_table(&self.table_name).execute().await?;
+        let table = self.get_table().await?;
         let mut query = table.query().nearest_to(query_vector)?;
 
         let mut conditions: Vec<String> = Vec::new();
@@ -195,17 +193,11 @@ impl Storage {
     }
 
     pub async fn get_indexed_metadata(&self) -> Result<std::collections::HashMap<String, i64>> {
-        if self
-            .conn
-            .open_table(&self.table_name)
-            .execute()
-            .await
-            .is_err()
-        {
-            return Ok(std::collections::HashMap::new());
-        }
+        let table = match self.get_table().await {
+            Ok(t) => t,
+            Err(_) => return Ok(std::collections::HashMap::new()),
+        };
 
-        let table = self.conn.open_table(&self.table_name).execute().await?;
         let mut stream = table
             .query()
             .select(lancedb::query::Select::Columns(vec![
@@ -225,13 +217,11 @@ impl Storage {
                 })?
                 .as_any()
                 .downcast_ref()
-                .ok_or_else(|| {
-                    anyhow::anyhow!("Failed to downcast filename column to StringArray")
-                })?;
+                .ok_or_else(|| anyhow!("Failed to downcast filename column to StringArray"))?;
 
             if let Some(col) = batch.column_by_name("last_modified") {
                 let mtimes: &Int64Array = col.as_any().downcast_ref().ok_or_else(|| {
-                    anyhow::anyhow!("Failed to downcast last_modified column to Int64Array")
+                    anyhow!("Failed to downcast last_modified column to Int64Array")
                 })?;
                 for i in 0..batch.num_rows() {
                     let fname = filenames.value(i).to_string();
@@ -244,14 +234,7 @@ impl Storage {
     }
 
     pub async fn delete_file_chunks(&self, filename: &str, workspace: &str) -> Result<()> {
-        if self
-            .conn
-            .open_table(&self.table_name)
-            .execute()
-            .await
-            .is_ok()
-        {
-            let table = self.conn.open_table(&self.table_name).execute().await?;
+        if let Ok(table) = self.get_table().await {
             let safe_filename = filename.replace("'", "''");
             table
                 .delete(&format!(
@@ -262,15 +245,9 @@ impl Storage {
         }
         Ok(())
     }
+
     pub async fn create_filename_index(&self) -> Result<()> {
-        if self
-            .conn
-            .open_table(&self.table_name)
-            .execute()
-            .await
-            .is_ok()
-        {
-            let table = self.conn.open_table(&self.table_name).execute().await?;
+        if let Ok(table) = self.get_table().await {
             let _ = table
                 .create_index(
                     &["filename"],
