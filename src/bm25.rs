@@ -10,6 +10,23 @@ use tantivy::query::QueryParser;
 use tantivy::schema::*;
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument, Term};
 
+/// Full-text search index using the BM25 ranking algorithm.
+///
+/// Provides efficient keyword-based search over code chunks with workspace isolation.
+/// Uses Tantivy for the underlying inverted index implementation with configurable
+/// merge policies for optimizing read vs write performance.
+///
+/// # Examples
+///
+/// ```no_run
+/// use code_rag::bm25::BM25Index;
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let index = BM25Index::new("./bm25_db", false, "log")?;
+/// let results = index.search("authentication", 10, Some("workspace1"))?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct BM25Index {
     index: Index,
     reader: IndexReader,
@@ -17,17 +34,33 @@ pub struct BM25Index {
     schema: Schema,
 }
 
+/// A single search result from the BM25 index.
+///
+/// Contains the matched code chunk with its file location and relevance score.
 #[derive(Debug, Clone)]
 pub struct BM25Result {
+    /// Unique identifier for this code chunk
     pub id: String,
+    /// Source file path
     pub filename: String,
+    /// The actual code content
     pub code: String,
+    /// Starting line number
     pub line_start: u64,
+    /// Ending line number
     pub line_end: u64,
+    /// BM25 relevance score (higher is better)
     pub score: f32,
 }
 
 impl BM25Index {
+    /// Creates a new BM25 index.
+    ///
+    /// # Arguments
+    ///
+    /// * `db_path` - Base directory for index storage
+    /// * `readonly` - If true, index is read-only (no writer created)
+    /// * `merge_policy_type` - Merge policy: "log", "fast-write", or "fast-search"
     pub fn new(db_path: &str, readonly: bool, merge_policy_type: &str) -> Result<Self> {
         let index_path = Path::new(db_path).join("bm25_index");
         if !index_path.exists() {
@@ -95,6 +128,9 @@ impl BM25Index {
         })
     }
 
+    /// Indexes code chunks with workspace isolation.
+    ///
+    /// Deletes existing chunks with the same ID to prevent duplicates.
     pub fn add_chunks(&self, chunks: &[CodeChunk], workspace: &str) -> Result<()> {
         let writer_arc = self
             .writer
@@ -152,6 +188,7 @@ impl BM25Index {
         Ok(())
     }
 
+    /// Deletes all indexed chunks from a specific file.
     pub fn delete_file(&self, filename: &str) -> Result<()> {
         let writer_arc = self
             .writer
@@ -170,6 +207,13 @@ impl BM25Index {
         Ok(())
     }
 
+    /// Searches the index using BM25 ranking.
+    ///
+    /// # Arguments
+    ///
+    /// * `query_str` - Search query
+    /// * `limit` - Maximum number of results  
+    /// * `workspace` - Optional workspace filter for isolation
     pub fn search(
         &self,
         query_str: &str,
