@@ -7,180 +7,93 @@
 Settings are loaded in this order (highest priority first):
 
 1. **CLI Arguments** (e.g., `--db-path`)
-1. **CLI Arguments** (e.g., `--db-path`)
 2. **Local Config** (`./config_rag.toml` in current directory)
 3. **Global Config** (`~/.config/code-rag/config_rag.toml`)
 4. **Environment Variables** (prefix: `CODE_RAG_`)
 5. **Built-in Defaults**
 
-## Configuration File Format
+## Quick Start
 
-### Example `config_rag.toml`
+Copy the example template to creating your own config:
+
+```bash
+cp code-rag.toml.example config_rag.toml
+```
+
+## Configuration Reference
+
+### Core Paths
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `db_path` | string | Location of the LanceDB database. | `./.lancedb` |
+| `default_index_path` | string | Default directory to index. | `.` |
+
+### Server Settings
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `server_host` | string | Host address to bind the server to. | `127.0.0.1` |
+| `server_port` | integer | Port to listen on. | `3000` |
+
+### Indexing & Search
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `default_limit` | size | Default number of search results. | `5` |
+| `exclusions` | list | List of patterns to exclude (e.g., `["target", "node_modules"]`). | `[]` |
+| `embedding_model` | string | Model for generating embeddings. | `nomic-embed-text-v1.5` |
+| `reranker_model` | string | Model used for reranking results. | `bge-reranker-base` |
+| `device` | string | Inference device: `auto`, `cpu`, `cuda`, `metal`. | `auto` |
+| `chunk_size` | size | Size of text chunks for embedding. | `1024` |
+| `chunk_overlap` | size | Overlap between chunks. | `128` |
+| `merge_policy` | string | Index merge policy: `log`, `fast-write`, `fast-search`. | `log` |
+
+### Resource Management
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `batch_size` | size | Files to process per batch. Lower to reduce RAM. | `256` |
+| `threads` | integer | Max threads for processing (null = auto). | `null` |
+| `priority` | string | Process priority: `low`, `normal`, `high`. | `normal` |
+
+### Logging
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `log_level` | string | Log verbosity: `error`, `warn`, `info`, `debug`, `trace`. | `info` |
+| `log_format` | string | Output format: `text` or `json`. | `text` |
+| `log_to_file` | bool | Write logs to `logs/` directory. | `false` |
+| `log_dir` | string | Directory for log files. | `logs` |
+
+### Telemetry & LLM (Experimental)
+
+| Setting | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `telemetry_enabled` | bool | Enable OpenTelemetry tracing. | `false` |
+| `telemetry_endpoint` | string | OTLP endpoint URL. | `http://localhost:4317` |
+| `llm_enabled` | bool | Enable LLM features (e.g., query expansion). | `false` |
+| `llm_host` | string | LLM provider URL (e.g., Ollama). | `http://localhost:11434` |
+| `llm_model` | string | LLM model name. | `mistral` |
+
+## Example `config_rag.toml`
 
 ```toml
-# Database location (relative or absolute)
-# IMPORTANT: Use single quotes for Windows paths!
 db_path = './.lancedb'
-
-# Default path to index when no argument is provided
-default_index_path = '.'
-
-# Resource Management
-# Reduce batch size if experiencing OOM issues
-batch_size = 100
-# Run indexing with lower system priority
-priority = 'normal'
-
-# Optional: List of additional file extensions to index
-# (Currently not implemented, reserved for future use)
-# extensions = ['rs', 'py', 'js', 'ts']
+default_limit = 10
+priority = 'low'
+log_level = 'debug'
+log_to_file = true
 ```
 
 ### Windows Path Handling
 
-**Correct:**
+**Use single quotes** to avoid escape issues:
+
 ```toml
+# ✅ Correct
 db_path = 'C:\Users\MyUser\projects\db'
-default_index_path = 'I:\01-Master_Code\Test-Labs\code-rag\test_assets'
+
+# ❌ Incorrect (Double quotes interpret backslashes as escapes)
+db_path = "C:\Users\MyUser\projects\db"
 ```
-
-**Incorrect:**
-```toml
-db_path = "C:\Users\MyUser\projects\db"  # ❌ Double quotes cause escape issues
-```
-
-Use **single quotes** to avoid TOML escape sequence errors.
-
-## Environment Variables
-
-You can override any config value using environment variables:
-
-```bash
-export CODE_RAG_DB_PATH="./.custom-db"
-export CODE_RAG_DEFAULT_INDEX_PATH="./src"
-```
-
-On Windows (PowerShell):
-```powershell
-$env:CODE_RAG_DB_PATH = "./.custom-db"
-$env:CODE_RAG_DEFAULT_INDEX_PATH = "./src"
-```
-
-## Global Configuration
-
-Create a global config file at:
-- **Linux/macOS**: `~/.config/code-rag/config_rag.toml`
-- **Windows**: `C:\Users\<YourName>\AppData\Roaming\code-rag\config_rag.toml`
-
-This is useful for setting defaults across all projects.
-
-## Configuration Template
-
-See `config_rag.toml.template` in the project root for a complete template.
-
-## Merge Policy
-
-The `merge_policy` setting controls how the underlying search engine (Tantivy) handles index segments. This affects indexing speed and search latency.
-
-| Policy | Description | Recommended Use Case |
-| :--- | :--- | :--- |
-| `log` | Default balanced policy. Good trade-off between write speed and read speed. Uses logarithmic merging. | General usage, read/write mixed workloads. |
-| `fast-write` | optimized for indexing speed. Sets a larger minimum segment size (10 docs) to reduce merge frequency during heavy writes. | Bulk indexing, initial index creation, CI/CD pipelines. |
-| `fast-search` | Optimized for search performance. Uses standard segment sizing to keep the index compact, potentially at the cost of slower indexing. | Read-heavy workloads, production servers where indexing is infrequent. |
-
-Example:
-```toml
-merge_policy = "fast-write"
-```
-
-## Logging Configuration
-
-You can enable detailed file-based logging for debugging or auditing purposes.
-
-| Setting | Type | Description | Default |
-| :--- | :--- | :--- | :--- |
-| `log_to_file` | bool | Enables writing logs to files (`logs/client.log` or `logs/server.log`). | `false` |
-| `log_path` | string | Directory where log files are stored. | `./logs` |
-| `log_level` | string | Verbosity level (`error`, `warn`, `info`, `debug`, `trace`). | `info` |
-
-Example:
-```toml
-# Enable debug logging to a specific folder
-log_to_file = true
-log_path = 'C:\Logs\CodeRag'
-log_level = 'debug'
-```
-*Note: Logs are rotated daily and timestamped with your local machine time.*
-
-## Telemetry
-
-`code-rag` can emit distributed traces (via OpenTelemetry) and metrics.
-
-| Setting | Type | Description | Default |
-| :--- | :--- | :--- | :--- |
-| `telemetry_enabled` | bool | If true, enables tracing and metrics. | `false` |
-| `telemetry_endpoint` | string | OTLP endpoint for sending traces (e.g., Jaeger, OTEL Collector). | `http://localhost:4317` |
-
-Example:
-```toml
-telemetry_enabled = true
-telemetry_endpoint = "http://my-jaeger-instance:4317"
-```
-
-In CLI mode, tracing is saved to local `trace-*.json` files regardless of the endpoint.
-In Server mode, traces are sent to the configured `telemetry_endpoint`.
-
-
-## Common Scenarios
-
-### Scenario 1: Per-Project Database
-```toml
-# ./config_rag.toml
-db_path = './.lancedb'
-default_index_path = './src'
-```
-
-### Scenario 2: Centralized Database
-```toml
-# ~/.config/code-rag/config_rag.toml
-db_path = '~/.cache/code-rag/db'
-```
-
-### Scenario 3: CI/CD Environment
-```bash
-export CODE_RAG_DB_PATH="/tmp/code-rag-db"
-code-rag index ./repo --force
-code-rag search "security vulnerabilities" --html
-```
-
-
-## Resource Management
-
-You can control resource usage (CPU/RAM/Priority) using the following settings.
-
-| Setting | Type | Description | Default |
-| :--- | :--- | :--- | :--- |
-| `batch_size` | usize | Number of files to process in a single batch during embedding. Lower values reduce peak RAM usage. | `256` |
-| `threads` | usize | **Experimental:** Maximum number of threads to use for parallel processing. Currently usage emits a warning. | `null` (Auto) |
-| `priority` | string | Process priority class. Options: `low`, `normal`, `high`. Useful for running background indexing without impacting system responsiveness. | `normal` |
-
-Example:
-```toml
-# Reduce RAM usage
-batch_size = 50
-
-# Run in background with low priority
-priority = "low"
-```
-
-## Troubleshooting
-
-
-### "TOML parse error"
-- Check for unescaped backslashes in paths
-- Use single quotes for all path values
-- Ensure no trailing backslashes
-
-### "Config file not found"
-- This is normal! Config files are optional.
-- The tool will use built-in defaults if no config is found.

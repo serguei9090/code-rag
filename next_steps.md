@@ -108,7 +108,7 @@ LLMs have a limited context window (e.g., 8k, 32k tokens). Searching often retur
 - [x] **Memory Management:**
     -   [x] Implement batch processing for embedding generation (e.g., process 10 files at a time instead of 1000).
     -   Stream file reading instead of loading full content into RAM where possible.
-- [ ] **Throttling:**
+- [X] **Throttling:**
     -   Add process priority adjustments (Lower priority on Windows/Linux) for background tasks.
     -   Implement "Nice" mode for `index` command.
 
@@ -130,9 +130,9 @@ LLMs have a limited context window (e.g., 8k, 32k tokens). Searching often retur
 * **Goal:** Solve "vocabulary mismatch" (User says "auth", Code says "identity").
 
 ### Implementation Plan
-- [ ] **Inference:** Integrate `ollama-rs`.
-- [ ] **Prompting:** System prompts to generate synonyms.
-- [ ] **RRF:** Merge results from original query + expanded synonyms.
+- [X] **Inference:** Integrate `ollama-rs`.
+- [X] **Prompting:** System prompts to generate synonyms.
+- [X] **RRF:** Merge results from original query + expanded synonyms.
 
 ---
 

@@ -1,0 +1,139 @@
+# code-rag.toml.example - Configuration Template
+# Copy this file to 'config_rag.toml' in your project root or ~/.config/code-rag/config_rag.toml
+
+# ==========================================
+# CORE PATHS
+# ==========================================
+
+# Database location (relative or absolute)
+# WINDOWS USERS: Use single quotes to avoid escaping backslashes.
+# Default: "./.lancedb"
+db_path = './.lancedb'
+
+# Default path to index when no argument is provided
+# Default: "."
+default_index_path = '.'
+
+# ==========================================
+# SERVER SETTINGS
+# ==========================================
+
+# Host address to bind the server to
+# Default: "127.0.0.1"
+server_host = '127.0.0.1'
+
+# Port to listen on
+# Default: 3000
+server_port = 3000
+
+# ==========================================
+# INDEXING & SEARCH PARAMETERS
+# ==========================================
+
+# Default number of results to return if not specified
+# Default: 5
+default_limit = 5
+
+# Files and directories to exclude during indexing
+# Default: []
+exclusions = ["target", "node_modules", ".git"]
+
+# Model used for generating embeddings
+# Default: "nomic-embed-text-v1.5"
+embedding_model = "nomic-embed-text-v1.5"
+
+# Path to local embedding model (optional)
+# embedding_model_path = "/path/to/model"
+
+# Model used for reranking results
+# Default: "bge-reranker-base"
+reranker_model = "bge-reranker-base"
+
+# Path to local reranker model (optional)
+# reranker_model_path = "/path/to/model"
+
+# Device to use for inference ("auto", "cpu", "cuda", "metal")
+# Default: "auto"
+device = "auto"
+
+# Chunking settings
+# Default: 1024
+chunk_size = 1024
+# Default: 128
+chunk_overlap = 128
+
+# Search weights
+# Default: 1.0
+vector_weight = 1.0
+# Default: 1.0
+bm25_weight = 1.0
+# Reciprocal Rank Fusion constant
+# Default: 60.0
+rrf_k = 60.0
+
+# Merge Policy for index segments ("log", "fast-write", "fast-search")
+# Default: "log"
+merge_policy = "log"
+
+# ==========================================
+# RESOURCE MANAGEMENT
+# ==========================================
+
+# Number of files to process in a single batch
+# Default: 256
+batch_size = 256
+
+# Number of threads to use (set to null for auto-detection)
+# threads = 4
+
+# Process priority ("low", "normal", "high")
+# Default: "normal"
+priority = "normal"
+
+# ==========================================
+# LOGGING
+# ==========================================
+
+# Logging level ("error", "warn", "info", "debug", "trace")
+# Default: "info"
+log_level = "info"
+
+# Log format ("text", "json")
+# Default: "text"
+log_format = "text"
+
+# Enable logging to file
+# Default: false
+log_to_file = false
+
+# Directory for log files
+# Default: "logs"
+log_dir = "logs"
+
+# ==========================================
+# TELEMETRY
+# ==========================================
+
+# Enable OpenTelemetry tracing and metrics
+# Default: false
+telemetry_enabled = false
+
+# OTLP endpoint
+# Default: "http://localhost:4317"
+telemetry_endpoint = "http://localhost:4317"
+
+# ==========================================
+# LLM INTEGRATION (Experimental)
+# ==========================================
+
+# Enable LLM features (e.g., query expansion)
+# Default: false
+llm_enabled = false
+
+# LLM Model name
+# Default: "mistral"
+llm_model = "mistral"
+
+# LLM Host URL (e.g., Ollama)
+# Default: "http://localhost:11434"
+llm_host = "http://localhost:11434"

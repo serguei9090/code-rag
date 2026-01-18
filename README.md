@@ -208,17 +208,17 @@ Then re-run:
 code-rag index .
 ```
 
-## ⚙️ Configuration (`code-rag.toml`)
+## ⚙️ Configuration (`config_rag.toml`)
 
-You can create a `code-rag.toml` file in your project root to avoid typing the same paths repeatedly.
+You can create a `config_rag.toml` file in your project root to avoid typing the same paths repeatedly.
 
 The tool loads configuration in this order:
 1.  **CLI Flags** (e.g., `--db-path`)
-2.  **Local Config** (`./code-rag.toml`)
-3.  **Global Config** (`~/.code-rag/config.toml`)
+2.  **Local Config** (`./config_rag.toml`)
+3.  **Global Config** (`~/.config/code-rag/config_rag.toml`)
 4.  **Environment Variables** (Prefix `CODE_RAG_`)
 
-**Example `code-rag.toml`:**
+**Example `config_rag.toml`:**
 ```toml
 # Use single quotes for Windows paths!
 db_path = './.lancedb'
