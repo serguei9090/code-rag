@@ -11,6 +11,7 @@ function show_menu() {
     echo "1. Build (Debug)"
     echo "2. Build (Release)"
     echo "3. Build (Release - CUDA)"
+    echo "4. Build All"
     echo "Q. Quit"
     echo -e "\033[0;36m===========================\033[0m"
 }
@@ -36,6 +37,26 @@ while true; do
             cargo build --release --features cuda --bin code-rag
             cp target/release/code-rag target/release/code-rag-cuda
             echo -e "\033[0;32mDone. Binary: target/release/code-rag-cuda\033[0m"
+            read -p "Press Enter to return to menu..."
+            ;;
+        4)
+            echo -e "\033[0;33mBuilding All Targets...\033[0m"
+            
+            # Debug
+            echo " -> Debug..."
+            cargo build --bin code-rag
+            
+            # Release CPU
+            echo " -> Release (CPU)..."
+            cargo build --release --bin code-rag
+            cp target/release/code-rag target/release/code-rag-cpu
+            
+            # Release CUDA
+            echo " -> Release (CUDA)..."
+            cargo build --release --features cuda --bin code-rag
+            cp target/release/code-rag target/release/code-rag-cuda
+            
+            echo -e "\033[0;32mAll builds complete.\033[0m"
             read -p "Press Enter to return to menu..."
             ;;
         [Qq]*)

@@ -40,6 +40,7 @@ do {
             & "$PSScriptRoot\scripts\build-windows-debug.ps1"
             & "$PSScriptRoot\scripts\build-windows.ps1"
             & "$PSScriptRoot\scripts\build-linux.ps1"
+            & "$PSScriptRoot\scripts\build-linux-cuda.ps1"
             Pause
         }
         "5" {

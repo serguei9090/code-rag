@@ -15,9 +15,23 @@ cargo test
 if ($LASTEXITCODE -ne 0) { Write-Error "Standard tests failed!"; exit 1 }
 
 # 3. Run Performance Tests (Included but separate)
-Write-Host "`n[3/4] Running Performance Tests..."
+Write-Host "`n[3/6] Running Performance Tests..."
 cargo test --test performance -- --ignored
 if ($LASTEXITCODE -ne 0) { Write-Error "Performance tests failed!"; exit 1 }
+
+# 4. Run Advanced Verification (Phase 6)
+Write-Host "`n[4/6] Running Advanced Verification (JSON Contract, Scale, Stress)..."
+Write-Host "  -> JSON Contract Test..."
+cargo test --test cli_json_test
+if ($LASTEXITCODE -ne 0) { Write-Error "JSON Contract test failed!"; exit 1 }
+
+Write-Host "  -> Scale Benchmark (10k Files)..."
+cargo test --test scale_test -- --ignored
+if ($LASTEXITCODE -ne 0) { Write-Error "Scale Benchmark failed!"; exit 1 }
+
+Write-Host "  -> Concurrent Stress Test..."
+cargo test --test stress_test -- --ignored
+if ($LASTEXITCODE -ne 0) { Write-Error "Stress Test failed!"; exit 1 }
 
 # 4. Multi-Workspace Smoke Test
 Write-Host "`n[4/4] Verifying Multi-Workspace Startup..."

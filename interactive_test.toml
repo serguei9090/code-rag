@@ -1,0 +1,12 @@
+# Interactive Smoke Test Configuration
+db_path = ".lancedb_interactive"
+default_index_path = "."
+enable_server = true
+enable_mcp = true
+enable_watch = true
+
+[workspaces.ProjectA]
+path = "./test_assets/ProjectA"
+
+[workspaces.ProjectB]
+path = "./test_assets/ProjectB"
