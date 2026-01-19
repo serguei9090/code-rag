@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use assert_cmd::cargo::cargo_bin;
+
 use reqwest::Client;
 use std::fs;
 use std::process::{Child, Command, Stdio};
@@ -55,7 +55,7 @@ enable_watch = false
     fs::write(&config_path, config_content)?;
 
     // 2. Start Server
-    let bin = cargo_bin("code-rag");
+    let bin = env!("CARGO_BIN_EXE_code-rag");
     let port = 8092;
 
     let process = Command::new(bin)

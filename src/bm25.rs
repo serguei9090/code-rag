@@ -31,6 +31,7 @@ pub struct BM25Index {
     index: Index,
     reader: IndexReader,
     writer: Option<Arc<Mutex<IndexWriter>>>,
+    #[allow(dead_code)]
     schema: Schema,
     id_field: Field,
     filename_field: Field,
@@ -157,7 +158,7 @@ impl BM25Index {
             .writer
             .as_ref()
             .ok_or(anyhow::anyhow!("Index is read-only"))?;
-        let mut writer = writer_arc
+        let writer = writer_arc
             .lock()
             .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
 
@@ -203,7 +204,7 @@ impl BM25Index {
             .writer
             .as_ref()
             .ok_or(anyhow::anyhow!("Index is read-only"))?;
-        let mut writer = writer_arc
+        let writer = writer_arc
             .lock()
             .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
 

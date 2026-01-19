@@ -9,7 +9,7 @@ use common::{cleanup_test_db, prepare_chunks, setup_test_env, TEST_ASSETS_PATH};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+
 use tower::ServiceExt;
 
 fn create_test_config(db_path: &str) -> ServerStartConfig {
@@ -30,7 +30,7 @@ fn create_test_config(db_path: &str) -> ServerStartConfig {
 
 #[tokio::test]
 async fn test_health_check() {
-    let (storage, embedder, _, db_path) = setup_test_env("health_check").await;
+    let (_storage, embedder, _, db_path) = setup_test_env("health_check").await;
     // We don't need to manually create searcher anymore, WorkspaceManager constructs it.
     // However, we do need to pass the shared embedder.
 
@@ -139,7 +139,7 @@ async fn test_search_endpoint() {
 #[tokio::test]
 async fn test_concurrent_searches() {
     // Setup environment
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("server_stress").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("server_stress").await;
 
     // Index a file to search against
     let path = Path::new(TEST_ASSETS_PATH).join("test.rs");

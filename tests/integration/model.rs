@@ -41,7 +41,7 @@ async fn test_local_model_loading() {
         .await
         .expect("Failed to create storage");
     // 2. Initialize Embedder with local path
-    let mut embedder = Embedder::new(
+    let embedder = Embedder::new(
         "unused".to_string(),
         "bge-reranker-base".to_string(),
         Some(model_path_str),

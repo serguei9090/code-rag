@@ -1,10 +1,10 @@
 use serde_json::json;
-use std::io::{BufRead, Read, Write};
+use std::io::{BufRead, Write};
 use std::process::Stdio;
 
 #[test]
 fn test_mcp_initialize() {
-    let bin_path = assert_cmd::cargo::cargo_bin("code-rag");
+    let bin_path = env!("CARGO_BIN_EXE_code-rag");
     let mut cmd = std::process::Command::new(bin_path);
     let mut child = cmd
         .arg("mcp")

@@ -15,14 +15,24 @@ The project is technically sound with a clear architecture, extensive integratio
 
 "Commit Once at the End" strategy, combined with a properly configured Memory Arena (Buffer). [done]
 
-=====================================
+===================================== [done]
 | **Sequential Search (Server)** | `src/server.rs` | 179 | **Medium** | `searcher_arc.lock().await` ensures only one search request is processed at a time per workspace. This will bottleneck under load. Consider using read-optimized clones or internal concurrency-safe structures if supported by dependencies. |
 
 "Read-Optimized Clones" strategy
-=====================================
+
+===================================== [skipp for now]
 | **Synchronous Embedder Access** | `src/embedding.rs` | 185-190 | **Medium** | `self.model.lock()` protects the ONNX session. While safe, it serializes all embedding calls. Evaluate if `fastembed` supports concurrent `embed` calls or implement a pool of sessions for high-concurrency server usage. |
 
 "Embedder Pooling" strategy, combined with a properly configured Memory Arena (Buffer).
+
+The best strategy for high-concurrency server usage with fastembed is to remove the Mutex completely and share the model via Arc.
+
+The log identifies self.model.lock() as the bottleneck. This lock forces your server to process embedding requests one by one (sequential), effectively pausing all other users while one user's text is being processed.
+
+Critical Optimization: Thread Configuration
+By default, ONNX (the engine behind fastembed) tries to use all your CPU cores for a single request. If you have 10 concurrent web requests and each tries to use 100% of your CPU, your server will thrash and slow down.
+
+For a server, you want Inter-op Parallelism (processing many user requests at once) rather than Intra-op Parallelism (processing one request super fast).
 
 =====================================
 | **Blocking Index Updates** | `src/commands/index.rs` | 183-186 | **High** | Deleting existing file records before re-indexing them triggers immediate commits in both Vector and BM25 stores. This makes `update` mode significantly slower than fresh indexing. |
@@ -41,6 +51,8 @@ The project is technically sound with a clear architecture, extensive integratio
 | Finding | Filename | Line(s) | Impact | Recommendation |
 | :--- | :--- | :--- | :--- | :--- |
 | **Silent BM25 Failure** | `src/server/workspace_manager.rs` | 87 | **Medium** | If the BM25 index fails to load, it returns `None` and search proceeds with vector-only. The user is only notified via a `warn!` log. Consider making this failure more explicit if hybrid search is a core requirement. |
+
+
 | **Panic in Chunker (Lossy UTF8)** | `src/indexer.rs` | 231 | **Low** | `String::from_utf8_lossy(&buf).to_string()` is safe, but indexing non-text files that trick the "extension check" might lead to garbage data in the index. |
 | **Invalid Regex Resilience** | `src/search.rs` | 380 | **Verified** | `grep_search` appears to handle regex errors via `Result`, but double-check that `regex::Regex::new` is handled gracefully in all paths. |
 

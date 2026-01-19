@@ -25,7 +25,7 @@ enable_watch = false
     fs::write(&config_path, config_content)?;
 
     // 2. Run search with --json and --config
-    let output = Command::cargo_bin("code-rag")?
+    let output = Command::new(env!("CARGO_BIN_EXE_code-rag"))
         .arg("--config")
         .arg(config_path.to_str().unwrap())
         .arg("search")

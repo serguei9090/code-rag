@@ -26,7 +26,7 @@ fn test_indexing_performance_100files() -> Result<()> {
     let db_path = temp_dir.path().join("lancedb");
 
     let start = Instant::now();
-    Command::cargo_bin("code-rag")?
+    Command::new(env!("CARGO_BIN_EXE_code-rag"))
         .env("CODE_RAG__DB_PATH", &db_path)
         .arg("index")
         .arg("--path")
@@ -48,7 +48,7 @@ fn test_search_performance() -> Result<()> {
     let db_path = temp_dir.path().join("lancedb");
 
     // Pre-index
-    Command::cargo_bin("code-rag")?
+    Command::new(env!("CARGO_BIN_EXE_code-rag"))
         .env("CODE_RAG__DB_PATH", &db_path)
         .arg("index")
         .arg("--path")
@@ -57,7 +57,7 @@ fn test_search_performance() -> Result<()> {
         .success();
 
     let start = Instant::now();
-    Command::cargo_bin("code-rag")?
+    Command::new(env!("CARGO_BIN_EXE_code-rag"))
         .env("CODE_RAG__DB_PATH", &db_path)
         .arg("search")
         .arg("function_25")

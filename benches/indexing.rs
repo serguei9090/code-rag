@@ -24,7 +24,11 @@ fn bench_chunking(c: &mut Criterion) {
 
     group.bench_function("chunk_rust_file", |b| {
         let chunker = CodeChunker::default();
-        b.iter(|| chunker.chunk_file("bench.rs", &code, 0))
+        let mut reader = std::io::Cursor::new(code.as_bytes());
+        b.iter(|| {
+            reader.set_position(0);
+            chunker.chunk_file("bench.rs", &mut reader, 0)
+        })
     });
 
     group.finish();

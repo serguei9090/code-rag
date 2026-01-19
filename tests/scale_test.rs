@@ -64,7 +64,7 @@ enable_watch = false
     generate_large_dataset(&dataset_path, 10_000).await?;
 
     let start = Instant::now();
-    let status = Command::cargo_bin("code-rag")?
+    let status = Command::new(env!("CARGO_BIN_EXE_code-rag"))
         .arg("--config")
         .arg(config_path.to_str().unwrap())
         .arg("index")

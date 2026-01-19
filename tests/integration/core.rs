@@ -119,7 +119,7 @@ async fn test_search_rust_function() {
         .expect("Failed to add chunks");
 
     // Search for Rust function
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,
@@ -185,7 +185,7 @@ async fn test_search_python_class() {
         .expect("Failed to add chunks");
 
     // Search for Python content
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,
@@ -240,7 +240,7 @@ async fn test_search_bash_script() {
         .expect("Failed to add chunks");
 
     // Search for Bash function
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,
@@ -266,7 +266,7 @@ async fn test_search_bash_script() {
 
 #[tokio::test]
 async fn test_search_powershell_function() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("ps_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("ps_search").await;
 
     // Index PowerShell test file
     let ps_path = Path::new(TEST_ASSETS_PATH).join("test.ps1");
@@ -299,7 +299,7 @@ async fn test_search_powershell_function() {
         .expect("Failed to add chunks");
 
     // Search for PowerShell function
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,
@@ -324,7 +324,7 @@ async fn test_search_powershell_function() {
 
 #[tokio::test]
 async fn test_search_json_config() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("json_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("json_search").await;
 
     // Index JSON test file
     let json_path = Path::new(TEST_ASSETS_PATH).join("test.json");
@@ -357,7 +357,7 @@ async fn test_search_json_config() {
         .expect("Failed to add chunks");
 
     // Search for JSON content
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,
@@ -388,7 +388,7 @@ async fn test_search_json_config() {
 
 #[tokio::test]
 async fn test_multi_language_search() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("multi_lang_search").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("multi_lang_search").await;
 
     // Index multiple languages
     let files = vec!["test.rs", "test.py", "test.go", "test.js"];
@@ -426,7 +426,7 @@ async fn test_multi_language_search() {
     }
 
     // Search across all languages
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,
@@ -564,7 +564,7 @@ class Calculator:
 
 #[tokio::test]
 async fn test_lancedb_filename_index() {
-    let (storage, mut embedder, chunker, db_path) = setup_test_env("index_verification").await;
+    let (storage, embedder, chunker, db_path) = setup_test_env("index_verification").await;
 
     // Index Rust test file
     let rust_path = Path::new(TEST_ASSETS_PATH).join("test.rs");
@@ -601,7 +601,7 @@ async fn test_lancedb_filename_index() {
         .expect("Failed to create filename index");
 
     // Verify index improves filtered search performance
-    let mut searcher = CodeSearcher::new(
+    let searcher = CodeSearcher::new(
         Some(std::sync::Arc::new(storage)),
         Some(std::sync::Arc::new(embedder)),
         None,

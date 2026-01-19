@@ -5,7 +5,7 @@ use axum::{
 };
 use code_rag::server::workspace_manager::WorkspaceManager;
 use code_rag::server::{create_router, AppState, ServerStartConfig};
-use code_rag::storage::Storage;
+
 use common::{cleanup_test_db, setup_test_env, TEST_ASSETS_PATH};
 use std::fs;
 use std::path::Path;
