@@ -251,6 +251,39 @@ impl Storage {
         Ok(())
     }
 
+    pub async fn batch_delete_files(&self, filenames: &[String], workspace: &str) -> Result<()> {
+        if filenames.is_empty() {
+            return Ok(());
+        }
+        if let Ok(table) = self.get_table().await {
+            // Chunk deletions to avoid hitting SQL/AST limits if filenames list is huge
+            // A safer chunk size for IN clause might be around 50-100 depending on path lengths.
+            // Let's use 50.
+            for chunk in filenames.chunks(50) {
+                let filename_list = chunk
+                    .iter()
+                    .map(|f| format!("'{}'", f.replace("'", "''")))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                let condition = format!(
+                    "workspace = '{}' AND filename IN ({})",
+                    workspace.replace("'", "''"),
+                    filename_list
+                );
+
+                if let Err(e) = table.delete(&condition).await {
+                    // Log but don't stop? Or stop?
+                    // For data integrity, stopping is safer, but standard behavior might be best effort.
+                    // Given we want to replace existing, we should probably fail if we can't delete.
+                    // But lancedb might error if table doesn't exist? (Handled by get_table)
+                    return Err(anyhow!("Failed to batch delete files: {}", e));
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub async fn create_filename_index(&self) -> Result<()> {
         if let Ok(table) = self.get_table().await {
             let _ = table

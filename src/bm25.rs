@@ -192,13 +192,6 @@ impl BM25Index {
         Ok(())
     }
 
-    /// Deletes all indexed chunks from a specific file.
-    ///
-    /// **Note**: This method does NOT commit changes. Caller must call `commit()` when done.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the index is read-only or if the deletion query fails.
     pub fn delete_file(&self, filename: &str, workspace: &str) -> Result<()> {
         let writer_arc = self
             .writer
@@ -233,6 +226,49 @@ impl BM25Index {
 
         writer.delete_query(Box::new(query))?;
         // Commit removed for performance - caller must call commit() explicitly
+        Ok(())
+    }
+
+    pub fn batch_delete_files(&self, filenames: &[String], workspace: &str) -> Result<()> {
+        if filenames.is_empty() {
+            return Ok(());
+        }
+
+        let writer_arc = self
+            .writer
+            .as_ref()
+            .ok_or(anyhow::anyhow!("Index is read-only"))?;
+        let writer = writer_arc
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
+
+        let filename_field = self.filename_field;
+        let workspace_field = self.workspace_field;
+        let workspace_term = Term::from_field_text(workspace_field, workspace);
+
+        // For BM25, we can just iterate and issue delete queries.
+        // Tantivy buffers these operation efficiently in memory.
+        for filename in filenames {
+            let filename_term = Term::from_field_text(filename_field, filename);
+            let query = tantivy::query::BooleanQuery::new(vec![
+                (
+                    tantivy::query::Occur::Must,
+                    Box::new(tantivy::query::TermQuery::new(
+                        filename_term,
+                        IndexRecordOption::Basic,
+                    )),
+                ),
+                (
+                    tantivy::query::Occur::Must,
+                    Box::new(tantivy::query::TermQuery::new(
+                        workspace_term.clone(),
+                        IndexRecordOption::Basic,
+                    )),
+                ),
+            ]);
+            writer.delete_query(Box::new(query))?;
+        }
+
         Ok(())
     }
 

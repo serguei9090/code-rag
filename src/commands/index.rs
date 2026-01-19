@@ -146,6 +146,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     };
 
     let mut chunks_buffer = Vec::new();
+    let mut pending_deletes = Vec::new();
     let batch_size_val = batch_size.unwrap_or(256);
     tracing::info!("Using batch size: {}", batch_size_val);
 
@@ -177,12 +178,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
                     if *stored_mtime == mtime {
                         continue; // Unchanged
                     }
-                    if let Err(e) = storage.delete_file_chunks(&fname_str, &workspace).await {
-                        warn!("Error deleting old chunks for {}: {}", fname_str, e);
-                    }
-                    if let Err(e) = bm25_index.delete_file(&fname_str, &workspace) {
-                        warn!("Error deleting old BM25 docs for {}: {}", fname_str, e);
-                    }
+                    pending_deletes.push(fname_str.clone());
                 }
             }
 
@@ -195,31 +191,27 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
             }
         }
 
-        if chunks_buffer.len() >= batch_size_val {
-            process_batch(
-                &mut chunks_buffer,
-                &mut embedder,
-                &storage,
-                &bm25_index,
-                &pb_index,
-                &workspace,
-                batch_size_val,
-            )
-            .await?;
+        if chunks_buffer.len() >= batch_size_val || pending_deletes.len() >= batch_size_val {
+            let mut ctx = IndexingContext {
+                embedder: &mut embedder,
+                storage: &storage,
+                bm25_index: &bm25_index,
+                pb: &pb_index,
+                workspace: &workspace,
+            };
+            process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
         }
     }
 
-    if !chunks_buffer.is_empty() {
-        process_batch(
-            &mut chunks_buffer,
-            &mut embedder,
-            &storage,
-            &bm25_index,
-            &pb_index,
-            &workspace,
-            batch_size_val,
-        )
-        .await?;
+    if !chunks_buffer.is_empty() || !pending_deletes.is_empty() {
+        let mut ctx = IndexingContext {
+            embedder: &mut embedder,
+            storage: &storage,
+            bm25_index: &bm25_index,
+            pb: &pb_index,
+            workspace: &workspace,
+        };
+        process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
     }
 
     // Commit BM25 index once at the end (single expensive I/O operation)
@@ -238,19 +230,45 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     Ok(())
 }
 
+struct IndexingContext<'a> {
+    embedder: &'a mut Embedder,
+    storage: &'a Storage,
+    bm25_index: &'a BM25Index,
+    pb: &'a ProgressBar,
+    workspace: &'a str,
+}
+
 async fn process_batch(
     chunks: &mut Vec<crate::indexer::CodeChunk>,
-    embedder: &mut Embedder,
-    storage: &Storage,
-    bm25_index: &BM25Index,
-    pb: &ProgressBar,
-    workspace: &str,
-    batch_size: usize,
+    pending_deletes: &mut Vec<String>,
+    ctx: &mut IndexingContext<'_>,
 ) -> Result<(), CodeRagError> {
-    pb.set_message("Embedding batch...");
+    // 1. Process Deletions
+    if !pending_deletes.is_empty() {
+        if let Err(e) = ctx
+            .storage
+            .batch_delete_files(pending_deletes, ctx.workspace)
+            .await
+        {
+            error!("Error batch deleting chunks: {}", e);
+        }
+        if let Err(e) = ctx
+            .bm25_index
+            .batch_delete_files(pending_deletes, ctx.workspace)
+        {
+            error!("Error batch deleting BM25 docs: {}", e);
+        }
+        pending_deletes.clear();
+    }
+
+    if chunks.is_empty() {
+        return Ok(());
+    }
+
+    ctx.pb.set_message("Embedding batch...");
     let texts: Vec<String> = chunks.iter().map(|c| c.code.clone()).collect();
 
-    match embedder.embed(texts, Some(batch_size)) {
+    match ctx.embedder.embed(texts, None) {
         Ok(embeddings) => {
             let ids: Vec<String> = chunks
                 .iter()
@@ -263,15 +281,24 @@ async fn process_batch(
             let mtimes: Vec<i64> = chunks.iter().map(|c| c.last_modified).collect();
             let calls: Vec<Vec<String>> = chunks.iter().map(|c| c.calls.clone()).collect();
 
-            if let Err(e) = storage
+            if let Err(e) = ctx
+                .storage
                 .add_chunks(
-                    workspace, ids, filenames, codes, starts, ends, mtimes, calls, embeddings,
+                    ctx.workspace,
+                    ids,
+                    filenames,
+                    codes,
+                    starts,
+                    ends,
+                    mtimes,
+                    calls,
+                    embeddings,
                 )
                 .await
             {
                 error!("Error storing chunks: {}", e);
             }
-            if let Err(e) = bm25_index.add_chunks(chunks, workspace) {
+            if let Err(e) = ctx.bm25_index.add_chunks(chunks, ctx.workspace) {
                 error!("Error adding to BM25: {}", e);
             }
         }
