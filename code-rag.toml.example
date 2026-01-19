@@ -137,3 +137,28 @@ llm_model = "mistral"
 # LLM Host URL (e.g., Ollama)
 # Default: "http://localhost:11434"
 llm_host = "http://localhost:11434"
+
+# ------------------------------------------------------------------------------
+# Unified Execution Mode Configuration (Optional)
+# ------------------------------------------------------------------------------
+# These settings control which services are started when running `code-rag start`.
+# This allows running the API server, MCP server, and file watcher concurrently.
+
+# Enable the API Server (HTTP/REST)
+enable_server = false
+
+# Enable the Model Context Protocol (MCP) Server (Stdio)
+enable_mcp = false
+
+# Enable the File Watcher (Auto-indexing)
+enable_watch = false
+
+# ------------------------------------------------------------------------------
+# Multi-Workspace Configuration
+# ------------------------------------------------------------------------------
+# Define named workspaces and their paths.
+# The key is the workspace ID (used in API URLs) and the value is the absolute path.
+# [workspaces]
+# main = "/path/to/main/repo"
+# libs = "/path/to/shared/libs"
+

@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::Mutex;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::commands::search::create_searcher;
 use crate::config::AppConfig;

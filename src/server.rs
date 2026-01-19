@@ -1,12 +1,9 @@
-use crate::bm25::BM25Index;
-use crate::core::CodeRagError;
 use crate::embedding::Embedder;
 use crate::llm::client::OllamaClient;
 use crate::llm::expander::QueryExpander;
-use crate::search::{CodeSearcher, SearchResult};
+use crate::search::SearchResult;
 pub mod workspace_manager;
 use crate::server::workspace_manager::WorkspaceManager;
-use crate::storage::Storage;
 use anyhow::Result;
 use axum::{
     extract::{Json, Path, State},
@@ -15,11 +12,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use prometheus::{Encoder, TextEncoder};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
@@ -181,7 +176,7 @@ async fn process_search(
     };
 
     // 2. Lock Searcher
-    let mut searcher = searcher_arc.lock().await;
+    let searcher = searcher_arc.lock().await;
 
     // 3. Execute Search
     let results = match searcher

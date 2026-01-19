@@ -1,0 +1,19 @@
+# code-rag.toml - Test Configuration
+db_path = './.lancedb'
+default_index_path = '.'
+server_host = '127.0.0.1'
+server_port = 3000
+default_limit = 5
+exclusions = ["target", "node_modules", ".git", ".gemini", "logs"]
+log_level = "info"
+log_format = "text"
+telemetry_enabled = false
+device = "auto"
+
+# Unified Execution Mode
+enable_server = true
+enable_mcp = true
+enable_watch = true
+
+# [workspaces]
+# default = "."

@@ -33,6 +33,15 @@ pub struct AppConfig {
     pub llm_enabled: bool,
     pub llm_model: String,
     pub llm_host: String,
+
+    // Service Flags
+    pub enable_server: bool,
+    pub enable_mcp: bool,
+    pub enable_watch: bool,
+
+    // Multi-Workspace
+    #[serde(default)]
+    pub workspaces: std::collections::HashMap<String, String>,
 }
 
 impl AppConfig {
@@ -68,20 +77,27 @@ impl AppConfig {
             .set_default("priority", "normal")?
             .set_default("llm_enabled", false)?
             .set_default("llm_model", "mistral")?
-            .set_default("llm_host", "http://localhost:11434")?;
+            .set_default("llm_host", "http://localhost:11434")?
+            .set_default("enable_server", false)?
+            .set_default("enable_mcp", false)?
+            .set_default("enable_watch", false)?
+            .set_default(
+                "workspaces",
+                std::collections::HashMap::<String, String>::new(),
+            )?;
 
         if include_files {
             // 1. File: ~/.config/code-rag/config_rag.toml (User Config)
             if let Some(mut home) = dirs::config_dir() {
                 home.push("code-rag");
-                home.push("config_rag");
+                home.push("code-rag.toml");
                 // Check for both without extension and with .toml extension
                 s = s.add_source(File::from(home).required(false));
             }
 
-            // 2. File: config_rag.toml (Current Directory) - takes precedence
-            if PathBuf::from("config_rag.toml").exists() {
-                s = s.add_source(File::with_name("config_rag"));
+            // 2. File: code-rag.toml (Current Directory) - takes precedence
+            if PathBuf::from("code-rag.toml").exists() {
+                s = s.add_source(File::with_name("code-rag"));
             }
         }
 

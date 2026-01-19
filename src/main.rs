@@ -131,6 +131,8 @@ enum Commands {
     },
     /// Start the Model Context Protocol (MCP) server
     Mcp,
+    /// Start unified services (Serve, MCP, Watch) based on config
+    Start,
 }
 
 #[tokio::main]
@@ -249,6 +251,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Mcp => {
             code_rag::commands::mcp::run(&config).await?;
+        }
+        Commands::Start => {
+            code_rag::commands::start::run(&config).await?;
         }
     }
 

@@ -20,15 +20,18 @@ pub struct TelemetryGuard {
 
 pub fn init_telemetry(mode: AppMode, config: &AppConfig) -> Result<TelemetryGuard> {
     if !config.telemetry_enabled {
-        // Initialize basic logging/subscriber if needed, or just return.
-        // If we don't init subscriber, regular logs might not show up if we relied on this.
-        // Assuming we still want LOGS to stdout?
-        // The original code replaced `init_logging` with `init_telemetry`.
-        // If disabled, we should probably still enable basic fmt logging.
-
-        // Let's setup a basic fmt subscriber for logs if telemetry is disabled.
-        let subscriber = Registry::default().with(tracing_subscriber::fmt::layer());
-        let _ = subscriber.try_init();
+        // Initialize basic logging
+        // For MCP, we MUST NOT print logs to stdout as it corrupts the JSON-RPC stream
+        if config.enable_mcp {
+            // Redirect logs to stderr or file only
+            let subscriber = Registry::default()
+                .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr));
+            let _ = subscriber.try_init();
+        } else {
+            // Normal CLI/Server mode - stdout is fine
+            let subscriber = Registry::default().with(tracing_subscriber::fmt::layer());
+            let _ = subscriber.try_init();
+        }
 
         return Ok(TelemetryGuard {
             _chrome_guard: None,
@@ -36,17 +39,35 @@ pub fn init_telemetry(mode: AppMode, config: &AppConfig) -> Result<TelemetryGuar
     }
 
     match mode {
-        AppMode::Cli => init_cli_telemetry(),
+        AppMode::Cli => init_cli_telemetry(config),
         AppMode::Server => init_server_telemetry(&config.telemetry_endpoint),
     }
 }
 
-fn init_cli_telemetry() -> Result<TelemetryGuard> {
+fn init_cli_telemetry(config: &AppConfig) -> Result<TelemetryGuard> {
     let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
-    let registry = Registry::default().with(chrome_layer);
 
-    // Attempt to init. Ignore error if already globally set (for idempotency in tests/dev)
-    let _ = registry.try_init();
+    // We must use specific types or branch entirely to avoid type mismatch
+    if config.enable_mcp {
+        // MCP Mode: Chrome Layer + Stderr Logging
+        let registry = Registry::default()
+            .with(chrome_layer)
+            .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr));
+        let _ = registry.try_init();
+    } else {
+        // Normal Mode: Chrome Layer + Default (Stdout) Logging
+        // Note: ChromeLayer by default doesn't print to stdout, it writes to file.
+        // We probably want to see logs in CLI mode too?
+        // Original code: `let registry = Registry::default().with(chrome_layer);`
+        // which implies NO stdout logging was active before?
+        // Or maybe ChromeLayer was the only thing?
+        // If the user wants to see "Indexing..." logs, we need fmt layer.
+        // Let's assume we want fmt layer on stdout for normal CLI.
+        let registry = Registry::default()
+            .with(chrome_layer)
+            .with(tracing_subscriber::fmt::layer());
+        let _ = registry.try_init();
+    }
 
     Ok(TelemetryGuard {
         _chrome_guard: Some(guard),

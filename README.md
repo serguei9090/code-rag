@@ -155,6 +155,25 @@ Starts a persistent HTTP server for API access.
 
 See `docs/commands/serve.md` or `docs/features/server_mode.md` for details.
 
+### 5️⃣ Unified Execution Mode
+
+You can run the API server, MCP server, and File Watcher concurrently using the `start` command. This is useful for deployment or local development where you need all services active.
+
+1.  Enable the desired services in `code-rag.toml`:
+    ```toml
+    # Unified Execution Mode
+    enable_server = true
+    enable_mcp = true
+    enable_watch = true
+    ```
+
+2.  Run the start command:
+    ```bash
+    code-rag start
+    ```
+
+**Note:** When `enable_mcp` is true, application logs are automatically redirected to `stderr` to prevent corrupting the JSON-RPC communication on `stdout`.
+
 ## 🧠 Embedding model used
 
 Your app uses: **NomicEmbedTextV15**
