@@ -13,13 +13,26 @@ The project is technically sound with a clear architecture, extensive integratio
 | :--- | :--- | :--- | :--- | :--- |
 | **Excessive BM25 Commits** | `src/bm25.rs` | 188, 230 | **Severe** | `writer.commit()` is called after every file update or batch. Tantivy commits are expensive. Implement a deferred commit strategy or commit once at the end of the indexing process. |
 
-"Commit Once at the End" strategy, combined with a properly configured Memory Arena (Buffer).
+"Commit Once at the End" strategy, combined with a properly configured Memory Arena (Buffer). [done]
 
 =====================================
 | **Sequential Search (Server)** | `src/server.rs` | 179 | **Medium** | `searcher_arc.lock().await` ensures only one search request is processed at a time per workspace. This will bottleneck under load. Consider using read-optimized clones or internal concurrency-safe structures if supported by dependencies. |
+
+"Read-Optimized Clones" strategy
+=====================================
 | **Synchronous Embedder Access** | `src/embedding.rs` | 185-190 | **Medium** | `self.model.lock()` protects the ONNX session. While safe, it serializes all embedding calls. Evaluate if `fastembed` supports concurrent `embed` calls or implement a pool of sessions for high-concurrency server usage. |
+
+"Embedder Pooling" strategy, combined with a properly configured Memory Arena (Buffer).
+
+=====================================
 | **Blocking Index Updates** | `src/commands/index.rs` | 183-186 | **High** | Deleting existing file records before re-indexing them triggers immediate commits in both Vector and BM25 stores. This makes `update` mode significantly slower than fresh indexing. |
+
+"Delete-Once at the End" strategy, combined with a properly configured Memory Arena (Buffer).
+
+=====================================
 | **In-Memory File Scanning** | `src/commands/index.rs` | 107-118 | **Low** | All files found by `WalkBuilder` are collected into a `Vec<DirEntry>` before processing. For massive repositories, this could lead to high RAM usage. Use a streaming iterator instead. |
+
+"Streaming File Scanning" strategy, combined with a properly configured Memory Arena (Buffer).
 
 ---
 

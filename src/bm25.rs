@@ -91,7 +91,7 @@ impl BM25Index {
         let writer = if readonly {
             None
         } else {
-            match index.writer(50_000_000) {
+            match index.writer(200_000_000) {
                 Ok(w) => {
                     // Apply Merge Policy
                     match merge_policy_type {
@@ -150,6 +150,8 @@ impl BM25Index {
     /// Indexes code chunks with workspace isolation.
     ///
     /// Deletes existing chunks with the same ID to prevent duplicates.
+    ///
+    /// **Note**: This method does NOT commit changes. Caller must call `commit()` when done.
     pub fn add_chunks(&self, chunks: &[CodeChunk], workspace: &str) -> Result<()> {
         let writer_arc = self
             .writer
@@ -185,15 +187,17 @@ impl BM25Index {
             writer.add_document(doc)?;
         }
 
-        writer.commit()?;
+        // Commit removed for performance - caller must call commit() explicitly
         Ok(())
     }
 
     /// Deletes all indexed chunks from a specific file.
     ///
+    /// **Note**: This method does NOT commit changes. Caller must call `commit()` when done.
+    ///
     /// # Errors
     ///
-    /// Returns an error if the index is read-only or if the commit fails.
+    /// Returns an error if the index is read-only or if the deletion query fails.
     pub fn delete_file(&self, filename: &str, workspace: &str) -> Result<()> {
         let writer_arc = self
             .writer
@@ -227,6 +231,26 @@ impl BM25Index {
         ]);
 
         writer.delete_query(Box::new(query))?;
+        // Commit removed for performance - caller must call commit() explicitly
+        Ok(())
+    }
+
+    /// Commits all pending write operations to disk.
+    ///
+    /// This is an expensive I/O operation that flushes the entire write buffer.
+    /// Should only be called once at the end of a batch indexing operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the index is read-only or if the commit fails.
+    pub fn commit(&self) -> Result<()> {
+        let writer_arc = self
+            .writer
+            .as_ref()
+            .ok_or(anyhow::anyhow!("Index is read-only"))?;
+        let mut writer = writer_arc
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
         writer.commit()?;
         Ok(())
     }

@@ -222,6 +222,12 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
         .await?;
     }
 
+    // Commit BM25 index once at the end (single expensive I/O operation)
+    pb_index.set_message("Committing BM25 index...");
+    if let Err(e) = bm25_index.commit() {
+        warn!("Failed to commit BM25 index: {}", e);
+    }
+
     pb_index.finish_with_message("Indexing complete.");
 
     info!("Optimizing index (creating filename index)...");
