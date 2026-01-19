@@ -1,0 +1,181 @@
+warning: unused import: `Path`
+ --> src\server\workspace_manager.rs:9:17
+  |
+9 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `schema` is never read
+  --> src\bm25.rs:34:5
+   |
+30 | pub struct BM25Index {
+   |            --------- field in this struct
+...
+34 |     schema: Schema,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `code-rag` (lib) generated 2 warnings (run `cargo fix --lib -p code-rag` to apply 1 suggestion)
+warning: unused import: `code_rag::storage::Storage`
+ --> tests\integration\isolation_test.rs:8:5
+  |
+8 | use code_rag::storage::Storage;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `tokio::sync::Mutex`
+  --> tests\integration\server.rs:12:5
+   |
+12 | use tokio::sync::Mutex;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `assert_cmd::cargo::cargo_bin`: incompatible with a custom cargo build-dir, see instead `cargo::cargo_bin!`
+ --> tests\integration\mcp_test.rs:7:39
+  |
+7 | ...ssert_cmd::cargo::cargo_bin("code-rag");
+  |                      ^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: unused import: `Read`
+ --> tests\integration\mcp_test.rs:2:24
+  |
+2 | use std::io::{BufRead, Read, Write};
+  |                        ^^^^
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:122:9
+    |
+122 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:188:9
+    |
+188 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:243:9
+    |
+243 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:269:19
+    |
+269 | ...torage, mut embedder, chunker, db_path) = se...
+    |            ----^^^^^^^^
+    |            |
+    |            help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:302:9
+    |
+302 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:327:19
+    |
+327 | ...torage, mut embedder, chunker, db_path) = se...
+    |            ----^^^^^^^^
+    |            |
+    |            help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:360:9
+    |
+360 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:391:19
+    |
+391 | ...torage, mut embedder, chunker, db_path) = se...
+    |            ----^^^^^^^^
+    |            |
+    |            help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:429:9
+    |
+429 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:567:19
+    |
+567 | ...torage, mut embedder, chunker, db_path) = se...
+    |            ----^^^^^^^^
+    |            |
+    |            help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests\integration\core.rs:604:9
+    |
+604 |     let mut searcher = CodeSearcher::new(
+    |         ----^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> tests\integration\model.rs:44:9
+   |
+44 |     let mut embedder = Embedder::new(
+   |         ----^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: unused variable: `storage`
+  --> tests\integration\server.rs:33:10
+   |
+33 |     let (storage, embedder, _, db_path) = setup_...
+   |          ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_storage`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> tests\integration\server.rs:142:19
+    |
+142 | ...torage, mut embedder, chunker, db_path) = se...
+    |            ----^^^^^^^^
+    |            |
+    |            help: remove this `mut`
+
+warning: `code-rag` (test "integration") generated 18 warnings (run `cargo fix --test "integration" -p code-rag` to apply 16 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.93s
+     Running tests\integration\main.rs (target\debug\deps\integration-72b3f64838989ca1.exe)
+
+running 1 test
+
+thread 'isolation_test::test_workspace_isolation' (28664) panicked at tests\integration\isolation_test.rs:192:5:
+Should NOT find B's content in A
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test isolation_test::test_workspace_isolation ... FAILED
+
+failures:
+
+failures:
+    isolation_test::test_workspace_isolation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 7.81s
+
+error: test failed, to rerun pass `--test integration`

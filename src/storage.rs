@@ -192,14 +192,19 @@ impl Storage {
         Ok(results)
     }
 
-    pub async fn get_indexed_metadata(&self) -> Result<std::collections::HashMap<String, i64>> {
+    pub async fn get_indexed_metadata(
+        &self,
+        workspace: &str,
+    ) -> Result<std::collections::HashMap<String, i64>> {
         let table = match self.get_table().await {
             Ok(t) => t,
             Err(_) => return Ok(std::collections::HashMap::new()),
         };
 
+        let safe_ws = workspace.replace("'", "''");
         let mut stream = table
             .query()
+            .only_if(format!("workspace = '{}'", safe_ws))
             .select(lancedb::query::Select::Columns(vec![
                 "filename".to_string(),
                 "last_modified".to_string(),

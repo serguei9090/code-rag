@@ -186,7 +186,7 @@ async fn process_search(
             payload.ext,
             payload.dir,
             payload.no_rerank,
-            None,
+            Some(workspace.clone()),
             payload.max_tokens,
             payload.expand,
         )

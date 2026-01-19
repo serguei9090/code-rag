@@ -21,13 +21,8 @@ async fn test_workspace_isolation() {
     let embedder = Arc::new(embedder);
 
     // 2. Prepare Data for Workspace A
-    let workspace_a_path = Path::new(&root_db_path).join("workspace_a");
-    // Ensure dir exists? Storage::new creates it if not exists usually, or we should create it.
-    // Storage::new expects the DB path.
-    let storage_a = Storage::new(workspace_a_path.to_str().unwrap())
-        .await
-        .unwrap();
-    storage_a.init(768).await.expect("Failed to init storage A");
+    // Logical Isolation: We use the SAME storage instance (root_storage)
+    // but different workspace IDs ("workspace_a" and "workspace_b").
 
     // Index file for A
     let path_a = Path::new(TEST_ASSETS_PATH).join("test.rs");
@@ -40,9 +35,9 @@ async fn test_workspace_isolation() {
     let (ids_a, filenames_a, codes_a, starts_a, ends_a, mtimes_a, calls_a) =
         common::prepare_chunks(&chunks_a);
 
-    storage_a
+    root_storage
         .add_chunks(
-            "repo_a",
+            "workspace_a", // Must match the URL param later
             ids_a,
             filenames_a,
             codes_a,
@@ -56,14 +51,7 @@ async fn test_workspace_isolation() {
         .expect("Add A failed");
 
     // 3. Prepare Data for Workspace B
-    let workspace_b_path = Path::new(&root_db_path).join("workspace_b");
-    let storage_b = Storage::new(workspace_b_path.to_str().unwrap())
-        .await
-        .unwrap();
-    storage_b.init(768).await.expect("Failed to init storage B");
-
-    // Index DIFFERENT content for B (or same content but different filename to distinguish)
-    // Let's use a dummy unique string
+    // Index DIFFERENT content for B
     let code_b = "fn unique_function_b() { println!(\"I am B\"); }";
     let mut reader_b = std::io::Cursor::new(code_b.as_bytes());
     let chunks_b = chunker.chunk_file("unique_b.rs", &mut reader_b, 0).unwrap();
@@ -73,9 +61,9 @@ async fn test_workspace_isolation() {
     let (ids_b, filenames_b, codes_b, starts_b, ends_b, mtimes_b, calls_b) =
         common::prepare_chunks(&chunks_b);
 
-    storage_b
+    root_storage
         .add_chunks(
-            "repo_b",
+            "workspace_b", // Must match the URL param later
             ids_b,
             filenames_b,
             codes_b,

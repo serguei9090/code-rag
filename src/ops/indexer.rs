@@ -54,7 +54,7 @@ impl<'a> CodeIndexer<'a> {
         {
             warn!("Error deleting old chunks for {}: {}", fname_str, e);
         }
-        if let Err(e) = self.bm25.delete_file(&fname_str) {
+        if let Err(e) = self.bm25.delete_file(&fname_str, &self.workspace) {
             warn!("Error deleting old BM25 docs for {}: {}", fname_str, e);
         }
 
@@ -132,7 +132,7 @@ impl<'a> CodeIndexer<'a> {
         self.storage
             .delete_file_chunks(&fname_str, &self.workspace)
             .await?;
-        self.bm25.delete_file(&fname_str)?;
+        self.bm25.delete_file(&fname_str, &self.workspace)?;
 
         info!("Removed: {}", fname_str);
         Ok(())

@@ -194,17 +194,39 @@ impl BM25Index {
     /// # Errors
     ///
     /// Returns an error if the index is read-only or if the commit fails.
-    pub fn delete_file(&self, filename: &str) -> Result<()> {
-        let writer_arc = self.writer.as_ref().ok_or(anyhow!("Index is read-only"))?;
+    pub fn delete_file(&self, filename: &str, workspace: &str) -> Result<()> {
+        let writer_arc = self
+            .writer
+            .as_ref()
+            .ok_or(anyhow::anyhow!("Index is read-only"))?;
         let mut writer = writer_arc
             .lock()
-            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
-        let filename_field = self
-            .schema
-            .get_field("filename")
-            .map_err(|e| anyhow!("Schema error for 'filename': {}", e))?;
-        // Since 'filename' is STRING (not analyzed), we can delete by exact match term
-        writer.delete_term(Term::from_field_text(filename_field, filename));
+            .map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
+
+        let filename_field = self.filename_field;
+        let workspace_field = self.workspace_field;
+
+        let filename_term = Term::from_field_text(filename_field, filename);
+        let workspace_term = Term::from_field_text(workspace_field, workspace);
+
+        let query = tantivy::query::BooleanQuery::new(vec![
+            (
+                tantivy::query::Occur::Must,
+                Box::new(tantivy::query::TermQuery::new(
+                    filename_term,
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                tantivy::query::Occur::Must,
+                Box::new(tantivy::query::TermQuery::new(
+                    workspace_term,
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ]);
+
+        writer.delete_query(Box::new(query))?;
         writer.commit()?;
         Ok(())
     }
@@ -367,7 +389,9 @@ mod tests {
             .expect("Search failed");
         assert_eq!(results.len(), 1);
 
-        index.delete_file("delete_me.rs").expect("Failed to delete");
+        index
+            .delete_file("delete_me.rs", "default")
+            .expect("Failed to delete");
         index.reader.reload().expect("Failed to reload");
 
         let results_after = index

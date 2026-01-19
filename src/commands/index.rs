@@ -138,7 +138,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     let existing_files = if update {
         pb_index.set_message("Fetching existing metadata...");
         storage
-            .get_indexed_metadata()
+            .get_indexed_metadata(&workspace)
             .await
             .map_err(|e| CodeRagError::Database(e.to_string()))?
     } else {
@@ -180,7 +180,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
                     if let Err(e) = storage.delete_file_chunks(&fname_str, &workspace).await {
                         warn!("Error deleting old chunks for {}: {}", fname_str, e);
                     }
-                    if let Err(e) = bm25_index.delete_file(&fname_str) {
+                    if let Err(e) = bm25_index.delete_file(&fname_str, &workspace) {
                         warn!("Error deleting old BM25 docs for {}: {}", fname_str, e);
                     }
                 }
