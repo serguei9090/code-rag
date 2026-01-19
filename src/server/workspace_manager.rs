@@ -8,11 +8,23 @@ use anyhow::{anyhow, Result};
 use dashmap::DashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::{info, warn};
 
+/// Thread-safe search context for a single workspace.
+///
+/// All components are wrapped in Arc for concurrent access without locks.
+pub struct WorkspaceSearchContext {
+    pub storage: Arc<Storage>,
+    pub embedder: Arc<Embedder>,
+    pub bm25: Option<Arc<BM25Index>>,
+    pub expander: Option<Arc<QueryExpander>>,
+    pub vector_weight: f32,
+    pub bm25_weight: f32,
+    pub rrf_k: f64,
+}
+
 pub struct WorkspaceManager {
-    workspaces: DashMap<String, Arc<Mutex<CodeSearcher>>>,
+    workspaces: DashMap<String, Arc<WorkspaceSearchContext>>,
     config: Arc<ServerStartConfig>,
     embedder: Arc<Embedder>,
     expander: Option<Arc<QueryExpander>>,
@@ -32,35 +44,61 @@ impl WorkspaceManager {
         }
     }
 
-    /// Retrieves a searcher for the given workspace ID.
+    /// Retrieves search context for the given workspace ID.
     ///
-    /// If the searcher is not in the cache, it attempts to load logic from:
+    /// Returns Arc<WorkspaceSearchContext> which can be shared across
+    /// multiple concurrent requests without blocking.
+    ///
+    /// If the context is not in the cache, it attempts to load from:
     /// `config.db_path / workspace_id`.
     ///
     /// The "default" workspace works on `config.db_path` directly to maintain backward compatibility.
-    pub async fn get_searcher(&self, workspace_id: &str) -> Result<Arc<Mutex<CodeSearcher>>> {
+    pub async fn get_search_context(
+        &self,
+        workspace_id: &str,
+    ) -> Result<Arc<WorkspaceSearchContext>> {
         if let Some(entry) = self.workspaces.get(workspace_id) {
             return Ok(entry.clone());
         }
 
         // Cache miss - try to load
-        let searcher = self.load_searcher(workspace_id).await?;
-        let searcher_arc = Arc::new(Mutex::new(searcher));
+        let context = self.load_search_context(workspace_id).await?;
+        let context_arc = Arc::new(context);
 
         self.workspaces
-            .insert(workspace_id.to_string(), searcher_arc.clone());
-        Ok(searcher_arc)
+            .insert(workspace_id.to_string(), context_arc.clone());
+        Ok(context_arc)
     }
 
-    async fn load_searcher(&self, workspace_id: &str) -> Result<CodeSearcher> {
+    /// Legacy compatibility method - returns CodeSearcher wrapped in Mutex.
+    ///
+    /// **Deprecated**: Use `get_search_context()` for better concurrency.
+    pub async fn get_searcher(
+        &self,
+        workspace_id: &str,
+    ) -> Result<Arc<tokio::sync::Mutex<CodeSearcher>>> {
+        // For backward compatibility with existing code
+        let context = self.get_search_context(workspace_id).await?;
+
+        let searcher = CodeSearcher::new(
+            Some(context.storage.clone()),
+            Some(context.embedder.clone()),
+            context.bm25.clone(),
+            context.expander.clone(),
+            context.vector_weight,
+            context.bm25_weight,
+            context.rrf_k,
+        );
+
+        Ok(Arc::new(tokio::sync::Mutex::new(searcher)))
+    }
+
+    async fn load_search_context(&self, workspace_id: &str) -> Result<WorkspaceSearchContext> {
         // Logical Isolation: All workspaces share the same physical DB path.
         // Isolation is handled by "workspace" column in LanceDB and field in BM25.
-        // Previously this logic attempted to create subdirectories, which conflicted with Indexer logic.
         let db_path = PathBuf::from(&self.config.db_path);
 
         if !db_path.exists() {
-            // Note: If the root DB doesn't exist, no workspace exists.
-            // If the DB exists but has no data for this workspace, that's handled by search returning empty.
             return Err(anyhow!("Database root not found at {:?}", db_path));
         }
 
@@ -73,11 +111,7 @@ impl WorkspaceManager {
         let storage = Storage::new(&storage_path).await?;
 
         // Ensure valid index (and check if we have data for this workspace?)
-        // Providing workspace_id allows checking specifically for that workspace's metadata.
         if storage.get_indexed_metadata(workspace_id).await.is_err() {
-            // It's acceptable if it's empty, but if the TABLE doesn't exist or error occurs:
-            // Warn but proceed? Or error out?
-            // For now, let's just log.
             warn!(
                 "Could not fetch metadata for workspace '{}'. It might be empty.",
                 workspace_id
@@ -89,14 +123,14 @@ impl WorkspaceManager {
             warn!("BM25 index not found for workspace '{}'", workspace_id);
         }
 
-        Ok(CodeSearcher::new(
-            Some(Arc::new(storage)),
-            Some(self.embedder.clone()), // Share the heavy embedder
-            bm25_index.map(Arc::new),
-            self.expander.clone(), // Share the LLM client
-            1.0,
-            1.0,
-            60.0,
-        ))
+        Ok(WorkspaceSearchContext {
+            storage: Arc::new(storage),
+            embedder: self.embedder.clone(),
+            bm25: bm25_index.map(Arc::new),
+            expander: self.expander.clone(),
+            vector_weight: 1.0,
+            bm25_weight: 1.0,
+            rrf_k: 60.0,
+        })
     }
 }

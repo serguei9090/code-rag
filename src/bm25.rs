@@ -255,6 +255,39 @@ impl BM25Index {
         Ok(())
     }
 
+    /// Returns a lightweight searcher for concurrent read access.
+    ///
+    /// Multiple threads can call this simultaneously without blocking.
+    /// Each searcher is independent and can be used in parallel.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use code_rag::bm25::BM25Index;
+    /// # fn main() -> anyhow::Result<()> {
+    /// let index = BM25Index::new("./db", true, "log")?;
+    /// let searcher = index.get_searcher();
+    /// // Use searcher for queries (thread-safe)
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_searcher(&self) -> tantivy::Searcher {
+        self.reader.searcher()
+    }
+
+    /// Reloads the index reader to see newly committed data.
+    ///
+    /// Call this after committing new documents to make them visible
+    /// to subsequent searcher instances.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reload operation fails.
+    pub fn reload(&self) -> Result<()> {
+        self.reader.reload()?;
+        Ok(())
+    }
+
     /// Searches the index using BM25 ranking.
     ///
     /// # Arguments

@@ -1,7 +1,7 @@
 use crate::embedding::Embedder;
 use crate::llm::client::OllamaClient;
 use crate::llm::expander::QueryExpander;
-use crate::search::SearchResult;
+use crate::search::{CodeSearcher, SearchResult};
 pub mod workspace_manager;
 use crate::server::workspace_manager::WorkspaceManager;
 use anyhow::Result;
@@ -164,21 +164,27 @@ async fn process_search(
     workspace: String,
     payload: SearchRequest,
 ) -> impl IntoResponse {
-    // 1. Get Searcher for Workspace
-    let searcher_arc = match state.workspace_manager.get_searcher(&workspace).await {
-        Ok(s) => s,
+    // 1. Get Search Context for Workspace (no lock!)
+    let context = match state.workspace_manager.get_search_context(&workspace).await {
+        Ok(ctx) => ctx,
         Err(e) => {
-            // Distinguish between errors if possible, but for now generic 404/400
-            // If the workspace doesn't exist on disk, get_searcher fails.
             let error_msg = format!("Failed to access workspace '{}': {}", workspace, e);
             return (StatusCode::NOT_FOUND, error_msg).into_response();
         }
     };
 
-    // 2. Lock Searcher
-    let searcher = searcher_arc.lock().await;
+    // 2. Create per-request searcher from context (cheap - just Arc clones)
+    let searcher = CodeSearcher::new(
+        Some(context.storage.clone()),
+        Some(context.embedder.clone()),
+        context.bm25.clone(),
+        context.expander.clone(),
+        context.vector_weight,
+        context.bm25_weight,
+        context.rrf_k,
+    );
 
-    // 3. Execute Search
+    // 3. Execute Search (concurrent-safe, no Mutex needed)
     let results = match searcher
         .semantic_search(
             &payload.query,
