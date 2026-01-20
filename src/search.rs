@@ -32,6 +32,24 @@ impl SearchResult {}
 /// Hybrid code search engine combining BM25 and vector search.
 ///
 /// Uses RRF (Reciprocal Rank Fusion) to combine keyword and semantic results.
+///
+/// # RRF Scoring Logic
+///
+/// The final score for each document is calculated as a weighted sum of its
+/// RRF scores from the vector search and the BM25 search (if enabled).
+///
+/// `Score = (Vector_RRF * vector_weight) + (BM25_RRF * bm25_weight)`
+///
+/// Where the RRF component for a given rank `r` is:
+///
+/// `RRF(r) = 1.0 / (k + r)`
+///
+/// - `k`: A smoothing constant (typically 60.0).
+/// - `rank`: The 1-based rank of the document in the specific search results.
+///
+/// This approach ensures that documents appearing near the top of both lists
+/// receive the highest combined scores, making the system robust to outliers
+/// in either individual method.
 pub struct CodeSearcher {
     storage: Option<Arc<Storage>>,
     embedder: Option<Arc<Embedder>>,
@@ -63,6 +81,25 @@ impl CodeSearcher {
         }
     }
 
+    /// Performs semantic search using a hybrid approach (Vector + BM25).
+    ///
+    /// This method executes both vector search (using embeddings) and keyword search
+    /// (using BM25, if configured), then combines the results using Reciprocal Rank Fusion (RRF).
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The search query string.
+    /// * `limit` - Maximum number of results to return.
+    /// * `ext` - Optional file extension filter.
+    /// * `dir` - Optional directory filter.
+    /// * `no_rerank` - If true, skips the LLM-based reranking step.
+    /// * `workspace` - The workspace to search in.
+    /// * `max_tokens` - Optional token limit for the result.
+    /// * `enable_expansion` - If true, expands the query using an LLM before searching.
+    ///
+    /// # Returns
+    ///
+    /// Returns a list of `SearchResult`s, ranked by their combined RRF score.
     #[allow(clippy::too_many_arguments)]
     pub async fn semantic_search(
         &self,
@@ -423,7 +460,9 @@ impl CodeSearcher {
         Ok(matches)
     }
 
-    /// Helper to compute RRF score component: 1.0 / (k + rank)
+    /// Helper to compute RRF score component.
+    ///
+    /// Formula: `1.0 / (k + rank)`
     fn compute_rrf_component(rank: usize, k: f64) -> f64 {
         1.0 / (k + rank as f64)
     }
