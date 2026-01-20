@@ -73,4 +73,5 @@ fn test_mcp_initialize() {
 
     // Terminate
     child.kill().ok();
+    child.wait().ok();
 }

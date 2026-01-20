@@ -1,7 +1,7 @@
 use anyhow::Result;
 use code_rag::bm25::BM25Index;
 use code_rag::indexer::CodeChunk;
-use std::fs;
+// use std::fs;
 use tempfile::TempDir;
 
 #[test]
@@ -49,7 +49,7 @@ fn test_bm25_batch_delete() -> Result<()> {
     // Verify they exist
     let results = index.search("test1", 10, Some("default"))?;
     println!("Results: {:?}", results);
-    assert!(results.len() >= 1, "Should find at least test1");
+    assert!(!results.is_empty(), "Should find at least test1");
 
     // Batch delete file1 and file3
     let to_delete = vec!["file1.rs".to_string(), "file3.rs".to_string()];
