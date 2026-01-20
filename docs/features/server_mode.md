@@ -66,6 +66,18 @@ Same as `/search`.
 - **URL**: `GET /health`
 - **Response**: `200 OK`
 
+### 4. Server Status
+- **URL**: `GET /status`
+- **Description**: Returns statistics about loaded workspaces and active locks.
+- **Response**: `200 OK`
+  ```json
+  {
+    "loaded_workspaces": 1,
+    "active_ids": ["default"],
+    "active_locks": 0
+  }
+  ```
+
 ## Architecture & Isolation
 
 The server uses a `WorkspaceManager` to handle isolation:

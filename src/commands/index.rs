@@ -118,6 +118,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     // 5. Indexing Loop (Streaming)
     let mut chunks_buffer = Vec::new();
     let mut pending_deletes = Vec::new();
+    let mut visited_files = std::collections::HashSet::new();
     let batch_size_val = batch_size.unwrap_or(256);
     tracing::info!("Using batch size: {}", batch_size_val);
 
@@ -144,6 +145,17 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
                 }
 
                 if let Ok(metadata) = fs::metadata(path) {
+                    // OOM Protection: Skip large files
+                    if metadata.len() > config.max_file_size_bytes as u64 {
+                        warn!(
+                            "Skipping file {} (size: {} bytes) - exceeds limit of {} bytes",
+                            path_str,
+                            metadata.len(),
+                            config.max_file_size_bytes
+                        );
+                        continue;
+                    }
+
                     let modified = metadata
                         .modified()
                         .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
@@ -153,11 +165,15 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
                         .as_secs() as i64;
                     let fname_str = path_str.to_string();
 
+                    // Track visited files for stale cleanup
+                    visited_files.insert(fname_str.clone());
+
                     if update {
                         if let Some(stored_mtime) = existing_files.get(&fname_str) {
                             if *stored_mtime == mtime {
                                 continue; // Unchanged
                             }
+                            // File changed, mark old version for deletion
                             pending_deletes.push(fname_str.clone());
                         }
                     }
@@ -196,6 +212,31 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
             workspace: &workspace,
         };
         process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
+    }
+
+    // 6. Stale File Cleanup (Post-Indexing)
+    if update {
+        let stale_files: Vec<String> = existing_files
+            .keys()
+            .filter(|f| !visited_files.contains(*f))
+            .cloned()
+            .collect();
+
+        if !stale_files.is_empty() {
+            info!("Found {} stale files to remove.", stale_files.len());
+            pb_index.set_message("Cleaning up stale files...");
+
+            // Process in batches
+            for chunk in stale_files.chunks(batch_size_val) {
+                let batch: Vec<String> = chunk.to_vec();
+                if let Err(e) = storage.batch_delete_files(&batch, &workspace).await {
+                    error!("Error removing stale files from storage: {}", e);
+                }
+                if let Err(e) = bm25_index.batch_delete_files(&batch, &workspace) {
+                    error!("Error removing stale files from BM25: {}", e);
+                }
+            }
+        }
     }
 
     // Commit BM25 index once at the end (single expensive I/O operation)

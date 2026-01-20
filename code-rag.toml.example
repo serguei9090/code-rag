@@ -61,6 +61,9 @@ device = "auto"
 chunk_size = 1024
 # Default: 128
 chunk_overlap = 128
+# Skip files larger than this (default 10MB) to prevent OOM
+# Default: 10485760
+max_file_size_bytes = 10485760
 
 # Search weights
 # Default: 1.0

@@ -20,6 +20,7 @@ pub struct AppConfig {
     pub reranker_model_path: Option<String>,
     pub chunk_size: usize,
     pub chunk_overlap: usize,
+    pub max_file_size_bytes: usize,
     pub vector_weight: f32,
     pub bm25_weight: f32,
     pub rrf_k: f32,
@@ -66,6 +67,7 @@ impl AppConfig {
             .set_default("reranker_model", "bge-reranker-base")?
             .set_default("chunk_size", 1024)?
             .set_default("chunk_overlap", 128)?
+            .set_default("max_file_size_bytes", 10 * 1024 * 1024)?
             .set_default("vector_weight", 1.0)?
             .set_default("bm25_weight", 1.0)?
             .set_default("rrf_k", 60.0)?

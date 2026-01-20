@@ -9,6 +9,7 @@ log_level = "info"
 log_format = "text"
 telemetry_enabled = false
 device = "auto"
+max_file_size_bytes = 10485760                                     # 10MB
 
 # Unified Execution Mode
 enable_server = true

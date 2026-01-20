@@ -124,6 +124,7 @@ pub async fn start_server(config: ServerStartConfig) -> Result<()> {
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
+        .route("/status", get(status_handler))
         .route("/search", post(search_handler_default))
         .route("/v1/{workspace}/search", post(search_handler_workspace))
         .layer(
@@ -139,6 +140,12 @@ pub fn create_router(state: AppState) -> Router {
 /// Health check handler
 async fn health_check() -> impl IntoResponse {
     StatusCode::OK
+}
+
+/// Status handler (GET /status)
+async fn status_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let stats = state.workspace_manager.get_stats();
+    (StatusCode::OK, Json(stats))
 }
 
 /// Handler for default workspace (POST /search)

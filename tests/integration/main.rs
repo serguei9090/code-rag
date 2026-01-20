@@ -8,3 +8,4 @@ mod model;
 mod resilience;
 mod server;
 mod streaming_test;
+mod verify_hardening;

@@ -47,6 +47,7 @@ cp code-rag.toml.example config_rag.toml
 | `device` | string | Inference device: `auto`, `cpu`, `cuda`, `metal`. | `auto` |
 | `chunk_size` | size | Size of text chunks for embedding. | `1024` |
 | `chunk_overlap` | size | Overlap between chunks. | `128` |
+| `max_file_size_bytes` | size | Skip files larger than this (default 10MB) to prevent OOM. | `10485760` |
 | `merge_policy` | string | Index merge policy: `log`, `fast-write`, `fast-search`. | `log` |
 
 ### Resource Management

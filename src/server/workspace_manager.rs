@@ -116,6 +116,18 @@ impl WorkspaceManager {
         Ok(Arc::new(tokio::sync::Mutex::new(searcher)))
     }
 
+    pub fn get_stats(&self) -> WorkspaceStats {
+        WorkspaceStats {
+            loaded_workspaces: self.workspaces.len(),
+            active_ids: self
+                .workspaces
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect(),
+            active_locks: self.loading_locks.len(),
+        }
+    }
+
     async fn load_search_context(&self, workspace_id: &str) -> Result<WorkspaceSearchContext> {
         // Logical Isolation: All workspaces share the same physical DB path.
         // Isolation is handled by "workspace" column in LanceDB and field in BM25.
@@ -141,19 +153,33 @@ impl WorkspaceManager {
             );
         }
 
-        let bm25_index = BM25Index::new(&storage_path, true, "log").ok();
-        if bm25_index.is_none() {
-            warn!("BM25 index not found for workspace '{}'", workspace_id);
-        }
+        // Resilient BM25 Loading
+        let bm25_index = match BM25Index::new(&storage_path, true, "log") {
+            Ok(idx) => Some(Arc::new(idx)),
+            Err(e) => {
+                warn!(
+                    "BM25 index load failed for '{}': {}. Proceeding with Vector-only search.",
+                    workspace_id, e
+                );
+                None
+            }
+        };
 
         Ok(WorkspaceSearchContext {
             storage: Arc::new(storage),
             embedder: self.embedder.clone(),
-            bm25: bm25_index.map(Arc::new),
+            bm25: bm25_index,
             expander: self.expander.clone(),
             vector_weight: 1.0,
             bm25_weight: 1.0,
             rrf_k: 60.0,
         })
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct WorkspaceStats {
+    pub loaded_workspaces: usize,
+    pub active_ids: Vec<String>,
+    pub active_locks: usize,
 }
