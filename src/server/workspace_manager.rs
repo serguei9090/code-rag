@@ -25,6 +25,7 @@ pub struct WorkspaceSearchContext {
 
 pub struct WorkspaceManager {
     workspaces: DashMap<String, Arc<WorkspaceSearchContext>>,
+    loading_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     config: Arc<ServerStartConfig>,
     embedder: Arc<Embedder>,
     expander: Option<Arc<QueryExpander>>,
@@ -38,6 +39,7 @@ impl WorkspaceManager {
     ) -> Self {
         Self {
             workspaces: DashMap::new(),
+            loading_locks: DashMap::new(),
             config: Arc::new(config),
             embedder,
             expander,
@@ -61,12 +63,33 @@ impl WorkspaceManager {
             return Ok(entry.clone());
         }
 
-        // Cache miss - try to load
+        // Cache miss - synchronize loading to prevent race conditions
+        // 1. Get or create a lock for this specific workspace ID
+        let lock = self
+            .loading_locks
+            .entry(workspace_id.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone();
+
+        // 2. Acquire the lock (await)
+        let _guard = lock.lock().await;
+
+        // 3. Double-check: verify if another thread loaded it while we were waiting
+        if let Some(entry) = self.workspaces.get(workspace_id) {
+            return Ok(entry.clone());
+        }
+
+        // 4. Actually load (still under lock)
         let context = self.load_search_context(workspace_id).await?;
         let context_arc = Arc::new(context);
 
         self.workspaces
             .insert(workspace_id.to_string(), context_arc.clone());
+
+        // cleanup lock map to avoid memory leak?
+        // Ideally we remove the lock, but doing so safely without re-introducing a race is tricky.
+        // Given logical workspaces are few, keeping empty mutexes is acceptable overhead.
+
         Ok(context_arc)
     }
 
