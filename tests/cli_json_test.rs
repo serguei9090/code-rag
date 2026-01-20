@@ -25,7 +25,9 @@ enable_watch = false
     fs::write(&config_path, config_content)?;
 
     // 2. Run search with --json and --config
+    // Set RUST_LOG=error to suppress debug/trace logs from dependencies
     let output = Command::new(env!("CARGO_BIN_EXE_code-rag"))
+        .env("RUST_LOG", "error")
         .arg("--config")
         .arg(config_path.to_str().unwrap())
         .arg("search")

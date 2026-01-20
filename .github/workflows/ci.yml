@@ -56,7 +56,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: ${{ runner.os }}-huggingface-${{ hashFiles('**/Cargo.lock') }}
+          # Use stable cache key based on model versions, not Cargo.lock
+          # Models: nomic-embed-text-v1.5, bge-reranker-base
+          key: ${{ runner.os }}-huggingface-v1.5-reranker-base
           restore-keys: |
             ${{ runner.os }}-huggingface-
 
