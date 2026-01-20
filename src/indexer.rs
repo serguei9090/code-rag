@@ -94,6 +94,16 @@ impl CodeChunker {
             return Ok(vec![]);
         }
 
+        // Check for binary content
+        let mut check_buf = [0u8; 1024];
+        let bytes_read = reader.read(&mut check_buf)?;
+        reader.seek(SeekFrom::Start(0))?;
+
+        if check_buf[..bytes_read].iter().any(|&b| b == 0) {
+            tracing::debug!("Skipping binary file: {}", filename);
+            return Ok(vec![]);
+        }
+
         let mut chunks = Vec::new();
 
         // Use a buffer for tree-sitter callback
@@ -403,5 +413,19 @@ mod tests {
         let chunks = chunker.split_text(text);
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0], "Short text");
+    }
+
+    #[test]
+    fn test_binary_file_skip() {
+        let chunker = CodeChunker::default();
+        // Construct binary content with null bytes
+        let binary_content = vec![0x00, 0xFF, 0xFE, 0x00, 0x41];
+        let mut cursor = Cursor::new(binary_content);
+
+        let chunks = chunker.chunk_file("test.rs", &mut cursor, 0).unwrap();
+        assert!(
+            chunks.is_empty(),
+            "Binary file should be skipped even if extension matches"
+        );
     }
 }
