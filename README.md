@@ -1,385 +1,144 @@
 # Code RAG – Local Code Search with Embeddings
 
-`code-rag` is a local-first code indexing and semantic search tool.
+![Project Status](https://img.shields.io/badge/Status-Active_Development-green)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Rust Version](https://img.shields.io/badge/rustc-1.75+-orange)
+![Build](https://img.shields.io/badge/Build-Passing-brightgreen)
 
-It:
-- 📁 Scans a folder with source code
-- ✂️ Splits files into chunks
-- 🧠 Generates embeddings locally (no cloud)
-- 🗄️ Stores them in a local LanceDB vector database
-- 🔍 Lets you search your code using natural language
+`code-rag` is a local-first **Semantic Code Search Engine** powered by LanceDB and local embeddings. It turns your codebase into a queryable knowledge base without sending a single line of code to the cloud.
 
-**Everything runs 100% locally.**
+---
 
-## 📦 What files / DB does it create?
+## ⚡ Key Features
 
-When you run indexing, it creates this folder:
+- **100% Local**: No cloud dependencies. Your code never leaves your machine.
+- **Semantic Search**: Understands *concepts*, not just keywords (e.g., search for "auth flow" finds login functions).
+- **Hybrid Reranking**: Combines BM25 and Vector search for high accuracy using `BGE-Reranker`.
+- **Multi-Language**: Supports Rust, Python, TS/JS, Go, C++, Java, and more via Tree-sitter.
+- **Server Mode**: Runs as a REST API for IDE plugins or other tools.
+- **MCP Support**: Native implementation of the **Model Context Protocol** for AI Assistant integration.
+- **Production Hardened**: OOM protection, stale file cleanup, and observability endpoints.
 
-```
-./.lancedb/
-```
+---
 
-Inside:
-```
-./.lancedb/
-  └── code_chunks/   (LanceDB table)
-```
+## 🚀 Quick Start
 
-So:
-- ✅ **Database location:** `./.lancedb` (relative to where you run the app)
-- ✅ **Table name:** `code_chunks`
-- ✅ You can delete `.lancedb` anytime to reset the index
-- ✅ **Default Database Path:** `./.lancedb` (can be changed in config or via `--db-path`)
+### 1. Installation
 
-## 📁 File Exclusion (Ignored files)
-
-`code-rag` is designed to be efficient and respectful of your project settings. By default, it automatically ignores:
-
--   **`.gitignore`**: Anything listed in your gitignore will not be indexed.
--   **`.ignore`**: If you want to ignore files specifically for `code-rag` but keep them in Git, use this file.
--   **Hidden Files**: Files and folders starting with a dot (e.g., `.git/`, `.env`) are ignored.
--   **System/Global ignores**: Your global Git configuration is also respected.
-
-This ensures you don't accidentally index `node_modules`, `target/`, or other massive build artifacts.
-
-## 🚀 How to use
-
-### 1️⃣ Index a project
-
-This scans and indexes a folder:
+**Prerequisites:**
+- [Rust](https://rustup.rs/) (1.75+)
+- Git
 
 ```bash
-code-rag index /path/to/your/project
+git clone https://github.com/yourusername/code-rag.git
+cd code-rag
+cargo build --release
 ```
 
-Update an existing index (incremental):
+### 2. Basic Usage
 
+**Index a repository:**
 ```bash
-code-rag index --update
+./target/release/code-rag index /path/to/project
 ```
 
-Force a fresh re-index:
-
+**Search:**
 ```bash
-code-rag index --force
+./target/release/code-rag search "how is configuration loaded?"
 ```
 
-**What it does:**
-- Walks all files recursively
-- Detects supported code files (Rust, Python, Go, C/C++, JS/TS, Java, C#, Ruby, PHP, HTML, CSS)
-- Splits them into semantic chunks (functions, classes, etc.)
-- extracts function calls/usages
-- Generates embeddings
-- Saves them to `./.lancedb/code_chunks`
+---
 
-See `docs/commands/index_cmd.md` for full reference.
+## ⚙️ Core Commands
 
-### 2️⃣ Search using natural language
+| Command | Description | Example |
+| :--- | :--- | :--- |
+| `index` | Scans and embeds code files. | `code-rag index .` |
+| `search` | Semantic search query. | `code-rag search "db connection"` |
+| `serve` | Starts REST API server. | `code-rag serve --port 3000` |
+| `start` | Unified mode (Server + MCP + Watcher). | `code-rag start` |
+| `grep` | Fast regex-based text search. | `code-rag grep "TODO:"` |
 
-```bash
-code-rag search "how do we load the config file?"
-```
+See [docs/commands](docs/commands/) for detailed CLI reference.
 
-With limit:
+---
 
-```bash
-code-rag search "vector database initialization" --limit 10
-```
+## 🏗️ Architecture
 
-Generate an HTML report:
-
-```bash
-code-rag search "authentication logic" --html
-```
-
-**NEW: JSON output for automation:**
-
-```bash
-code-rag search "database setup" --json | ConvertFrom-Json
-```
-
-**NEW: Filter by file extension:**
-
-```bash
-code-rag search "authentication" --ext rs  # Only Rust files
-code-rag search "config parser" --ext py   # Only Python files
-```
-
-**NEW: Filter by directory:**
-
-```bash
-code-rag search "api handler" --dir "src/api"
-```
-
-**NEW: Skip Re-ranking for speed:**
-
-```bash
-code-rag search "quick query" --no-rerank
-```
-
-**What it does:**
-- Converts your query to an embedding
-- Performs a hybrid search (Vector + Re-ranking)
-- Uses `BGE-Reranker` to refine the top results
-- Returns the most similar code chunks
-- Displays extracted call hierarchy (what functions are called)
-
-See `docs/commands/search.md` for full reference.
-
-### 3️⃣ Grep-style text search
-
-```bash
-code-rag grep "tokio::main"
-```
-
-**NEW: JSON output:**
-
-```bash
-code-rag grep "async fn" --json
-```
-
-This is a simple text search, not semantic. See `docs/commands/grep.md`.
-
-### 4️⃣ Start HTTP Server
-
-```bash
-code-rag serve --port 3000
-```
-
-Starts a persistent HTTP server for API access.
-
-**Options:**
-- `--port <PORT>`: Port to listen on (default: 3000)
-- `--host <HOST>`: Host to bind to (default: 127.0.0.1)
-- `--db-path <PATH>`: Custom database path
-
-See `docs/commands/serve.md` or `docs/features/server_mode.md` for details.
-
-### 5️⃣ Unified Execution Mode
-
-You can run the API server, MCP server, and File Watcher concurrently using the `start` command. This is useful for deployment or local development where you need all services active.
-
-1.  Enable the desired services in `code-rag.toml`:
-    ```toml
-    # Unified Execution Mode
-    enable_server = true
-    enable_mcp = true
-    enable_watch = true
-    ```
-
-2.  Run the start command:
-    ```bash
-    code-rag start
-    ```
-
-**Note:** When `enable_mcp` is true, application logs are automatically redirected to `stderr` to prevent corrupting the JSON-RPC communication on `stdout`.
-
-## 🧠 Embedding model used
-
-Your app uses: **NomicEmbedTextV15**
-
-- Runs locally
-- Downloaded automatically on first use
-- Cached on your machine
-
-See [AI Models](docs/configuration/models.md) for more info on supported models and how they work.
-
-**Supported Files:**
-- Rust (`.rs`)
-- Python (`.py`)
-- JavaScript/TypeScript (`.js`, `.jsx`, `.ts`, `.tsx`)
-- Go (`.go`)
-- C/C++ (`.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx`)
-- Java (`.java`)
-- C# (`.cs`)
-- Ruby (`.rb`)
-- PHP (`.php`)
-- HTML (`.html`)
-- CSS (`.css`)
-- Bash/Shell (`.sh`, `.bash`)
-- PowerShell (`.ps1`)
-- YAML (`.yaml`, `.yml`)
-- JSON (`.json`)
-- Zig (`.zig`)
-- Elixir (`.ex`, `.exs`)
-- Haskell (`.hs`)
-- Solidity (`.sol`)
-
-See [Supported Languages](docs/features/supported_languages.md) for full details on what is extracted for each language.
-
-## 🗑️ How to reset the database
-
-Just delete:
-
-```bash
-rm -rf ./.lancedb
-```
-
-Or on Windows:
-
-```powershell
-Remove-Item -Recurse -Force .\.lancedb
-```
-
-Then re-run:
-
-```bash
-code-rag index .
-```
-
-## ⚙️ Configuration (`config_rag.toml`)
-
-You can create a `config_rag.toml` file in your project root to avoid typing the same paths repeatedly.
-
-The tool loads configuration in this order:
-1.  **CLI Flags** (e.g., `--db-path`)
-2.  **Local Config** (`./config_rag.toml`)
-3.  **Global Config** (`~/.config/code-rag/config_rag.toml`)
-4.  **Environment Variables** (Prefix `CODE_RAG_`)
-
-**Example `config_rag.toml`:**
-```toml
-# Use single quotes for Windows paths!
-db_path = './.lancedb'
-default_index_path = '.'
-```
-
-See `code-rag.toml.example` for a template.
-
-## 📂 Example workflow
-
-```bash
-# 1) Index your repo
-code-rag index .
-
-# 2) Ask questions
-code-rag search "where is the database initialized?"
-
-code-rag search "how embeddings are generated" --limit 5
-```
-
-## ⚖️ Resource Management
-
-Control how `code-rag` uses system resources during indexing.
-
-### CLI Arguments
-```bash
-# Low priority to avoid slowing down your PC
-code-rag index . --priority low
-
-# Smaller batches to save RAM
-code-rag index . --batch-size 50
-```
-
-### Configuration
-You can also set these in `config_rag.toml`:
-```toml
-priority = 'low'
-batch_size = 100
-```
-
-## ⚙️ Build
-
-### Windows
-
-**Debug Build:**
-```powershell
-.\build.ps1
-```
-
-**Release Build:**
-```powershell
-.\build.ps1 release
-```
-
-**Interactive Menu:**
-```powershell
-.\interactive_build.ps1
-```
-
-### Linux / macOS
-
-**Debug Build:**
-```bash
-./build.sh
-```
-
-**Release Build:**
-```bash
-./build.sh release
-```
-
-## 🔒 Privacy
-
-- ✅ No cloud calls (Embeddings run locally)
-- ✅ **Opt-in Only** Telemetry (Disabled by default)
-- ✅ Everything stored locally in `./.lancedb`
-
-## 📊 Telemetry (Optional)
-
-`code-rag` supports OpenTelemetry for tracing and metrics. This is **disabled by default**.
-
-To enable it, set `telemetry_enabled = true` in your `config_rag.toml`.
-
-**Infrastructure:**
-We provide a pre-configured observability stack (Jaeger, Prometheus, Grafana).
-
-```bash
-docker-compose -f docker-compose.telemetry.yml up -d
-```
-
-- **Jaeger (Traces):** http://localhost:16686
-- **Prometheus (Metrics):** http://localhost:9090
-- **Grafana (Dashboards):** http://localhost:3000
-
-## 🧱 Internal architecture (simple)
+`code-rag` is built on a modular pipeline designed for performance and extensibility:
 
 ```mermaid
 graph LR
-    Files --> Chunker
-    Chunker --> Embedder
-    Embedder --> LanceDB
-    Search --> LanceDB
+    A[Source Files] --> B[Crawler]
+    B --> C[Tree-sitter Chunker]
+    C --> D[Embedding Model (ONNX)]
+    D --> E[LanceDB (Vector Store)]
+    E --> F[Search Engine]
+    F --> G[Reranker]
+    G --> H[Results]
 ```
 
-## 🛣️ Roadmap
+### Key Components
 
-### ✅ Phase 1: Core Functionality (Complete)
-- Local-first indexing and search
-- Multi-language support
-- Semantic chunking with Tree-sitter
-- **Model Context Protocol (MCP)**: Native support for MCP, allowing integration with AI assistants like Claude Desktop.
-- **Streaming Indexing**: Low-memory footprint file processing.
+- **Indexer**: Uses `ignore` crate for fast file walking, respecting `.gitignore`.
+- **Chunker**: Language-aware splitting using `tree-sitter` to preserve context.
+- **Embedder**: Runs `nomic-embed-text-v1.5` locally via `ort` (ONNX Runtime).
+- **Database**: `LanceDB` for high-performance vector storage on disk.
 
-### ✅ Phase 2: Programmatic Access (Complete)
-- JSON output mode for CI/CD integration
-- Extended language support (Zig, Elixir, Haskell, Solidity)
-- Cross-encoder reranking for improved accuracy
+---
 
-### ✅ Phase 3: Metadata Filtering (In Progress)
-- Filter by file extension (`--ext`)
-- Filter by directory (`--dir`)
+## 🛠️ Developer Guide
 
-### 🔜 Future Ideas
-- Real-time file system watcher
-- Query expansion with local LLM
-- LSP integration for IDE support
-- Web UI
-- Git blame integration
+### Development Environment
+
+1.  **Dependencies**: Ensure you have the `onnxruntime` libraries or let `ort` download them automatically.
+2.  **Config**: Copy the template to customize your dev environment.
+    ```bash
+    cp code-rag.toml.example code-rag.toml
+    ```
+3.  **Build Scripts**:
+    - **Windows**: `.\build.ps1`
+    - **Linux/Mac**: `./build.sh`
+
+### Testing
+
+We aim for comprehensive coverage including Unit, Integration, and E2E tests.
+
+```bash
+# Run all unit tests
+cargo test
+
+# Run specific integration test
+cargo test --test integration -- verify_hardening
+```
+
+### Project Structure
+
+- `src/commands/`: CLI command implementations.
+- `src/server/`: Axum-based HTTP server and WorkspaceManager.
+- `src/embedding/`: ONNX runtime integration.
+- `tests/integration/`: Unified integration test suite.
+
+---
+
+## 📚 Documentation
+
+Detailed documentation is available in the `docs/` directory:
+
+- [Configuration Guide](docs/configuration/configuration.md)
+- [Server Mode & API](docs/features/server_mode.md)
+- [Model Context Protocol (MCP)](docs/features/mcp.md)
+- [Supported Languages](docs/features/supported_languages.md)
+
+---
 
 ## 🤝 Contributing
 
-We use [Lefthook](https://github.com/evilmartians/lefthook) to ensure code quality. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code style, testing, and PR limits.
 
-## 🆘 Troubleshooting
+---
 
-**“My search returns nothing”**
+## 📄 License
 
-- Did you run index first?
-- Does `./.lancedb` exist?
-- Try reindexing:
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-```bash
-rm -rf ./.lancedb
-code-rag index .
-```
