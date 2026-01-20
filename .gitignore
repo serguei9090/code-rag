@@ -3,3 +3,6 @@
 .lancedb*
 .fastembed_cache
 *error*.txt
+*.exe
+*.log
+*.onnx
