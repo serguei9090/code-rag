@@ -26,6 +26,7 @@ enable_watch = false
 
     // 2. Run search with --json and --config
     let output = Command::new(env!("CARGO_BIN_EXE_code-rag"))
+        .env("RUST_LOG", "error") // Force silence for clean JSON output check
         .arg("--config")
         .arg(config_path.to_str().unwrap())
         .arg("search")
