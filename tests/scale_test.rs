@@ -32,7 +32,7 @@ async fn generate_large_dataset(root: &Path, count: usize) -> Result<()> {
         });
     }
 
-    while let Some(_) = set.join_next().await {}
+    while (set.join_next().await).is_some() {}
     Ok(())
 }
 
