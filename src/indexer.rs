@@ -62,7 +62,7 @@ impl CodeChunker {
             "css" => Some(tree_sitter_css::LANGUAGE.into()),
             "sh" | "bash" => Some(tree_sitter_bash::LANGUAGE.into()),
             "ps1" => Some(tree_sitter_powershell::language()),
-            // "dockerfile" | "Dockerfile" => Some(tree_sitter_dockerfile::language().into()),
+            // "dockerfile" | "Dockerfile" => Some(tree_sitter_dockerfile::language()),
             "yaml" | "yml" => Some(tree_sitter_yaml::LANGUAGE.into()),
             "json" => Some(tree_sitter_json::LANGUAGE.into()),
             "zig" => Some(tree_sitter_zig::LANGUAGE.into()),
@@ -99,7 +99,7 @@ impl CodeChunker {
         let bytes_read = reader.read(&mut check_buf)?;
         reader.seek(SeekFrom::Start(0))?;
 
-        if check_buf[..bytes_read].iter().any(|&b| b == 0) {
+        if check_buf[..bytes_read].contains(&0) {
             tracing::debug!("Skipping binary file: {}", filename);
             return Ok(vec![]);
         }
@@ -227,7 +227,13 @@ impl CodeChunker {
         let is_chunkable = is_semantic_chunk || is_ruby_module || is_script_chunk;
 
         if is_chunkable {
-            // DEBUG: check if we should print S-expression? No, removed for performance/cleanup.
+            // Restore debug printing for S-expressions
+            tracing::trace!(
+                "Processing chunks for node kind: {}, range: {}-{}",
+                kind,
+                node.start_byte(),
+                node.end_byte()
+            );
 
             let start_byte = node.start_byte();
             let end_byte = node.end_byte();
@@ -235,6 +241,17 @@ impl CodeChunker {
             // Read content from file/reader
             reader.seek(SeekFrom::Start(start_byte as u64))?;
             let len = end_byte.saturating_sub(start_byte);
+            // Safety check: Prevent OOM on extremely large single nodes (e.g. > 10MB)
+            // If a single semantic node is that large, it's likely not useful for embedding anyway.
+            if len > 10 * 1024 * 1024 {
+                tracing::warn!(
+                    "Node too large to chunk in {} (size: {} bytes). Skipping.",
+                    filename,
+                    len
+                );
+                return Ok(());
+            }
+
             if len > 0 {
                 let mut buf = vec![0u8; len];
                 reader.read_exact(&mut buf)?;
