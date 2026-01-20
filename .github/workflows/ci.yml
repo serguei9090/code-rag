@@ -10,13 +10,11 @@ on:
 env:
   CARGO_TERM_COLOR: always
   HF_HOME: ~/.cache/huggingface
-  RUST_LOG: info
 
 jobs:
-  build-and-test:
-    name: Build & Test (Linux)
+  quality:
+    name: Code Quality
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +29,29 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
 
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+      - name: Lint with Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  tests:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    env:
+      RUST_LOG: error # Disable trace/debug/info for tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Cache HuggingFace Models
         uses: actions/cache@v4
         with:
@@ -39,14 +60,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-huggingface-
 
-      - name: Check Formatting
-        run: cargo fmt -- --check
-
-      - name: Lint with Clippy
-        run: cargo clippy --all-targets -- -D warnings
-
       - name: Run Unified Test Suite
-        # Make script executable and run it
         run: |
           chmod +x test_all.sh
           ./test_all.sh
