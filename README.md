@@ -23,6 +23,8 @@
 
 ## 🚀 Quick Start
 
+> **New to code-rag?** Check out the [Fast Start Guide](docs/quickstart.md) for a step-by-step walkthrough of commands and configuration.
+
 ### 1. Installation
 
 **Prerequisites:**
@@ -35,7 +37,21 @@ cd code-rag
 cargo build --release
 ```
 
-### 2. Basic Usage
+### 2. Hardware Acceleration
+
+**NVIDIA GPU (Windows/Linux):**
+Requires [CUDA Toolkit 11.8+](https://developer.nvidia.com/cuda-downloads) and [cuDNN](https://developer.nvidia.com/cudnn).
+```bash
+cargo build --release --features cuda
+```
+
+**macOS (Metal):**
+Enabled by default on Apple Silicon, but can be explicit:
+```bash
+cargo build --release --features metal
+```
+
+### 3. Basic Usage
 
 **Index a repository:**
 ```bash
