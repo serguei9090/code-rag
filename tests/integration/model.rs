@@ -29,13 +29,15 @@ async fn test_local_model_loading() {
         .join("bge-small-en-v1.5");
     let model_path_str = model_path.to_str().unwrap().to_string();
 
-    // Ensure model path exists
-    // Ensure model path exists
-    if !model_path.exists() {
-        println!(
-            "Skipping test_local_model_loading: Model fixture not found at {}",
+    // Ensure model path exists and contains required model.onnx file
+    let model_onnx_path = model_path.join("model.onnx");
+    if !model_path.exists() || !model_onnx_path.exists() {
+        eprintln!(
+            "Skipping test_local_model_loading: Model fixture incomplete or not found at {}",
             model_path_str
         );
+        eprintln!("Required file missing: model.onnx");
+        eprintln!("This test requires the full bge-small-en-v1.5 model to be present.");
         return;
     }
 
