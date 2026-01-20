@@ -449,6 +449,7 @@ mod tests {
         index
             .add_chunks(&chunks, "default")
             .expect("Failed to add chunks");
+        index.commit().expect("Failed to commit");
         index.reader.reload().expect("Failed to reload");
 
         let results = index
@@ -476,6 +477,7 @@ mod tests {
         index
             .add_chunks(&chunks, "default")
             .expect("Failed to add chunks");
+        index.commit().expect("Failed to commit");
         index.reader.reload().expect("Failed to reload");
 
         let results = index
@@ -486,6 +488,7 @@ mod tests {
         index
             .delete_file("delete_me.rs", "default")
             .expect("Failed to delete");
+        index.commit().expect("Failed to commit");
         index.reader.reload().expect("Failed to reload");
 
         let results_after = index
