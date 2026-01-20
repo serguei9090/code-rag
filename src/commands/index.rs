@@ -92,48 +92,15 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     let chunker = CodeChunker::new(config.chunk_size, config.chunk_overlap);
 
     // 4. Scan Files
-    let pb_scan = ProgressBar::new_spinner();
-    pb_scan.set_style(
+    // 4. Setup Progress Bar & Walker
+    let pb_index = ProgressBar::new_spinner();
+    pb_index.set_style(
         ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
+            .template("{spinner:.green} [{elapsed_precise}] {pos} files processed ({msg})")
             .map_err(|e| CodeRagError::Tantivy(e.to_string()))?,
     );
-    pb_scan.enable_steady_tick(std::time::Duration::from_millis(120));
-    pb_scan.set_message("Scanning files...");
-
-    let builder = WalkBuilder::new(index_path);
-    let walker = builder.build();
-
-    let mut entries = Vec::new();
-    for entry in walker.flatten() {
-        if entry.file_type().is_some_and(|ft| ft.is_file()) {
-            let path = entry.path();
-            let path_str = path.to_string_lossy();
-            let excluded = config.exclusions.iter().any(|ex| path_str.contains(ex));
-            if !excluded {
-                entries.push(entry);
-                pb_scan.set_message(format!("Found {} files...", entries.len()));
-            }
-        }
-    }
-    pb_scan.finish_with_message(format!("Scanned {} files.", entries.len()));
-
-    if entries.is_empty() {
-        warn!("No files found to index.");
-        return Ok(());
-    }
-
-    // 5. Indexing Loop
-    let total_files = entries.len() as u64;
-    let pb_index = ProgressBar::new(total_files);
-    pb_index.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-            .map_err(|e| CodeRagError::Tantivy(e.to_string()))?
-            .progress_chars("#>-"),
-    );
     pb_index.enable_steady_tick(std::time::Duration::from_millis(120));
-    pb_index.set_message("Indexing...");
+    pb_index.set_message("Initializing...");
 
     let existing_files = if update {
         pb_index.set_message("Fetching existing metadata...");
@@ -145,61 +112,78 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
         HashMap::new()
     };
 
+    let builder = WalkBuilder::new(index_path);
+    let walker = builder.build();
+
+    // 5. Indexing Loop (Streaming)
     let mut chunks_buffer = Vec::new();
     let mut pending_deletes = Vec::new();
     let batch_size_val = batch_size.unwrap_or(256);
     tracing::info!("Using batch size: {}", batch_size_val);
 
-    for entry in entries {
-        let file_path = entry.path();
-        let fname_lossy = file_path.to_string_lossy();
-        let fname_short = file_path.file_name().unwrap_or_default().to_string_lossy();
+    for result in walker {
+        match result {
+            Ok(entry) => {
+                if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    continue;
+                }
 
-        pb_index.set_message(format!("Processing {}", fname_short));
-        pb_index.inc(1);
+                let path = entry.path();
+                let path_str = path.to_string_lossy();
+                if config.exclusions.iter().any(|ex| path_str.contains(ex)) {
+                    continue;
+                }
 
-        let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
-        if CodeChunker::get_language(ext).is_none() {
-            continue;
-        }
+                let fname_short = path.file_name().unwrap_or_default().to_string_lossy();
+                pb_index.set_message(format!("Processing {}", fname_short));
+                pb_index.inc(1);
 
-        if let Ok(metadata) = fs::metadata(file_path) {
-            let modified = metadata
-                .modified()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-            let mtime = modified
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-            let fname_str = fname_lossy.to_string();
+                let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+                if CodeChunker::get_language(ext).is_none() {
+                    continue;
+                }
 
-            if update {
-                if let Some(stored_mtime) = existing_files.get(&fname_str) {
-                    if *stored_mtime == mtime {
-                        continue; // Unchanged
+                if let Ok(metadata) = fs::metadata(path) {
+                    let modified = metadata
+                        .modified()
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let mtime = modified
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs() as i64;
+                    let fname_str = path_str.to_string();
+
+                    if update {
+                        if let Some(stored_mtime) = existing_files.get(&fname_str) {
+                            if *stored_mtime == mtime {
+                                continue; // Unchanged
+                            }
+                            pending_deletes.push(fname_str.clone());
+                        }
                     }
-                    pending_deletes.push(fname_str.clone());
+
+                    if let Ok(file) = fs::File::open(path) {
+                        let mut reader = std::io::BufReader::new(file);
+                        match chunker.chunk_file(&fname_str, &mut reader, mtime) {
+                            Ok(new_chunks) => chunks_buffer.extend(new_chunks),
+                            Err(e) => warn!("Error chunking file {}: {}", fname_str, e),
+                        }
+                    }
+                }
+
+                if chunks_buffer.len() >= batch_size_val || pending_deletes.len() >= batch_size_val
+                {
+                    let mut ctx = IndexingContext {
+                        embedder: &mut embedder,
+                        storage: &storage,
+                        bm25_index: &bm25_index,
+                        pb: &pb_index,
+                        workspace: &workspace,
+                    };
+                    process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
                 }
             }
-
-            if let Ok(file) = fs::File::open(file_path) {
-                let mut reader = std::io::BufReader::new(file);
-                match chunker.chunk_file(&fname_str, &mut reader, mtime) {
-                    Ok(new_chunks) => chunks_buffer.extend(new_chunks),
-                    Err(e) => warn!("Error chunking file {}: {}", fname_str, e),
-                }
-            }
-        }
-
-        if chunks_buffer.len() >= batch_size_val || pending_deletes.len() >= batch_size_val {
-            let mut ctx = IndexingContext {
-                embedder: &mut embedder,
-                storage: &storage,
-                bm25_index: &bm25_index,
-                pb: &pb_index,
-                workspace: &workspace,
-            };
-            process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
+            Err(err) => warn!("Error walking directory: {}", err),
         }
     }
 
