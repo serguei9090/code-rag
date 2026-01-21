@@ -80,7 +80,7 @@ enable_watch = false
 
     // 4. Generate Load
     let client = Client::new();
-    let url = format!("http://127.0.0.1:{}/v1/default/search?query=test", port);
+    let url = format!("http://127.0.0.1:{}/v1/default/search", port);
 
     let concurrency = 50;
     let mut set = tokio::task::JoinSet::new();
@@ -92,7 +92,12 @@ enable_watch = false
         let c = client.clone();
         let u = url.clone();
         set.spawn(async move {
-            let resp = c.get(&u).send().await;
+            // Build JSON payload matching SearchRequest structure
+            let payload = serde_json::json!({
+                "query": "test",
+                "limit": 5
+            });
+            let resp = c.post(&u).json(&payload).send().await;
             (i, resp)
         });
     }

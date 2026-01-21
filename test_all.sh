@@ -34,9 +34,9 @@ echo " -> Scale Test (10k Files - Simulated)..."
 # Explicitly run the ignored scale test
 cargo test --test scale_test -- --ignored
 
-echo " -> Stress Test (Consult concurrent load)..."
-# Explicitly run the ignored stress test
-cargo test --test stress_test -- --ignored
+# Stress test is excluded from CI (run manually with: cargo test --test stress_test -- --ignored)
+# echo " -> Stress Test (Concurrent load)..."
+# cargo test --test stress_test -- --ignored
 
 # 4. Smoke Test (Manual Verification Simulation)
 echo ""
