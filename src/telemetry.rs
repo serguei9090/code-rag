@@ -19,17 +19,30 @@ pub struct TelemetryGuard {
 }
 
 pub fn init_telemetry(mode: AppMode, config: &AppConfig) -> Result<TelemetryGuard> {
+    // Always apply log level from config, even if RUST_LOG is set
+    // This ensures consistent behavior regardless of environment
+    let filter = format!(
+        "code_rag={},tokenizers=error,tantivy=warn,h2=error,tower=error,hyper=warn,reqwest=warn",
+        config.log_level
+    );
+    std::env::set_var("RUST_LOG", filter);
+
     if !config.telemetry_enabled {
-        // Initialize basic logging
+        // Initialize basic logging with EnvFilter
+        let env_filter = tracing_subscriber::EnvFilter::from_default_env();
+
         // For MCP, we MUST NOT print logs to stdout as it corrupts the JSON-RPC stream
         if config.enable_mcp {
-            // Redirect logs to stderr or file only
+            // Redirect logs to stderr only
             let subscriber = Registry::default()
+                .with(env_filter)
                 .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr));
             let _ = subscriber.try_init();
         } else {
             // Normal CLI/Server mode - stdout is fine
-            let subscriber = Registry::default().with(tracing_subscriber::fmt::layer());
+            let subscriber = Registry::default()
+                .with(env_filter)
+                .with(tracing_subscriber::fmt::layer());
             let _ = subscriber.try_init();
         }
 
@@ -40,7 +53,7 @@ pub fn init_telemetry(mode: AppMode, config: &AppConfig) -> Result<TelemetryGuar
 
     match mode {
         AppMode::Cli => init_cli_telemetry(config),
-        AppMode::Server => init_server_telemetry(&config.telemetry_endpoint),
+        AppMode::Server => init_server_telemetry(&config.telemetry_endpoint, config),
     }
 }
 
@@ -74,7 +87,7 @@ fn init_cli_telemetry(config: &AppConfig) -> Result<TelemetryGuard> {
     })
 }
 
-fn init_server_telemetry(endpoint: &str) -> Result<TelemetryGuard> {
+fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<TelemetryGuard> {
     // 1. OTLP Tracer (Jaeger)
     // install_batch returns a Tracer. The global provider is configured implicitly by install_batch in many versions,
     // or we just use the tracer with the layer.
@@ -121,7 +134,19 @@ fn init_server_telemetry(endpoint: &str) -> Result<TelemetryGuard> {
     })?;
 
     // Subscriber setup
+    // Explicitly build the filter to ensure it's applied correctly
+    let filter_str = format!(
+        "code_rag={},tokenizers=error,tantivy=warn,h2=error,tower=error,hyper=warn,reqwest=warn",
+        _config.log_level
+    );
+    let filter_layer = tracing_subscriber::EnvFilter::try_new(&filter_str)
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"));
+
+    // Redirect 'log' events to 'tracing'
+    let _ = tracing_log::LogTracer::init();
+
     let subscriber = Registry::default()
+        .with(filter_layer)
         .with(telemetry)
         .with(tracing_subscriber::fmt::layer());
 

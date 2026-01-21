@@ -154,18 +154,16 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // 1. Load Configuration
-    // We strictly follow precedence config_rag.toml -> defaults.
-    // NOTE: In a real app we might peek at args to find -c first, logic simplified here.
-    let config = AppConfig::new().context("Failed to load configuration")?;
-
-    // 2. Parse Args Early to determine Telemetry Mode
+    // 1. Parse Arguments First
     let args = Args::parse();
 
+    // 2. Load Configuration (with optional custom path from --config)
+    let config = AppConfig::from_path(args.config).context("Failed to load configuration")?;
+
     // 3. Setup Telemetry
-    // If command is Serve, we use Server mode (OTLP), otherwise CLI mode (Chrome/Local)
+    // If command is Serve or Start, we use Server mode (OTLP), otherwise CLI mode (Chrome/Local)
     let app_mode = match args.command {
-        Commands::Serve { .. } => AppMode::Server,
+        Commands::Serve { .. } | Commands::Start => AppMode::Server,
         _ => AppMode::Cli,
     };
 

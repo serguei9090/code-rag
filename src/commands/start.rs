@@ -13,6 +13,65 @@ pub async fn run(config: &AppConfig) -> Result<()> {
         ));
     }
 
+    // Auto-index empty workspaces before starting services
+    if config.enable_server || config.enable_watch {
+        info!("Checking workspaces for initial indexing...");
+
+        let workspaces_to_index = if config.workspaces.is_empty() {
+            // Default workspace
+            vec![("default".to_string(), config.default_index_path.clone())]
+        } else {
+            config
+                .workspaces
+                .iter()
+                .map(|(name, path)| (name.clone(), path.clone()))
+                .collect()
+        };
+
+        for (name, source_path) in workspaces_to_index {
+            let db_path = if name == "default" {
+                config.db_path.clone()
+            } else {
+                Path::new(&config.db_path)
+                    .join(&name)
+                    .to_string_lossy()
+                    .to_string()
+            };
+
+            // Check if workspace is empty (no code_chunks.lance table)
+            let lance_table_path = Path::new(&db_path).join("code_chunks.lance");
+            if !lance_table_path.exists() {
+                info!(
+                    "Workspace '{}' is empty. Triggering initial indexing from '{}'...",
+                    name, source_path
+                );
+
+                // Trigger indexing using the index command logic
+                let index_opts = crate::commands::index::IndexOptions {
+                    path: Some(source_path.clone()),
+                    db_path: Some(db_path.clone()),
+                    workspace: name.clone(), // String, not Option<String>
+                    update: false,           // Fresh index, not update
+                    force: false,            // Don't force reindex
+                    batch_size: Some(config.batch_size),
+                    threads: config.threads,
+                };
+
+                if let Err(e) = crate::commands::index::index_codebase(index_opts, config).await {
+                    error!("Failed to auto-index workspace '{}': {:#}", name, e);
+                    info!("Continuing with other services. You can manually index later.");
+                } else {
+                    info!("✓ Workspace '{}' indexed successfully", name);
+                }
+            } else {
+                info!(
+                    "Workspace '{}' already indexed, skipping initial indexing",
+                    name
+                );
+            }
+        }
+    }
+
     let mut set: JoinSet<Result<()>> = JoinSet::new();
 
     // Pre-initialize BM25 indexes to avoid race conditions

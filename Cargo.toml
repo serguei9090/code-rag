@@ -1,6 +1,6 @@
 [package]
 name = "code-rag"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "High-Performance Offline Code RAG CLI"
 license = "MIT"
@@ -101,6 +101,7 @@ ollama-rs = "0.2"
 url = "2.5.8"
 tokio-util = { version = "0.7.18", features = ["codec", "io"] }
 dashmap = "6.1.0"
+tracing-log = "0.2.0"
 
 [dev-dependencies]
 http-body-util = "0.1.3"

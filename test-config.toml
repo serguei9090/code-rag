@@ -1,0 +1,9 @@
+db_path = "./.lancedb_test"
+log_level = "warn"
+default_index_path = "src"
+enable_server = false
+enable_mcp = false
+enable_watch = true
+
+[workspaces]
+test = "src"

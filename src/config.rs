@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct AppConfig {
     pub db_path: String,
     pub default_index_path: String,
@@ -46,20 +47,22 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    /// Load default config (looks for code-rag.toml in current directory)
     pub fn new() -> Result<Self, ConfigError> {
-        Self::load(true)
+        Self::from_path(None)
     }
 
-    pub fn load(include_files: bool) -> Result<Self, ConfigError> {
-        // Defaults
-        let mut s = Config::builder()
+    /// Load config from a specific file path
+    pub fn from_path(custom_path: Option<String>) -> Result<Self, ConfigError> {
+        // Set all defaults
+        let mut builder = Config::builder()
             .set_default("db_path", "./.lancedb")?
             .set_default("default_index_path", ".")?
             .set_default("default_limit", 5)?
             .set_default("server_host", "127.0.0.1")?
             .set_default("server_port", 3000)?
             .set_default("exclusions", Vec::<String>::new())?
-            .set_default("log_level", "info")?
+            .set_default("log_level", "warn")? // Changed from "info" to "warn"
             .set_default("log_format", "text")?
             .set_default("log_to_file", false)?
             .set_default("log_dir", "logs")?
@@ -88,26 +91,69 @@ impl AppConfig {
                 std::collections::HashMap::<String, String>::new(),
             )?;
 
-        if include_files {
-            // 1. File: ~/.config/code-rag/config_rag.toml (User Config)
+        // Load from file (custom path OR defaults)
+        if let Some(path) = custom_path {
+            // Custom config file specified via --config
+            let path_buf = PathBuf::from(&path);
+
+            if !path_buf.exists() {
+                return Err(ConfigError::Message(format!(
+                    "Config file not found: {}",
+                    path
+                )));
+            }
+
+            if path_buf.extension().and_then(|s| s.to_str()) != Some("toml") {
+                return Err(ConfigError::Message(format!(
+                    "Config file must have .toml extension: {}",
+                    path
+                )));
+            }
+
+            builder = builder.add_source(File::from(path_buf));
+        } else {
+            // No custom path - try standard locations
+            // 1. File: ~/.config/code-rag/code-rag.toml (User Config)
             if let Some(mut home) = dirs::config_dir() {
                 home.push("code-rag");
                 home.push("code-rag.toml");
-                // Check for both without extension and with .toml extension
-                s = s.add_source(File::from(home).required(false));
+                builder = builder.add_source(File::from(home).required(false));
             }
 
             // 2. File: code-rag.toml (Current Directory) - takes precedence
             if PathBuf::from("code-rag.toml").exists() {
-                s = s.add_source(File::with_name("code-rag"));
+                builder = builder.add_source(File::with_name("code-rag"));
             }
         }
 
-        // 3. Environment: CODE_RAG__KEY=VALUE
-        // e.g., CODE_RAG__DB_PATH=/tmp/db
-        s = s.add_source(Environment::with_prefix("CODE_RAG").separator("__"));
+        // 3. Environment: CODE_RAG__KEY=VALUE (always checked, lowest precedence)
+        builder = builder.add_source(Environment::with_prefix("CODE_RAG").separator("__"));
 
-        s.build()?.try_deserialize()
+        // Build and deserialize with helpful error messages
+        let config = builder.build()?;
+
+        config.try_deserialize().map_err(|e| {
+            // Provide helpful error for unknown fields
+            let err_msg = e.to_string();
+            if err_msg.contains("unknown field") {
+                ConfigError::Message(format!(
+                    "Invalid configuration key found.\n{}\n\nPlease check your config file for typos.\nRun 'code-rag --help' to see valid options.",
+                    err_msg
+                ))
+            } else {
+                e
+            }
+        })
+    }
+
+    /// For backward compatibility - old load function
+    pub fn load(include_files: bool) -> Result<Self, ConfigError> {
+        if include_files {
+            Self::new()
+        } else {
+            // Load only defaults (for tests)
+            Self::from_path(None)
+        }
     }
 }
 
