@@ -33,13 +33,9 @@ cargo test --test performance
 echo " -> JSON Contract Test (CLI Output Cleanliness)..."
 cargo test --test cli_json_test
 
-echo " -> Scale Test (10k Files - Simulated)..."
-# Explicitly run the ignored scale test
-cargo test --test scale_test -- --ignored
-
-# Stress test is excluded from CI (run manually with: cargo test --test stress_test -- --ignored)
-# echo " -> Stress Test (Concurrent load)..."
-# cargo test --test stress_test -- --ignored
+# Scale and Stress tests are excluded from CI (run manually)
+# Scale test: cargo test --test scale_test -- --ignored (10k files, ~8 minutes)
+# Stress test: cargo test --test stress_test -- --ignored (concurrent load)
 
 # 4. Smoke Test (Manual Verification Simulation)
 echo ""

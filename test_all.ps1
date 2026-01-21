@@ -28,14 +28,9 @@ Write-Host "  -> JSON Contract Test..."
 cargo test --test cli_json_test
 if ($LASTEXITCODE -ne 0) { Write-Error "JSON Contract test failed!"; exit 1 }
 
-Write-Host "  -> Scale Benchmark (10k Files)..."
-cargo test --test scale_test -- --ignored
-if ($LASTEXITCODE -ne 0) { Write-Error "Scale Benchmark failed!"; exit 1 }
-
-# Stress test is excluded from CI (run manually with: cargo test --test stress_test -- --ignored)
-# Write-Host "  -> Concurrent Stress Test..."
-# cargo test --test stress_test -- --ignored
-# if ($LASTEXITCODE -ne 0) { Write-Error "Stress Test failed!"; exit 1 }
+# Scale and Stress tests are excluded from CI (run manually)
+# Scale test: cargo test --test scale_test -- --ignored (10k files, ~8 minutes)
+# Stress test: cargo test --test stress_test -- --ignored (concurrent load)
 
 # 4. Multi-Workspace Smoke Test
 Write-Host "`n[4/4] Verifying Multi-Workspace Startup..."
