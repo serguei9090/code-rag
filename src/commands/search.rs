@@ -48,21 +48,64 @@ pub async fn search_codebase(
 
     let actual_limit = limit.unwrap_or(config.default_limit);
     let base_db = db_path.unwrap_or_else(|| config.db_path.clone());
-    let (actual_db, table_name) = if let Some(ws) = workspace.clone() {
-        if ws == "default" {
-            (base_db, "code_chunks".to_string())
-        } else {
-            (
-                std::path::Path::new(&base_db)
-                    .join(&ws)
-                    .to_string_lossy()
-                    .to_string(),
-                "code_chunks".to_string(),
-            )
-        }
+    let workspace_name = workspace.clone().unwrap_or_else(|| "default".to_string());
+
+    let (actual_db, table_name) = if workspace_name == "default" {
+        (base_db.clone(), "code_chunks".to_string())
     } else {
-        (base_db, "code_chunks".to_string())
+        (
+            std::path::Path::new(&base_db)
+                .join(&workspace_name)
+                .to_string_lossy()
+                .to_string(),
+            "code_chunks".to_string(),
+        )
     };
+
+    // Check if workspace exists before attempting to open
+    let workspace_path = std::path::Path::new(&actual_db);
+    if !workspace_path.exists() {
+        // Scan for available workspaces
+        let mut available: Vec<String> = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&base_db) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        // Only list directories that contain code_chunks.lance
+                        let table_path = entry.path().join("code_chunks.lance");
+                        if table_path.exists() {
+                            available.push(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also check if default workspace exists
+        let default_table = std::path::Path::new(&base_db).join("code_chunks.lance");
+        if default_table.exists() && !available.contains(&"default".to_string()) {
+            available.insert(0, "default".to_string());
+        }
+
+        let error_msg = if available.is_empty() {
+            format!(
+                "Workspace '{}' does not exist. No indexed workspaces found.\n\
+                Run 'code-rag index --path <path> --workspace {}' to index this workspace.",
+                workspace_name, workspace_name
+            )
+        } else {
+            format!(
+                "Workspace '{}' does not exist.\n\
+                Available workspaces: {}\n\
+                Run 'code-rag index --path <path> --workspace {}' to create this workspace.",
+                workspace_name,
+                available.join(", "),
+                workspace_name
+            )
+        };
+
+        return Err(CodeRagError::Database(error_msg));
+    }
 
     let storage = Storage::new(&actual_db, &table_name)
         .await
