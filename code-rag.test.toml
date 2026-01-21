@@ -1,0 +1,197 @@
+# code-rag.test.toml - Multi-Workspace Configuration
+# For React Native and Python Django projects
+
+# ==========================================
+# CORE PATHS
+# ==========================================
+
+# Database location (same directory as exe)
+db_path = './.lancedb'
+
+# Default path to index when no argument is provided
+default_index_path = '.'
+
+# ==========================================
+# SERVER SETTINGS
+# ==========================================
+
+# Host address to bind the server to
+server_host = '127.0.0.1'
+
+# Port to listen on
+server_port = 3000
+
+# ==========================================
+# INDEXING & SEARCH PARAMETERS
+# ==========================================
+
+# Default number of results to return if not specified
+default_limit = 5
+
+# Files and directories to exclude during indexing
+# Tailored for React/React Native and Python Django projects
+exclusions = [
+    # Version control
+    ".git",
+    ".svn",
+    ".hg",
+
+    # Dependencies - JavaScript/React Native
+    "node_modules",
+    "bower_components",
+
+    # Dependencies - Python/Django
+    "venv",
+    "env",
+    ".venv",
+    "__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    ".tox",
+
+    # Build outputs - JavaScript/React Native
+    "build",
+    "dist",
+    ".expo",
+    ".expo-shared",
+    "android/build",
+    "ios/build",
+    "android/.gradle",
+    "ios/Pods",
+
+    # Build outputs - Python/Django
+    "*.egg-info",
+    ".eggs",
+    "dist",
+    "build",
+
+    # Static/Media files - Django
+    "staticfiles",
+    "static_root",
+    "media",
+    "media_root",
+
+    # Coverage and test reports
+    "coverage",
+    ".coverage",
+    "htmlcov",
+    ".nyc_output",
+
+    # IDE and Editor
+    ".idea",
+    ".vscode",
+    "*.swp",
+    "*.swo",
+    "*~",
+    ".DS_Store",
+
+    # Logs
+    "*.log",
+    "logs",
+    "npm-debug.log*",
+    "yarn-debug.log*",
+    "yarn-error.log*",
+
+    # Misc
+    ".cache",
+    "tmp",
+    "temp",
+    ".tmp",
+]
+
+# Model used for generating embeddings
+embedding_model = "nomic-embed-text-v1.5"
+
+# Model used for reranking results
+reranker_model = "bge-reranker-base"
+
+# Device to use for inference (auto-detect)
+device = "auto"
+
+# Chunking settings
+chunk_size = 1024
+chunk_overlap = 128
+# Skip files larger than 10MB to prevent OOM
+max_file_size_bytes = 10485760
+
+# Search weights
+vector_weight = 1.0
+bm25_weight = 1.0
+# Reciprocal Rank Fusion constant
+rrf_k = 60.0
+
+# Merge Policy for index segments
+merge_policy = "log"
+
+# ==========================================
+# RESOURCE MANAGEMENT
+# ==========================================
+
+# Number of files to process in a single batch
+batch_size = 256
+
+# Process priority
+priority = "normal"
+
+# ==========================================
+# LOGGING
+# ==========================================
+
+# Logging level
+log_level = "info"
+
+# Log format
+log_format = "text"
+
+# Disable logging to file (console only)
+log_to_file = false
+
+# Directory for log files (not used when log_to_file = false)
+log_dir = "logs"
+
+# ==========================================
+# TELEMETRY
+# ==========================================
+
+# Enable OpenTelemetry tracing and metrics
+telemetry_enabled = true
+
+# OTLP endpoint
+telemetry_endpoint = "http://localhost:4317"
+
+# ==========================================
+# LLM INTEGRATION (Experimental)
+# ==========================================
+
+# Disable LLM features
+llm_enabled = false
+
+# LLM Model name
+llm_model = "mistral"
+
+# LLM Host URL
+llm_host = "http://localhost:11434"
+
+# ==========================================
+# UNIFIED EXECUTION MODE CONFIGURATION
+# ==========================================
+
+# Enable the API Server (HTTP/REST)
+enable_server = true
+
+# Enable the Model Context Protocol (MCP) Server (Stdio)
+enable_mcp = true
+
+# Enable the File Watcher (Auto-indexing)
+enable_watch = true
+
+# ==========================================
+# MULTI-WORKSPACE CONFIGURATION
+# ==========================================
+
+[workspaces]
+# React Native Android App Learning project
+android-app = 'I:\01-Master_Code\Test-Labs\AndoidAPPlearning'
+
+# Python Django Witsler project
+witsler = 'I:\01-Master_Code\Apps\witsler'

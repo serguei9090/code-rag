@@ -9,19 +9,36 @@ use code_rag::telemetry::{init_telemetry, AppMode};
 use std::os::windows::process::CommandExt;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about = "Local-first semantic code search powered by embeddings",
+    long_about = "code-rag - Semantic Code Search Engine\n\n\
+        Index your codebase and search it semantically using local embeddings.\n\n\
+        EXAMPLES:\n  \
+        # Index a project\n  \
+        code-rag index /path/to/project\n\n  \
+        # Search semantically\n  \
+        code-rag search \"authentication logic\"\n\n  \
+        # Start all services with custom config\n  \
+        code-rag --config code-rag.toml start\n\n  \
+        # Note: --config flag goes BEFORE the subcommand\n  \
+        code-rag --config myconfig.toml serve\n\n  \
+        # Check version\n  \
+        code-rag --version"
+)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
 
-    /// Path to configuration file
-    #[arg(short, long)]
+    /// Path to configuration file (must be specified BEFORE subcommand)
+    #[arg(short, long, global = true)]
     config: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Index a codebase
+    /// Index a codebase for semantic search
     Index {
         /// Path to the codebase to index
         #[arg(short, long)]
@@ -55,7 +72,7 @@ enum Commands {
         #[arg(long)]
         priority: Option<String>,
     },
-    /// Search the indexed codebase
+    /// Search the indexed codebase semantically
     Search {
         /// The search query
         query: String,
@@ -100,7 +117,7 @@ enum Commands {
         #[arg(long)]
         expand: bool,
     },
-    /// Grep search (regex)
+    /// Fast regex-based text search (no embeddings)
     Grep {
         /// The regex pattern
         pattern: String,
@@ -109,7 +126,7 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Start the search API server
+    /// Start the REST API server only
     Serve {
         /// Port to listen on (default: 8000)
         #[arg(long)]
@@ -119,7 +136,7 @@ enum Commands {
         #[arg(long)]
         host: Option<String>,
     },
-    /// Watch the codebase for changes and auto-index
+    /// Watch codebase for changes and auto-reindex
     Watch {
         /// Path to watch
         #[arg(short, long)]
@@ -129,9 +146,9 @@ enum Commands {
         #[arg(short, long, default_value = "default")]
         workspace: String,
     },
-    /// Start the Model Context Protocol (MCP) server
+    /// Start the Model Context Protocol (MCP) server for AI assistants
     Mcp,
-    /// Start unified services (Serve, MCP, Watch) based on config
+    /// Start unified services (Server + MCP + Watch) based on config flags\n    ///\n    /// Starts all enabled services concurrently based on your configuration:\n    ///   - enable_server = true  → HTTP API on configured port\n    ///   - enable_mcp = true     → MCP server via stdio\n    ///   - enable_watch = true   → File watcher for auto-indexing\n    ///\n    /// EXAMPLE:\n    ///   code-rag --config code-rag.toml start
     Start,
 }
 

@@ -1,0 +1,231 @@
+CODE-RAG COMMAND REFERENCE
+==========================
+
+BASIC COMMANDS
+--------------
+
+# Index a directory (uses default_index_path from config if no path provided)
+code-rag index [path]
+
+# Index specific workspace (from multi-workspace config)
+code-rag index --workspace android-app
+code-rag index --workspace witsler
+
+# Index with custom config file
+code-rag index --config code-rag.test.toml [path]
+
+# Search the indexed codebase
+code-rag search "your search query"
+
+# Search with limit on results
+code-rag search "query" --limit 10
+
+# Search in specific workspace
+code-rag search "query" --workspace android-app
+
+# Search with metadata filters
+code-rag search "query" --filter "language:python"
+code-rag search "query" --filter "language:javascript,typescript"
+
+# Clear the database
+code-rag clear
+
+# Clear specific workspace
+code-rag clear --workspace witsler
+
+
+SERVER COMMANDS
+---------------
+
+# Start all enabled services (server, MCP, watch based on config)
+code-rag start
+
+# Start with specific config file
+code-rag start --config code-rag.test.toml
+
+# Start only the HTTP API server
+code-rag server
+
+# Start with custom host and port
+code-rag server --host 0.0.0.0 --port 8080
+
+# Start MCP server (Model Context Protocol via stdio)
+code-rag mcp
+
+# Start file watcher (auto-reindex on file changes)
+code-rag watch [path]
+
+# Watch specific workspace
+code-rag watch --workspace android-app
+
+
+WORKSPACE COMMANDS
+------------------
+
+# List all configured workspaces
+code-rag workspaces list
+
+# Show workspace details
+code-rag workspaces show android-app
+
+# Index all workspaces
+code-rag workspaces index-all
+
+
+UTILITY COMMANDS
+----------------
+
+# Show version
+code-rag --version
+
+# Show help
+code-rag --help
+code-rag [command] --help
+
+# Validate configuration file
+code-rag config validate
+
+# Show current configuration
+code-rag config show
+
+
+HTTP API ENDPOINTS
+------------------
+
+Base URL: http://127.0.0.1:3000
+
+# Index a directory
+POST /index
+Body: { "path": "/path/to/code" }
+
+# Index workspace
+POST /workspaces/{workspace_id}/index
+
+# Search across all workspaces
+POST /search
+Body: { "query": "search terms", "limit": 5 }
+
+# Search specific workspace
+POST /workspaces/{workspace_id}/search
+Body: { "query": "search terms", "limit": 5 }
+
+# Search with filters
+POST /search
+Body: {
+  "query": "search terms",
+  "limit": 10,
+  "filters": {
+    "language": ["python", "javascript"]
+  }
+}
+
+# Get workspace list
+GET /workspaces
+
+# Get workspace details
+GET /workspaces/{workspace_id}
+
+# Clear database
+DELETE /clear
+
+# Clear specific workspace
+DELETE /workspaces/{workspace_id}
+
+# Health check
+GET /health
+
+
+MCP SERVER USAGE
+----------------
+
+The MCP server runs via stdio and is designed to be used by AI assistants
+and IDEs that support the Model Context Protocol.
+
+Configuration in your AI tool's MCP settings:
+
+{
+  "mcpServers": {
+    "code-rag": {
+      "command": "code-rag",
+      "args": ["mcp"],
+      "env": {
+        "CODE_RAG_CONFIG": "I:\\01-Master_Code\\Test-Labs\\code-rag\\code-rag.test.toml"
+      }
+    }
+  }
+}
+
+Or if code-rag is not in PATH:
+
+{
+  "mcpServers": {
+    "code-rag": {
+      "command": "I:\\01-Master_Code\\Test-Labs\\code-rag\\target\\release\\code-rag.exe",
+      "args": ["mcp"],
+      "env": {
+        "CODE_RAG_CONFIG": "I:\\01-Master_Code\\Test-Labs\\code-rag\\code-rag.test.toml"
+      }
+    }
+  }
+}
+
+
+CONFIGURATION FILE LOCATIONS (Priority Order)
+----------------------------------------------
+
+1. --config flag: code-rag index --config /path/to/config.toml
+2. Environment variable: set CODE_RAG_CONFIG=I:\path\to\config.toml
+3. Current directory: .\code-rag.toml
+4. User config directory: %USERPROFILE%\.config\code-rag\code-rag.toml
+5. Default values (built-in)
+
+
+COMMON WORKFLOWS
+----------------
+
+# Initial Setup and Index
+1. Place code-rag.test.toml in the code-rag directory
+2. Run: code-rag index --workspace android-app
+3. Run: code-rag index --workspace witsler
+
+# Start All Services (with auto-watch enabled)
+code-rag start --config code-rag.test.toml
+
+# Search Examples
+code-rag search "authentication logic"
+code-rag search "React component" --workspace android-app
+code-rag search "Django models" --workspace witsler --limit 15
+
+# Re-index on Changes (manual)
+code-rag index --workspace android-app
+
+# Or use file watcher (automatic)
+code-rag watch --workspace android-app
+
+
+TROUBLESHOOTING
+---------------
+
+# Check if database exists
+dir .lancedb
+
+# View logs (console only, since log_to_file = false)
+# Set log level in config: log_level = "debug"
+
+# Test telemetry endpoint
+# Ensure OTLP endpoint is running: http://localhost:4317
+
+# Clear and re-index if issues occur
+code-rag clear --workspace android-app
+code-rag index --workspace android-app
+
+
+NOTES
+-----
+
+- Database location: ./.lancedb (relative to where code-rag.exe is run)
+- Telemetry: Enabled (requires OTLP endpoint at http://localhost:4317)
+- LLM: Disabled
+- Logging: Console only (no log files)
+- Services: Server, MCP, and Watch are all enabled when using 'code-rag start'
+- Max file size: 10MB (files larger than this are skipped)

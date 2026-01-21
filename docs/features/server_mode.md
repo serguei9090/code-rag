@@ -87,5 +87,46 @@ The server uses a `WorkspaceManager` to handle isolation:
   - Heavy resources like the Embedding Model (ONNX) and Re-ranker are **shared** in memory across all workspaces.
   - Storage connections (LanceDB) are created per-workspace and cached.
 
+## Observability and Metrics
+
+The server exposes telemetry endpoints for monitoring and debugging when telemetry is enabled in the configuration.
+
+### Available Endpoints
+
+#### Metrics Endpoint
+- **URL**: `GET /metrics`
+- **Description**: Prometheus-compatible metrics endpoint
+- **Status**: ✅ **Implemented** - Available in latest builds
+
+**Current Metrics**:
+- `app_memory_usage_bytes` - Current process memory consumption
+
+**Example**:
+```bash
+curl http://localhost:3000/metrics
+```
+
+**Output**:
+```
+# HELP app_memory_usage_bytes Current RAM usage of the application process
+# TYPE app_memory_usage_bytes gauge
+app_memory_usage_bytes 45678912
+```
+
+**Setup**: See [Telemetry Guide](telemetry.md) for enabling observability stack (Jaeger + Prometheus + Grafana).
+
+### Distributed Tracing
+
+When `telemetry_enabled = true`, the server exports traces to Jaeger for request tracing.
+
+**Access Jaeger UI**: http://localhost:16686
+
+**Common Use Cases**:
+- Debug slow search requests
+- Trace workspace loading behavior
+- Monitor concurrent request handling
+
+See [Telemetry Configuration](../configuration/telemetry_config.md) for setup details.
+
 ## Limitations
 - **No Authentication**: The server currently does not support authentication. Ensure it is only exposed to trusted networks (localhost).

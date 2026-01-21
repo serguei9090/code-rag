@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "code-rag": {
+      "command": "code-rag",
+      "args": ["mcp"],
+      "env": {
+        "CODE_RAG_CONFIG": "I:\\01-Master_Code\\Test-Labs\\code-rag\\code-rag.test.toml"
+      }
+    }
+  }
+}

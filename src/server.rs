@@ -19,6 +19,8 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
+use prometheus::{Encoder, TextEncoder};
+
 // Shared state holding the workspace manager
 #[derive(Clone)]
 pub struct AppState {
@@ -125,6 +127,7 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/status", get(status_handler))
+        .route("/metrics", get(metrics_handler))
         .route("/search", post(search_handler_default))
         .route("/v1/{workspace}/search", post(search_handler_workspace))
         .layer(
@@ -140,6 +143,31 @@ pub fn create_router(state: AppState) -> Router {
 /// Health check handler
 async fn health_check() -> impl IntoResponse {
     StatusCode::OK
+}
+
+/// Prometheus metrics endpoint
+async fn metrics_handler() -> impl IntoResponse {
+    let encoder = TextEncoder::new();
+    let metric_families = prometheus::gather();
+    let mut buffer = Vec::new();
+
+    if let Err(e) = encoder.encode(&metric_families, &mut buffer) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to encode metrics: {}", e),
+        )
+            .into_response();
+    }
+
+    (
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4",
+        )],
+        buffer,
+    )
+        .into_response()
 }
 
 /// Status handler (GET /status)

@@ -39,17 +39,75 @@ cargo build --release
 
 ### 2. Hardware Acceleration
 
-**NVIDIA GPU (Windows/Linux):**
-Requires [CUDA Toolkit 11.8+](https://developer.nvidia.com/cuda-downloads) and [cuDNN](https://developer.nvidia.com/cudnn).
+#### NVIDIA GPU (CUDA)
+
+**Requirements**:
+- [CUDA Toolkit 11.8+](https://developer.nvidia.com/cuda-downloads)
+- [cuDNN 8.x](https://developer.nvidia.com/cudnn)
+
+**Build Command**:
 ```bash
 cargo build --release --features cuda
 ```
 
-**macOS (Metal):**
-Enabled by default on Apple Silicon, but can be explicit:
+**Required DLLs (Windows)**:
+
+The following DLLs must be in your system PATH or in the same directory as `code-rag.exe`:
+
+- `cudart64_11.dll` - CUDA Runtime (from CUDA Toolkit)
+- `cublas64_11.dll` - CUDA Basic Linear Algebra Subroutines
+- `cublasLt64_11.dll` - CUDA Lightweight BLAS
+- `cudnn64_8.dll` - cuDNN Deep Neural Network library
+
+**Typical Installation Paths (Windows)**:
+```
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\bin
+C:\Program Files\NVIDIA\CUDNN\v8.x\bin
+```
+
+**Add to PATH (Windows PowerShell)**:
+```powershell
+$env:PATH += ";C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\bin"
+$env:PATH += ";C:\Program Files\NVIDIA\CUDNN\v8.x\bin"
+```
+
+**Required Libraries (Linux)**:
+
+The following `.so` files must be in your `LD_LIBRARY_PATH` or `/usr/local/lib`:
+
+- `libcudart.so.11` - CUDA Runtime
+- `libcublas.so.11` - CUDA BLAS
+- `libcublasLt.so.11` - CUDA Lightweight BLAS  
+- `libcudnn.so.8` - cuDNN
+
+**Typical Installation Paths (Linux)**:
+```
+/usr/local/cuda-11.8/lib64
+/usr/local/cuda/lib64
+```
+
+**Add to LD_LIBRARY_PATH (Linux)**:
+```bash
+export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/usr/local/cudnn/lib64:$LD_LIBRARY_PATH
+```
+
+**Troubleshooting**:
+- **DLL Not Found Error**: Verify all DLLs are in PATH using `where cudart64_11.dll` (Windows) or `ldconfig -p | grep libcudart` (Linux)
+- **Version Mismatch**: Ensure CUDA Toolkit and cuDNN versions match (both 11.x)
+- **Installation Guide**: See [CUDA Installation Guide](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/) (Windows) or [Linux Guide](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
+
+---
+
+#### macOS (Metal)
+
+Enabled by default on Apple Silicon, but can be made explicit:
 ```bash
 cargo build --release --features metal
 ```
+
+**No additional dependencies required** - Metal is part of macOS.
+
 
 ### 3. Basic Usage
 
