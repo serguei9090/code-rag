@@ -51,9 +51,13 @@ jobs:
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
+        with:
+          # Always save cache, even on test failures
+          save-if: true
 
-      - name: Cache HuggingFace Models
-        uses: actions/cache@v4
+      - name: Restore HuggingFace Models Cache
+        id: cache-hf-restore
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/huggingface
           # Use stable cache key based on model versions, not Cargo.lock
@@ -66,3 +70,11 @@ jobs:
         run: |
           chmod +x test_all.sh
           ./test_all.sh
+
+      # Always save HF cache, even if tests fail
+      - name: Save HuggingFace Models Cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ steps.cache-hf-restore.outputs.cache-primary-key }}
