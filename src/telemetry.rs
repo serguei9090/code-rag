@@ -60,23 +60,30 @@ pub fn init_telemetry(mode: AppMode, config: &AppConfig) -> Result<TelemetryGuar
 fn init_cli_telemetry(config: &AppConfig) -> Result<TelemetryGuard> {
     let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
 
+    // Explicitly build the filter to ensure specific crate levels are respected
+    // even in CLI mode (e.g., suppressing tokenizers trace logs)
+    let filter_str = format!(
+        "code_rag={},tokenizers=error,tantivy=warn,h2=error,tower=error,hyper=warn,reqwest=warn",
+        config.log_level
+    );
+    let filter_layer = tracing_subscriber::EnvFilter::try_new(&filter_str)
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"));
+
+    // Redirect 'log' events to 'tracing' to capture dependencies using the log crate
+    let _ = tracing_log::LogTracer::init();
+
     // We must use specific types or branch entirely to avoid type mismatch
     if config.enable_mcp {
-        // MCP Mode: Chrome Layer + Stderr Logging
+        // MCP Mode: Chrome Layer + Stderr Logging + Filter
         let registry = Registry::default()
+            .with(filter_layer)
             .with(chrome_layer)
             .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr));
         let _ = registry.try_init();
     } else {
-        // Normal Mode: Chrome Layer + Default (Stdout) Logging
-        // Note: ChromeLayer by default doesn't print to stdout, it writes to file.
-        // We probably want to see logs in CLI mode too?
-        // Original code: `let registry = Registry::default().with(chrome_layer);`
-        // which implies NO stdout logging was active before?
-        // Or maybe ChromeLayer was the only thing?
-        // If the user wants to see "Indexing..." logs, we need fmt layer.
-        // Let's assume we want fmt layer on stdout for normal CLI.
+        // Normal Mode: Chrome Layer + Default (Stdout) Logging + Filter
         let registry = Registry::default()
+            .with(filter_layer)
             .with(chrome_layer)
             .with(tracing_subscriber::fmt::layer());
         let _ = registry.try_init();

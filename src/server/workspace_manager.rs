@@ -142,8 +142,12 @@ impl WorkspaceManager {
             workspace_id, db_path
         );
 
-        let storage_path = db_path.to_string_lossy().to_string();
-        let storage = Storage::new(&storage_path).await?;
+        let storage_path = if workspace_id == "default" {
+            db_path.to_string_lossy().to_string()
+        } else {
+            db_path.join(workspace_id).to_string_lossy().to_string()
+        };
+        let storage = Storage::new(&storage_path, "code_chunks").await?;
 
         // Ensure valid index (and check if we have data for this workspace?)
         if storage.get_indexed_metadata(workspace_id).await.is_err() {

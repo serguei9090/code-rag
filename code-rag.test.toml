@@ -64,6 +64,10 @@ exclusions = [
     ".eggs",
     "dist",
     "build",
+    "src-tauri",
+    "coverage",
+    "htmlcov",
+    ".nyc_output",
 
     # Static/Media files - Django
     "staticfiles",
@@ -128,7 +132,7 @@ merge_policy = "log"
 # ==========================================
 
 # Number of files to process in a single batch
-batch_size = 256
+batch_size = 32
 
 # Process priority
 priority = "normal"
@@ -138,7 +142,7 @@ priority = "normal"
 # ==========================================
 
 # Logging level
-log_level = "info"
+log_level = "warn"
 
 # Log format
 log_format = "text"
@@ -191,7 +195,7 @@ enable_watch = true
 
 [workspaces]
 # React Native Android App Learning project
-android-app = 'I:\01-Master_Code\Test-Labs\AndoidAPPlearning'
+#android-app = 'I:\01-Master_Code\Test-Labs\AndoidAPPlearning\apps'
 
 # Python Django Witsler project
-witsler = 'I:\01-Master_Code\Apps\witsler'
+witsler = './whitsler/ai/'

@@ -1,0 +1,40 @@
+# Manual Testing Configuration
+# Use with: code-rag start --config test-manual.toml
+
+# Database Configuration
+db_path = ".lancedb"
+default_index_path = "."
+log_level = "info"
+
+# Embedding Configuration
+embedding_model = "Snowflake/snowflake-arctic-embed-m"
+reranker_model = "BAAI/bge-reranker-base"
+device = "auto"                                        # auto, cpu, cuda, or metal
+
+# Search Configuration
+default_limit = 10
+chunk_size = 512
+chunk_overlap = 50
+
+# Performance
+batch_size = 32
+max_file_size_bytes = 5242880 # 5MB
+
+# Server Features
+enable_server = true
+enable_mcp = true
+enable_watch = true
+
+port = 3000
+host = "127.0.0.1"
+
+# Multi-Workspace Setup for Testing
+[workspaces]
+test-alpha = "./witsler"
+test-beta = "./src"
+
+# Telemetry (optional)
+telemetry_enabled = false
+
+# File Exclusions
+exclusions = ["node_modules", ".git", "target", ".lancedb", ".gemini"]

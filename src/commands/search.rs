@@ -46,10 +46,25 @@ pub async fn search_codebase(
         expand,
     } = options;
 
-    let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
     let actual_limit = limit.unwrap_or(config.default_limit);
+    let base_db = db_path.unwrap_or_else(|| config.db_path.clone());
+    let (actual_db, table_name) = if let Some(ws) = workspace.clone() {
+        if ws == "default" {
+            (base_db, "code_chunks".to_string())
+        } else {
+            (
+                std::path::Path::new(&base_db)
+                    .join(&ws)
+                    .to_string_lossy()
+                    .to_string(),
+                "code_chunks".to_string(),
+            )
+        }
+    } else {
+        (base_db, "code_chunks".to_string())
+    };
 
-    let storage = Storage::new(&actual_db)
+    let storage = Storage::new(&actual_db, &table_name)
         .await
         .map_err(|e| CodeRagError::Database(e.to_string()))?;
 
@@ -191,7 +206,7 @@ pub async fn create_searcher(
 ) -> Result<CodeSearcher, CodeRagError> {
     let actual_db = db_path.unwrap_or_else(|| config.db_path.clone());
 
-    let storage = Storage::new(&actual_db)
+    let storage = Storage::new(&actual_db, "code_chunks")
         .await
         .map_err(|e| CodeRagError::Database(e.to_string()))?;
 

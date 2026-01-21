@@ -24,11 +24,11 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub async fn new(uri: &str) -> Result<Self> {
+    pub async fn new(uri: &str, table_name: &str) -> Result<Self> {
         let conn = connect(uri).execute().await?;
         Ok(Self {
             conn,
-            table_name: "code_chunks".to_string(),
+            table_name: table_name.to_string(),
             table: OnceCell::new(),
         })
     }

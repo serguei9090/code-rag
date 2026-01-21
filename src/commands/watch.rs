@@ -31,7 +31,7 @@ pub async fn watch_codebase(
         .init_reranker()
         .map_err(|e: fastembed::Error| CodeRagError::Embedding(e.to_string()))?;
 
-    let storage = Storage::new(&actual_db)
+    let storage = Storage::new(&actual_db, &workspace)
         .await
         .map_err(|e| CodeRagError::Database(e.to_string()))?;
     storage

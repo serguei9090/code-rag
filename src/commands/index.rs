@@ -27,12 +27,31 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     let actual_path = options
         .path
         .unwrap_or_else(|| config.default_index_path.clone());
-    let actual_db = options.db_path.unwrap_or_else(|| config.db_path.clone());
-
     let force = options.force;
     let update = options.update;
-    let workspace = options.workspace;
     let batch_size = options.batch_size;
+    let workspace_arg = options.workspace.clone();
+
+    // Determine DB path and Table name based on Nested Strategy
+    // 1. If explicit DB path provided (e.g. from start command), trust it and use "code_chunks".
+    // 2. If CLI default, nest the workspace if it's not "default".
+    let (actual_db, table_name) = if let Some(p) = options.db_path {
+        // When db_path is explicit (from start), always use "code_chunks" table
+        (p, "code_chunks".to_string())
+    } else {
+        let root = config.db_path.clone();
+        if workspace_arg == "default" || workspace_arg == "code_chunks" {
+            (root, "code_chunks".to_string())
+        } else {
+            (
+                Path::new(&root)
+                    .join(&workspace_arg)
+                    .to_string_lossy()
+                    .to_string(),
+                "code_chunks".to_string(),
+            )
+        }
+    };
 
     if force {
         info!("Force flag set. Removing database at: {}", actual_db);
@@ -69,7 +88,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     pb_model.finish_with_message("Models loaded.");
 
     // 2. Initialize Storage
-    let storage = Storage::new(&actual_db)
+    let storage = Storage::new(&actual_db, &table_name)
         .await
         .map_err(|e| CodeRagError::Database(e.to_string()))?;
     storage
@@ -105,7 +124,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
     let existing_files = if update {
         pb_index.set_message("Fetching existing metadata...");
         storage
-            .get_indexed_metadata(&workspace)
+            .get_indexed_metadata(&table_name)
             .await
             .map_err(|e| CodeRagError::Database(e.to_string()))?
     } else {
@@ -194,7 +213,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
                         storage: &storage,
                         bm25_index: &bm25_index,
                         pb: &pb_index,
-                        workspace: &workspace,
+                        workspace: &workspace_arg,
                     };
                     process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
                 }
@@ -209,7 +228,7 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
             storage: &storage,
             bm25_index: &bm25_index,
             pb: &pb_index,
-            workspace: &workspace,
+            workspace: &workspace_arg,
         };
         process_batch(&mut chunks_buffer, &mut pending_deletes, &mut ctx).await?;
     }
@@ -229,10 +248,10 @@ pub async fn index_codebase(options: IndexOptions, config: &AppConfig) -> Result
             // Process in batches
             for chunk in stale_files.chunks(batch_size_val) {
                 let batch: Vec<String> = chunk.to_vec();
-                if let Err(e) = storage.batch_delete_files(&batch, &workspace).await {
+                if let Err(e) = storage.batch_delete_files(&batch, &table_name).await {
                     error!("Error removing stale files from storage: {}", e);
                 }
-                if let Err(e) = bm25_index.batch_delete_files(&batch, &workspace) {
+                if let Err(e) = bm25_index.batch_delete_files(&batch, &table_name) {
                     error!("Error removing stale files from BM25: {}", e);
                 }
             }

@@ -50,9 +50,9 @@ pub async fn run(config: &AppConfig) -> Result<()> {
                 let index_opts = crate::commands::index::IndexOptions {
                     path: Some(source_path.clone()),
                     db_path: Some(db_path.clone()),
-                    workspace: name.clone(), // String, not Option<String>
-                    update: false,           // Fresh index, not update
-                    force: false,            // Don't force reindex
+                    workspace: "code_chunks".to_string(), // Table name fixed to code_chunks inside nested DB
+                    update: false,                        // Fresh index, not update
+                    force: false,                         // Don't force reindex
                     batch_size: Some(config.batch_size),
                     threads: config.threads,
                 };
