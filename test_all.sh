@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Suppress debug/trace logs from dependencies (tantivy, tokenizers, etc.)
+export RUST_LOG=error
+
 # ==========================================
 #    CODE-RAG UNIFIED TEST RUNNER (Linux)
 # ==========================================

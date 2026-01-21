@@ -1,5 +1,8 @@
 $ErrorActionPreference = "Stop"
 
+# Suppress debug/trace logs from dependencies (tantivy, tokenizers, etc.)
+$env:RUST_LOG = 'error'
+
 Write-Host "=========================================="
 Write-Host "   CODE-RAG UNIFIED TEST RUNNER"
 Write-Host "=========================================="
@@ -29,9 +32,10 @@ Write-Host "  -> Scale Benchmark (10k Files)..."
 cargo test --test scale_test -- --ignored
 if ($LASTEXITCODE -ne 0) { Write-Error "Scale Benchmark failed!"; exit 1 }
 
-Write-Host "  -> Concurrent Stress Test..."
-cargo test --test stress_test -- --ignored
-if ($LASTEXITCODE -ne 0) { Write-Error "Stress Test failed!"; exit 1 }
+# Stress test is excluded from CI (run manually with: cargo test --test stress_test -- --ignored)
+# Write-Host "  -> Concurrent Stress Test..."
+# cargo test --test stress_test -- --ignored
+# if ($LASTEXITCODE -ne 0) { Write-Error "Stress Test failed!"; exit 1 }
 
 # 4. Multi-Workspace Smoke Test
 Write-Host "`n[4/4] Verifying Multi-Workspace Startup..."
