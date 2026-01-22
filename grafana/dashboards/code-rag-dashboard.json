@@ -103,7 +103,7 @@
                         "uid": "Prometheus"
                     },
                     "editorMode": "code",
-                    "expr": "rate(search_requests_total[1m])",
+                    "expr": "rate(search_requests_total_total[1m])",
                     "format": "time_series",
                     "range": true,
                     "refId": "A"
