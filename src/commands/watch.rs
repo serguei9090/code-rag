@@ -49,6 +49,11 @@ pub async fn watch_codebase(
 
     let chunker = CodeChunker::new(config.chunk_size, config.chunk_overlap);
 
+    info!(
+        "✓ File Watcher started successfully for workspace '{}'",
+        workspace
+    );
+
     // 2. Start Watcher
     start_watcher(
         &actual_path,

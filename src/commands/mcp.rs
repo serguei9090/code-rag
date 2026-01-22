@@ -50,7 +50,7 @@ pub async fn run(config: &AppConfig) -> Result<()> {
     let mut reader = BufReader::new(stdin);
     let mut line = String::new();
 
-    eprintln!("MCP Server starting (stdio transport)...");
+    eprintln!("✓ MCP Server started successfully (stdio transport)");
 
     loop {
         line.clear();

@@ -91,6 +91,8 @@ opentelemetry = { version = "0.22", features = ["metrics", "logs"] }
 opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.15", features = [
     "tonic",
+    "http-proto",
+    "reqwest-client",
     "metrics",
     "logs",
 ] }

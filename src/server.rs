@@ -118,6 +118,8 @@ pub async fn start_server(config: ServerStartConfig) -> Result<()> {
     info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    info!("✓ HTTP Server started successfully at http://{}", addr);
+
     axum::serve(listener, router).await?;
 
     Ok(())

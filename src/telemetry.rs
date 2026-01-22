@@ -99,12 +99,14 @@ fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<Telemetr
     let resource = Resource::new(vec![KeyValue::new("service.name", "code-rag-server")]);
 
     // 1. OTLP Tracer (Jaeger)
+    // We switch to HTTP exporter on port 4318 as it's often more reliable for local setups
+    let http_endpoint = endpoint.replace("4317", "4318");
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
             opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint(endpoint),
+                .http()
+                .with_endpoint(http_endpoint),
         )
         .with_trace_config(sdktrace::config().with_resource(resource.clone()))
         .install_simple()?;

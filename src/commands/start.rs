@@ -166,6 +166,8 @@ pub async fn run(config: &AppConfig) -> Result<()> {
         }
     }
 
+    info!("✓ All enabled services initialized OK.");
+
     // Wait for tasks
     // If any critical service fails, we might want to shut down everything?
     // For now, just log completions.
