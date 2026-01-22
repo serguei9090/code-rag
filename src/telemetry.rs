@@ -19,6 +19,13 @@ pub struct TelemetryGuard {
     _chrome_guard: Option<tracing_chrome::FlushGuard>,
 }
 
+impl Drop for TelemetryGuard {
+    fn drop(&mut self) {
+        // Ensure OpenTelemetry flushes and shuts down immediately
+        opentelemetry::global::shutdown_tracer_provider();
+    }
+}
+
 pub fn init_telemetry(mode: AppMode, config: &AppConfig) -> Result<TelemetryGuard> {
     // Always apply log level from config, even if RUST_LOG is set
     // This ensures consistent behavior regardless of environment

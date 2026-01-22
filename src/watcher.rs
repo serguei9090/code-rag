@@ -40,55 +40,61 @@ pub async fn start_watcher(
 
     let mut indexer = CodeIndexer::new(&storage, &mut embedder, &mut bm25, &chunker, workspace);
 
-    for result in rx {
-        match result {
-            Ok(events) => {
-                for event in events {
-                    let path = event.path;
-                    let path_lossy = path.to_string_lossy();
+    // Process events in a non-blocking way to allow graceful shutdown
+    loop {
+        // Check for events
+        while let Ok(result) = rx.try_recv() {
+            match result {
+                Ok(events) => {
+                    for event in events {
+                        let path = event.path;
+                        let path_lossy = path.to_string_lossy();
 
-                    // Simple exclusion for .git and target/lancedb
-                    if path_lossy.contains(".git")
-                        || path_lossy.contains("node_modules")
-                        || path_lossy.contains("target")
-                        || path_lossy.contains(".lancedb")
-                    {
-                        continue;
-                    }
+                        // Simple exclusion for .git and target/lancedb
+                        if path_lossy.contains(".git")
+                            || path_lossy.contains("node_modules")
+                            || path_lossy.contains("target")
+                            || path_lossy.contains(".lancedb")
+                        {
+                            continue;
+                        }
 
-                    // Check if file still exists (Modification vs Deletion)
-                    if path.exists() {
-                        // It's a Create or Write
-                        match std::fs::metadata(&path) {
-                            Ok(metadata) => {
-                                let mtime = metadata
-                                    .modified()
-                                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs() as i64;
+                        // Check if file still exists (Modification vs Deletion)
+                        if path.exists() {
+                            // It's a Create or Write
+                            match std::fs::metadata(&path) {
+                                Ok(metadata) => {
+                                    let mtime = metadata
+                                        .modified()
+                                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_secs()
+                                        as i64;
 
-                                if let Err(e) = indexer.index_file(&path, mtime).await {
-                                    error!("Failed to re-index {}: {}", path.display(), e);
+                                    if let Err(e) = indexer.index_file(&path, mtime).await {
+                                        error!("Failed to re-index {}: {}", path.display(), e);
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to read metadata for {}: {}", path.display(), e)
                                 }
                             }
-                            Err(e) => {
-                                error!("Failed to read metadata for {}: {}", path.display(), e)
+                        } else {
+                            // It's a Remove (or Move away)
+                            if let Err(e) = indexer.remove_file(&path).await {
+                                error!("Failed to remove index for {}: {}", path.display(), e);
                             }
-                        }
-                    } else {
-                        // It's a Remove (or Move away)
-                        if let Err(e) = indexer.remove_file(&path).await {
-                            error!("Failed to remove index for {}: {}", path.display(), e);
                         }
                     }
                 }
-            }
-            Err(e) => {
-                error!("Watch error: {:?}", e);
+                Err(e) => {
+                    error!("Watch error: {:?}", e);
+                }
             }
         }
-    }
 
-    Ok(())
+        // Yield back to the executor to allow cancellation checks
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
