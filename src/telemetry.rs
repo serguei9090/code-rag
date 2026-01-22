@@ -1,9 +1,10 @@
 use anyhow::Result;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{metrics::SdkMeterProvider, runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{metrics::SdkMeterProvider, trace as sdktrace, Resource};
 use std::sync::{Arc, Mutex};
 use sysinfo::{Pid, System};
+use tracing::info;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
@@ -95,21 +96,20 @@ fn init_cli_telemetry(config: &AppConfig) -> Result<TelemetryGuard> {
 }
 
 fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<TelemetryGuard> {
+    let resource = Resource::new(vec![KeyValue::new("service.name", "code-rag-server")]);
+
     // 1. OTLP Tracer (Jaeger)
-    // install_batch returns a Tracer. The global provider is configured implicitly by install_batch in many versions,
-    // or we just use the tracer with the layer.
-    let tracer =
-        opentelemetry_otlp::new_pipeline()
-            .tracing()
-            .with_exporter(
-                opentelemetry_otlp::new_exporter()
-                    .tonic()
-                    .with_endpoint(endpoint),
-            )
-            .with_trace_config(sdktrace::config().with_resource(Resource::new(vec![
-                KeyValue::new("service.name", "code-rag-server"),
-            ])))
-            .install_batch(runtime::Tokio)?;
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(endpoint),
+        )
+        .with_trace_config(sdktrace::config().with_resource(resource.clone()))
+        .install_simple()?;
+
+    info!("OpenTelemetry initialized with endpoint: {}", endpoint);
 
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
@@ -119,7 +119,10 @@ fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<Telemetr
         .with_registry(registry.clone())
         .build()?;
 
-    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
+    let provider = SdkMeterProvider::builder()
+        .with_reader(exporter)
+        .with_resource(resource)
+        .build();
     global::set_meter_provider(provider.clone());
 
     let meter = global::meter("code-rag-system");
@@ -130,6 +133,21 @@ fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<Telemetr
 
     let sys = Arc::new(Mutex::new(System::new_all()));
     let pid = Pid::from_u32(std::process::id());
+
+    // Search Metrics
+    let _search_counter = meter
+        .u64_counter("search_requests_total")
+        .with_description("Total number of search requests")
+        .init();
+
+    let _search_latency = meter
+        .f64_histogram("search_latency_seconds")
+        .with_description("Search request latency in seconds")
+        .init();
+
+    // Store in global or pass back? Let's use global for simplicity in recording
+    // Actually, OpenTelemetry metrics are often best recorded via the meter.
+    // We can store them in a static or just use the global meter in handlers.
 
     meter.register_callback(&[memory_gauge.as_any()], move |observer| {
         if let Ok(mut sys) = sys.lock() {

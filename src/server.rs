@@ -12,14 +12,15 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use opentelemetry::{global, KeyValue};
+use prometheus::{Encoder, TextEncoder};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Instant;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
-
-use prometheus::{Encoder, TextEncoder};
 
 // Shared state holding the workspace manager
 #[derive(Clone)]
@@ -177,6 +178,7 @@ async fn status_handler(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 /// Handler for default workspace (POST /search)
+#[tracing::instrument(skip(state, payload))]
 async fn search_handler_default(
     State(state): State<AppState>,
     Json(payload): Json<SearchRequest>,
@@ -185,6 +187,7 @@ async fn search_handler_default(
 }
 
 /// Handler for specific workspace (POST /v1/:workspace/search)
+#[tracing::instrument(skip(state, payload))]
 async fn search_handler_workspace(
     State(state): State<AppState>,
     Path(workspace): Path<String>,
@@ -199,6 +202,13 @@ async fn process_search(
     workspace: String,
     payload: SearchRequest,
 ) -> impl IntoResponse {
+    let start_time = Instant::now();
+    let meter = global::meter("code-rag-system");
+
+    // Record request count
+    let search_counter = meter.u64_counter("search_requests_total").init();
+    search_counter.add(1, &[KeyValue::new("workspace", workspace.clone())]);
+
     // 1. Get Search Context for Workspace (no lock!)
     let context = match state.workspace_manager.get_search_context(&workspace).await {
         Ok(ctx) => ctx,
@@ -241,5 +251,12 @@ async fn process_search(
     };
 
     // 4. Return Results
+    let latency_sec = start_time.elapsed().as_secs_f64();
+    let search_latency = meter.f64_histogram("search_latency_seconds").init();
+    search_latency.record(
+        latency_sec,
+        &[KeyValue::new("workspace", workspace.clone())],
+    );
+
     (StatusCode::OK, Json(SearchResponse { results })).into_response()
 }

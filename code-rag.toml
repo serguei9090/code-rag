@@ -7,7 +7,8 @@ default_limit = 5
 exclusions = ["target", "node_modules", ".git", ".gemini", "logs"]
 log_level = "info"
 log_format = "text"
-telemetry_enabled = false
+telemetry_enabled = true
+telemetry_endpoint = "http://localhost:4317"
 device = "auto"
 max_file_size_bytes = 10485760                                     # 10MB
 
