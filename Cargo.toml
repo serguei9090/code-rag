@@ -1,6 +1,6 @@
 [package]
 name = "code-rag"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "High-Performance Offline Code RAG CLI"
 license = "MIT"
