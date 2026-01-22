@@ -167,15 +167,27 @@ pub async fn run(config: &AppConfig) -> Result<()> {
     }
 
     info!("✓ All enabled services initialized OK.");
+    info!("Press Ctrl+C to stop all services.");
 
-    // Wait for tasks
-    // If any critical service fails, we might want to shut down everything?
-    // For now, just log completions.
-    while let Some(res) = set.join_next().await {
-        match res {
-            Ok(Ok(())) => info!("A service task completed successfully."),
-            Ok(Err(e)) => error!("A service task failed with error: {:#}", e),
-            Err(e) => error!("A service task panicked or was cancelled: {:#}", e),
+    // Wait for tasks or shutdown signal
+    loop {
+        tokio::select! {
+            res = set.join_next() => {
+                match res {
+                    Some(Ok(Ok(()))) => info!("A service task completed successfully."),
+                    Some(Ok(Err(e))) => error!("A service task failed with error: {:#}", e),
+                    Some(Err(e)) => error!("A service task panicked or was cancelled: {:#}", e),
+                    None => {
+                        info!("All services have stopped. Exiting.");
+                        break;
+                    }
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("\nShutdown signal received. Terminating all services...");
+                // Dropping 'set' will automatically cancel all remaining tasks
+                break;
+            }
         }
     }
 

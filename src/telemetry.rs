@@ -100,6 +100,8 @@ fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<Telemetr
 
     // 1. OTLP Tracer (Jaeger)
     // We switch to HTTP exporter on port 4318 as it's often more reliable for local setups
+    // Using install_batch with Tokio runtime to ensure the exporter thread has access
+    // to the async runtime context (required by Hyper's HTTP client)
     let http_endpoint = endpoint.replace("4317", "4318");
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
@@ -109,7 +111,7 @@ fn init_server_telemetry(endpoint: &str, _config: &AppConfig) -> Result<Telemetr
                 .with_endpoint(http_endpoint),
         )
         .with_trace_config(sdktrace::config().with_resource(resource.clone()))
-        .install_simple()?;
+        .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 
     info!("OpenTelemetry initialized with endpoint: {}", endpoint);
 

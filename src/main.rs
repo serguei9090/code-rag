@@ -52,9 +52,9 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
 
-        /// Workspace name (default: "default")
-        #[arg(short, long, default_value = "default")]
-        workspace: String,
+        /// Workspace name (if not provided, indexes all workspaces in config)
+        #[arg(short, long)]
+        workspace: Option<String>,
 
         /// Device to use (auto, cpu, cuda, metal)
         #[arg(long)]
@@ -209,19 +209,37 @@ async fn main() -> anyhow::Result<()> {
             // Apply process priority
             apply_process_priority(&config.priority);
 
-            index::index_codebase(
-                index::IndexOptions {
-                    path,
-                    db_path: None,
-                    update,
-                    force,
-                    workspace,
-                    batch_size: Some(config.batch_size),
-                    threads: config.threads,
-                },
-                &config,
-            )
-            .await?;
+            // Determine which workspaces to index
+            let targets = if let Some(w) = workspace {
+                // Specific workspace requested
+                vec![(w, path)]
+            } else if !config.workspaces.is_empty() {
+                // No workspace specified, but we have some in config - DO ALL
+                config
+                    .workspaces
+                    .iter()
+                    .map(|(name, p)| (name.clone(), Some(p.clone())))
+                    .collect()
+            } else {
+                // No workspace specified and none in config - use default
+                vec![("default".to_string(), path)]
+            };
+
+            for (ws_name, ws_path) in targets {
+                index::index_codebase(
+                    index::IndexOptions {
+                        path: ws_path,
+                        db_path: None,
+                        update,
+                        force,
+                        workspace: ws_name,
+                        batch_size: Some(config.batch_size),
+                        threads: config.threads,
+                    },
+                    &config,
+                )
+                .await?;
+            }
         }
         Commands::Search {
             query,
