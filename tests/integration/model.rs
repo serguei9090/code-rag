@@ -42,7 +42,7 @@ async fn test_local_model_loading() {
     }
 
     // 1. Initialize Storage
-    let storage = Storage::new(&db_path)
+    let storage = Storage::new(&db_path, "code_chunks")
         .await
         .expect("Failed to create storage");
     // 2. Initialize Embedder with local path

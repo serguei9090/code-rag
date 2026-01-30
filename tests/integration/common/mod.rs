@@ -26,7 +26,7 @@ pub async fn setup_test_env(test_name: &str) -> (Storage, Embedder, CodeChunker,
         fs::remove_dir_all(&db_path).unwrap_or(());
     }
 
-    let storage = Storage::new(&db_path)
+    let storage = Storage::new(&db_path, "code_chunks")
         .await
         .expect("Failed to create storage");
     let embedder = Embedder::new(

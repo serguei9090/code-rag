@@ -5,6 +5,7 @@ use axum::{
 };
 use code_rag::server::workspace_manager::WorkspaceManager;
 use code_rag::server::{create_router, AppState, ServerStartConfig};
+use code_rag::storage::Storage;
 
 use common::{cleanup_test_db, setup_test_env, TEST_ASSETS_PATH};
 use std::fs;
@@ -16,13 +17,21 @@ use tower::ServiceExt;
 async fn test_workspace_isolation() {
     // 1. Setup Test Environment
     // We get a root temp dir.
-    let (root_storage, embedder, chunker, root_db_path) = setup_test_env("isolation_test").await;
+    let (_root_storage, embedder, chunker, root_db_path) = setup_test_env("isolation_test").await;
     // We won't use root_storage directly for adding chunks, but we needed the env setup.
     let embedder = Arc::new(embedder);
 
     // 2. Prepare Data for Workspace A
-    // Logical Isolation: We use the SAME storage instance (root_storage)
-    // but different workspace IDs ("workspace_a" and "workspace_b").
+    // Physical Isolation: WorkspaceManager expects nested directories.
+    let db_path_a = Path::new(&root_db_path).join("workspace_a");
+    fs::create_dir_all(&db_path_a).expect("Failed to create workspace_a dir");
+    let storage_a = Storage::new(&db_path_a.to_string_lossy(), "code_chunks")
+        .await
+        .expect("Failed to create storage_a");
+    storage_a
+        .init(embedder.dim())
+        .await
+        .expect("Failed to init storage_a");
 
     // Index file for A
     let path_a = Path::new(TEST_ASSETS_PATH).join("test.rs");
@@ -35,7 +44,7 @@ async fn test_workspace_isolation() {
     let (ids_a, filenames_a, codes_a, starts_a, ends_a, mtimes_a, calls_a) =
         common::prepare_chunks(&chunks_a);
 
-    root_storage
+    storage_a
         .add_chunks(
             "workspace_a", // Must match the URL param later
             ids_a,
@@ -52,6 +61,16 @@ async fn test_workspace_isolation() {
 
     // 3. Prepare Data for Workspace B
     // Index DIFFERENT content for B
+    let db_path_b = Path::new(&root_db_path).join("workspace_b");
+    fs::create_dir_all(&db_path_b).expect("Failed to create workspace_b dir");
+    let storage_b = Storage::new(&db_path_b.to_string_lossy(), "code_chunks")
+        .await
+        .expect("Failed to create storage_b");
+    storage_b
+        .init(embedder.dim())
+        .await
+        .expect("Failed to init storage_b");
+
     let code_b = "fn unique_function_b() { println!(\"I am B\"); }";
     let mut reader_b = std::io::Cursor::new(code_b.as_bytes());
     let chunks_b = chunker.chunk_file("unique_b.rs", &mut reader_b, 0).unwrap();
@@ -61,7 +80,7 @@ async fn test_workspace_isolation() {
     let (ids_b, filenames_b, codes_b, starts_b, ends_b, mtimes_b, calls_b) =
         common::prepare_chunks(&chunks_b);
 
-    root_storage
+    storage_b
         .add_chunks(
             "workspace_b", // Must match the URL param later
             ids_b,
