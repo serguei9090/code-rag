@@ -1,5 +1,11 @@
 # Code RAG – Local Code Search with Embeddings
 
+## This is a personal learning project created for educational purposes and to explore different code concepts with ai concepts. 
+
+* **Status:** Personal sandbox / Portfolio piece.
+* **License:** This project is open-source and available for public educational use under the MIT License.
+* **Purpose:** Academic research and technical skill development.
+
 ![Project Status](https://img.shields.io/badge/Status-Active_Development-green)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Rust Version](https://img.shields.io/badge/rustc-1.75+-orange)
